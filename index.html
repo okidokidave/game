@@ -60,6 +60,8 @@
         <ul id="endings-list" class="endings-list"></ul>
       </details>
 
+      <button id="btn-share" class="btn share-open">📤 친구에게 공유하기</button>
+
       <details class="card">
         <summary>진행 현황</summary>
         <dl class="stats">
@@ -91,7 +93,6 @@
             <button data-value="auto">자동</button><button data-value="light">밝게</button><button data-value="dark">어둡게</button>
           </div>
         </div>
-        <button id="btn-share" class="btn small">🔗 공유하기</button>
         <button id="btn-reset" class="btn small danger">기록 초기화</button>
       </details>
     </aside>
@@ -106,9 +107,19 @@
     </nav>
   </footer>
 
+  <dialog id="share-dialog" class="share-dialog">
+    <div class="share-head">
+      <strong>공유하기</strong>
+      <button class="share-close link" aria-label="닫기">✕</button>
+    </div>
+    <p class="share-preview"></p>
+    <div class="share-grid"></div>
+  </dialog>
+
   <div id="toast" class="toast" hidden></div>
 
   <script src="js/ads.js"></script>
+  <script src="js/share.js"></script>
   <script src="js/illustrations.js"></script>
   <!-- 이야기 파일: 새 게임북을 만들면 여기에 한 줄 추가 -->
   <script src="js/stories/mansion.js"></script>

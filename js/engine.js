@@ -191,6 +191,7 @@
 
     const choices = scene.ending
       ? [
+          { label: "이 엔딩 공유하기", action: () => share(scene.ending) },
           { label: "처음부터 다시", action: startNew },
           { label: "타이틀로", action: renderTitle },
         ]
@@ -299,20 +300,12 @@
     });
   });
 
-  async function share() {
+  function share(ending) {
     const seen = storage.get(KEYS.endings, []).length;
-    const text = `「${STORY.title}」에서 엔딩 ${seen}/${allEndings.length}개를 찾았어요! 당신은 몇 개나 찾을 수 있을까요?`;
-    const url = `${location.href.split("#")[0]}#${STORY.id}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: STORY.title, text, url });
-        return;
-      }
-      await navigator.clipboard.writeText(`${text}\n${url}`);
-      toast("링크를 복사했어요");
-    } catch (e) {
-      if (e.name !== "AbortError") toast("공유하지 못했어요");
-    }
+    const text = ending
+      ? `「${STORY.title}」에서 「${ending.title}」 엔딩을 봤어요! (${seen}/${allEndings.length}) 당신은 어떤 결말을 맞이할까요?`
+      : `「${STORY.title}」에서 엔딩 ${seen}/${allEndings.length}개를 찾았어요! 당신은 몇 개나 찾을 수 있을까요?`;
+    Share.open({ title: STORY.title, text, path: `#${STORY.id}` });
   }
 
   function resetAll() {
@@ -328,11 +321,12 @@
   $("btn-home").addEventListener("click", renderTitle);
   $("btn-undo").addEventListener("click", undo);
   $("btn-undo-top").addEventListener("click", undo);
-  $("btn-share").addEventListener("click", share);
+  $("btn-share").addEventListener("click", () => share());
   $("btn-reset").addEventListener("click", resetAll);
 
   window.addEventListener("hashchange", loadStory);
 
+  Share.init({ onNotify: toast });
   applySettings();
   loadStory();
 })();
