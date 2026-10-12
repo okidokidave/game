@@ -2,6 +2,7 @@
  * 장면 삽화 (SVG)
  * story.js의 image 값이 여기 있는 키 이름이면 이 그림이 쓰입니다.
  * 직접 그린 그림이나 이미지 파일을 쓰려면 image에 "img/파일이름.png"처럼 경로를 적으세요.
+ * __ID__는 화면에 그릴 때 고유한 ID로 바뀝니다 (그라디언트 ID 충돌 방지).
  */
 const ILLUSTRATIONS = (() => {
   const C = {
@@ -21,10 +22,10 @@ const ILLUSTRATIONS = (() => {
 
   const frame = (body, { sky = C.sky, low = C.skyLow } = {}) =>
     `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
-      <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <defs><linearGradient id="__ID__" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="${sky}"/><stop offset="1" stop-color="${low}"/>
       </linearGradient></defs>
-      <rect width="320" height="180" fill="url(#g)"/>${body}</svg>`;
+      <rect width="320" height="180" fill="url(#__ID__)"/>${body}</svg>`;
 
   const rain = (n = 40, color = "rgba(180,200,230,0.35)") => {
     let s = "";
@@ -67,7 +68,223 @@ const ILLUSTRATIONS = (() => {
     return s;
   };
 
+  const catSil = (x, y, s = 1, color = C.sil, eyes = "#f2d14b") => `
+    <g transform="translate(${x} ${y}) scale(${s})">
+      <path d="M14 0 Q34 -4 30 -30 Q28 -40 36 -44" stroke="${color}" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="0" cy="-14" rx="16" ry="18" fill="${color}"/>
+      <circle cx="-2" cy="-38" r="11" fill="${color}"/>
+      <polygon points="-12,-42 -10,-56 -3,-46" fill="${color}"/>
+      <polygon points="8,-42 6,-56 -1,-46" fill="${color}"/>
+      <ellipse cx="-6" cy="-39" rx="2.2" ry="3" fill="${eyes}"/>
+      <ellipse cx="3" cy="-39" rx="2.2" ry="3" fill="${eyes}"/>
+      <circle cx="-2" cy="-26" r="2.5" fill="#d9d9d9"/>
+    </g>`;
+
+  const smoke = (x, y) =>
+    [0, 1, 2]
+      .map(
+        (i) => `<path d="M${x} ${y} q-5 -8 0 -16 q5 -8 0 -16" stroke="rgba(220,220,220,0.55)" stroke-width="2" fill="none" stroke-linecap="round">
+        <animate attributeName="opacity" values="0;0.8;0" dur="3s" begin="${i}s" repeatCount="indefinite"/>
+        <animateTransform attributeName="transform" type="translate" values="0 0; ${4 - i * 3} -18" dur="3s" begin="${i}s" repeatCount="indefinite"/>
+      </path>`
+      )
+      .join("");
+
   return {
+    garden: frame(`
+      <rect y="130" width="320" height="50" fill="#141a14"/>
+      <circle cx="60" cy="118" r="16" fill="#1d2a1d"/><circle cx="84" cy="124" r="12" fill="#1d2a1d"/>
+      <circle cx="58" cy="114" r="3" fill="#a33b3b"/><circle cx="80" cy="120" r="3" fill="#a33b3b"/>
+      <ellipse cx="150" cy="140" rx="26" ry="8" fill="#3a3f4d"/>
+      <rect x="124" y="118" width="52" height="22" fill="#353b4c"/>
+      <ellipse cx="150" cy="118" rx="26" ry="6" fill="#0a0c12"/>
+      <rect x="128" y="88" width="4" height="30" fill="#4a3324"/><rect x="168" y="88" width="4" height="30" fill="#4a3324"/><rect x="124" y="84" width="52" height="5" fill="#4a3324"/>
+      <rect x="200" y="114" width="20" height="20" fill="#59606e"/>
+      <circle cx="210" cy="88" r="7" fill="#7a8190"/><path d="M200 114 Q210 92 220 114Z" fill="#7a8190"/>
+      <path d="M200 100 Q186 88 194 80 M220 100 Q234 88 226 80" stroke="#7a8190" stroke-width="5" fill="none"/>
+      <path d="M248 132 V96 L274 80 L300 96 V132Z" fill="rgba(200,240,220,0.25)" stroke="rgba(220,255,235,0.4)"/>
+      ${rain(26)}`),
+
+    well: frame(`
+      <rect y="120" width="320" height="60" fill="#10131c"/>
+      <ellipse cx="160" cy="120" rx="110" ry="40" fill="#353b4c"/>
+      <ellipse cx="160" cy="116" rx="92" ry="30" fill="#05070c"/>
+      <ellipse cx="140" cy="116" rx="13" ry="10" fill="rgba(200,190,170,0.35)"/>
+      <ellipse cx="180" cy="114" rx="13" ry="10" fill="rgba(170,220,255,0.35)"/>
+      <path d="M176 140 Q178 124 182 118 M182 140 Q186 126 190 120" stroke="rgba(220,240,255,0.6)" stroke-width="4" fill="none" stroke-linecap="round"/>
+      ${rain(20)}`, { sky: "#0f131d", low: "#1a2030" }),
+
+    statue: frame(`
+      <rect y="150" width="320" height="30" fill="#10131c"/>
+      <rect x="120" y="128" width="80" height="24" fill="#4a505e"/>
+      <rect x="132" y="134" width="56" height="2" fill="#2a2f3a"/><rect x="132" y="140" width="56" height="2" fill="#2a2f3a"/>
+      <path d="M136 128 Q160 60 184 128Z" fill="#7a8190"/>
+      <circle cx="160" cy="54" r="13" fill="#8a919e"/>
+      <path d="M146 80 Q100 60 96 30 Q120 50 150 70Z" fill="#6a717e"/>
+      <path d="M174 80 Q220 60 224 30 Q200 50 170 70Z" fill="#6a717e"/>
+      <path d="M150 90 L118 104 M170 90 L202 104" stroke="#8a919e" stroke-width="7" stroke-linecap="round"/>
+      <path d="M140 110 Q150 116 146 128" stroke="#3d5a3d" stroke-width="3" fill="none"/>
+      <circle cx="155" cy="54" r="1.5" fill="#222"/><circle cx="165" cy="54" r="1.5" fill="#222"/>
+      <path d="M155 56 L154 66" stroke="rgba(150,180,220,0.6)"/>
+      ${rain(26)}`),
+
+    greenhouse: frame(`
+      <rect width="320" height="180" fill="#0f1a16"/>
+      <path d="M20 180 V60 L160 10 L300 60 V180" fill="rgba(180,240,210,0.08)" stroke="rgba(200,255,230,0.35)" stroke-width="2"/>
+      <path d="M90 180 V36 M160 180 V10 M230 180 V36 M20 110 H300" stroke="rgba(200,255,230,0.25)" stroke-width="2"/>
+      ${[[60, 150], [100, 140], [140, 155], [190, 145], [230, 152], [270, 142], [120, 128], [210, 130]]
+        .map(([x, y]) => `<line x1="${x}" y1="${y}" x2="${x}" y2="180" stroke="#2d5a3d" stroke-width="2"/>
+          <circle cx="${x}" cy="${y}" r="7" fill="#f4f7ff"/><circle cx="${x}" cy="${y}" r="14" fill="rgba(240,248,255,0.15)"/>`)
+        .join("")}
+      <ellipse cx="170" cy="168" rx="40" ry="8" fill="#0a120e"/>`),
+
+    cat: frame(`
+      <rect width="320" height="180" fill="#1f1a16"/>
+      <rect y="110" width="320" height="8" fill="${C.woodLight}"/>
+      ${[...Array(12)].map((_, i) => `<rect x="${10 + i * 28}" y="118" width="6" height="62" fill="${C.wood}"/>`).join("")}
+      ${catSil(160, 110, 1.4)}
+      <circle cx="157" cy="74" r="3" fill="#cfd4dc"/>
+      ${candle(40, 90)}${candle(280, 90)}`),
+
+    shadowcat: frame(`
+      <rect width="320" height="180" fill="#120f0d"/>
+      ${catSil(170, 200, 4.2, "#050404", "#ff4a3a")}
+      ${catSil(60, 165, 0.7)}
+      <circle cx="60" cy="146" r="2" fill="#cfd4dc"/>`, { sky: "#120f0d", low: "#2a1a14" }),
+
+    catdoor: frame(`
+      <rect width="320" height="180" fill="#120e0b"/>
+      <path d="M0 180 Q160 90 320 180Z" fill="#2a2018"/>
+      <path d="M120 180 V120 Q160 80 200 120 V180Z" fill="#1d2a40"/>
+      <circle cx="150" cy="110" r="1.5" fill="#fff"/><circle cx="180" cy="104" r="1.5" fill="#fff"/><circle cx="168" cy="122" r="1" fill="#fff"/>
+      ${catSil(160, 172, 0.8)}
+      <circle cx="158" cy="146" r="2" fill="#cfd4dc"/>`),
+
+    catroad: frame(`
+      <path d="M0 140 Q160 120 320 140 V180 H0Z" fill="#20283a"/>
+      <path d="M130 180 Q160 140 175 120 L182 120 Q172 140 190 180Z" fill="#3a4256"/>
+      <rect x="230" y="70" width="4" height="70" fill="#111"/>
+      <path d="M222 70 H246" stroke="#111" stroke-width="4"/>
+      <polygon points="236,72 210,140 262,140" fill="rgba(255,220,150,0.18)"/>
+      <circle cx="236" cy="74" r="5" fill="#ffd88a"/>
+      ${catSil(178, 128, 0.5)}
+      <circle cx="40" cy="30" r="1.5" fill="#fff"/><circle cx="100" cy="20" r="1.5" fill="#fff"/><circle cx="280" cy="40" r="1.5" fill="#fff"/>`, { sky: "#141a2a", low: "#2a3350" }),
+
+    cathome: frame(`
+      <rect width="320" height="180" fill="#f2e6d0"/>
+      <rect x="60" y="20" width="200" height="110" fill="#bcd6ea"/>
+      <circle cx="210" cy="56" r="18" fill="#fff4c2"/>
+      <line x1="160" y1="20" x2="160" y2="130" stroke="#f2e6d0" stroke-width="6"/>
+      <line x1="60" y1="75" x2="260" y2="75" stroke="#f2e6d0" stroke-width="6"/>
+      <rect x="40" y="130" width="240" height="14" fill="#c9a77a"/>
+      <rect x="0" y="144" width="320" height="36" fill="#e8d8bc"/>
+      <path d="M120 130 Q122 112 150 110 Q178 108 190 120 Q196 130 190 130Z" fill="#111"/>
+      <circle cx="122" cy="118" r="10" fill="#111"/>
+      <polygon points="114,112 116,100 122,108" fill="#111"/><polygon points="126,108 130,100 131,112" fill="#111"/>
+      <path d="M118 118 q3 2 6 0" stroke="#f2d14b" stroke-width="1.5" fill="none"/>
+      <circle cx="124" cy="128" r="2.5" fill="#cfd4dc"/>
+      <path d="M190 126 Q206 128 204 116" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>`, { sky: "#f2e6d0", low: "#f2e6d0" }),
+
+    parlor: frame(`
+      <rect width="320" height="180" fill="#1e1714"/>
+      <rect y="140" width="320" height="40" fill="#2b1f19"/>
+      <rect x="240" y="60" width="70" height="80" fill="#2a2420"/><rect x="250" y="80" width="50" height="60" fill="#0c0908"/>
+      <path d="M30 140 V100 Q30 76 70 76 H120 Q130 76 130 90 V140Z" fill="#0b0b0d"/>
+      <rect x="40" y="96" width="80" height="6" fill="#e8e4da"/>
+      ${[...Array(10)].map((_, i) => `<rect x="${42 + i * 8}" y="96" width="3" height="4" fill="#111"/>`).join("")}
+      <rect x="150" y="120" width="70" height="6" fill="${C.woodLight}"/><rect x="180" y="126" width="8" height="14" fill="${C.wood}"/>
+      <rect x="158" y="114" width="10" height="6" fill="#ddd"/><rect x="174" y="114" width="10" height="6" fill="#ddd"/><rect x="190" y="114" width="10" height="6" fill="#ddd"/>
+      <rect x="207" y="96" width="4" height="24" fill="#c9a94a"/>
+      <rect x="205" y="86" width="8" height="10" fill="${C.paper}"/>
+      <line x1="209" y1="86" x2="209" y2="82" stroke="#222" stroke-width="1.5"/>
+      ${smoke(209, 80)}`),
+
+    ball: frame(`
+      <rect width="320" height="180" fill="#3a2418"/>
+      <circle cx="160" cy="20" r="18" fill="#ffd88a"/><circle cx="160" cy="20" r="60" fill="rgba(255,216,138,0.2)"/>
+      <rect y="140" width="320" height="40" fill="#5a3a24"/>
+      ${[[70, "#a33b5a"], [130, "#3b5aa3"], [190, "#a37a3b"], [250, "#5aa37a"]]
+        .map(([x, c], i) => `<g opacity="0.75"><circle cx="${x}" cy="${86 + (i % 2) * 6}" r="9" fill="rgba(240,240,255,0.7)"/>
+          <path d="M${x - 20} 150 Q${x} 90 ${x + 20} 150Z" fill="${c}"/></g>`)
+        .join("")}
+      ${candle(30, 110)}${candle(290, 110)}`),
+
+    blackout: frame(`
+      <rect width="320" height="180" fill="#020202"/>
+      <rect x="156" y="120" width="8" height="20" fill="#1a1a1a"/>
+      ${smoke(160, 118)}
+      ${[[60, 70], [100, 40], [230, 60], [270, 100], [190, 30]]
+        .map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="2" ry="1.4" fill="#555"/><ellipse cx="${x + 8}" cy="${y}" rx="2" ry="1.4" fill="#555"/>`)
+        .join("")}`, { sky: "#020202", low: "#060606" }),
+
+    cellar: frame(`
+      <rect width="320" height="180" fill="#140f0c"/>
+      ${[...Array(4)].map((_, r) => [...Array(9)].map((_, c) => `<circle cx="${22 + c * 34}" cy="${26 + r * 30}" r="11" fill="#241a14"/><circle cx="${22 + c * 34}" cy="${26 + r * 30}" r="5" fill="#3a1e22"/>`).join("")).join("")}
+      <rect y="140" width="320" height="40" fill="#221812"/>
+      <rect x="146" y="100" width="18" height="40" rx="4" fill="#4a1a24"/><rect x="151" y="88" width="8" height="14" fill="#4a1a24"/>
+      <rect x="148" y="112" width="14" height="14" fill="${C.paper}"/>
+      <circle cx="155" cy="110" r="30" fill="rgba(242,179,91,0.12)"/>
+      <path d="M178 116 L186 116 L184 128 L180 128Z" fill="rgba(255,255,255,0.4)"/><line x1="182" y1="128" x2="182" y2="138" stroke="rgba(255,255,255,0.4)"/>`),
+
+    curtain: frame(`
+      <rect width="320" height="180" fill="#1a1820"/>
+      <rect x="70" y="16" width="180" height="150" fill="#1b2133"/>
+      <circle cx="200" cy="50" r="12" fill="${C.moon}" opacity="0.5"/>
+      ${rain(14)}
+      <rect x="70" y="140" width="180" height="4" fill="#0a0c12"/>
+      ${[...Array(8)].map((_, i) => `<rect x="${78 + i * 22}" y="122" width="3" height="18" fill="#0a0c12"/>`).join("")}
+      <rect x="62" y="10" width="196" height="8" fill="${C.wood}"/>
+      <path fill="rgba(240,240,248,0.85)">
+        <animate attributeName="d" dur="4s" repeatCount="indefinite"
+          values="M70 18 Q110 18 120 18 Q112 90 124 170 Q96 168 70 170Z;
+                  M70 18 Q120 18 150 18 Q200 70 170 160 Q110 176 70 170Z;
+                  M70 18 Q110 18 120 18 Q112 90 124 170 Q96 168 70 170Z"/>
+      </path>
+      <path fill="rgba(240,240,248,0.75)">
+        <animate attributeName="d" dur="4s" begin="0.4s" repeatCount="indefinite"
+          values="M250 18 Q210 18 200 18 Q208 90 196 170 Q224 168 250 170Z;
+                  M250 18 Q190 18 172 18 Q140 80 168 158 Q220 176 250 170Z;
+                  M250 18 Q210 18 200 18 Q208 90 196 170 Q224 168 250 170Z"/>
+      </path>`),
+
+    balcony: frame(`
+      <circle cx="250" cy="40" r="14" fill="${C.moon}" opacity="0.6"/>
+      <path d="M0 110 Q160 90 320 110 V180 H0Z" fill="#141a14"/>
+      <ellipse cx="90" cy="120" rx="10" ry="4" fill="#353b4c"/>
+      <circle cx="270" cy="104" r="3" fill="#ffd88a"/><circle cx="290" cy="102" r="3" fill="#ffd88a"/>
+      <rect y="130" width="320" height="6" fill="${C.stone}"/>
+      ${[...Array(16)].map((_, i) => `<rect x="${6 + i * 20}" y="136" width="8" height="44" fill="${C.stone}"/>`).join("")}
+      <polygon points="40,180 280,100 290,108 60,180" fill="rgba(255,240,190,0.15)"/>
+      ${rain(12)}`),
+
+    butlerroom: frame(`
+      <rect width="320" height="180" fill="#1a1714"/>
+      <rect y="150" width="320" height="30" fill="#241d17"/>
+      ${[...Array(6)].map((_, i) => `<g transform="translate(${20 + i * 22} 20)"><line x1="10" y1="0" x2="10" y2="6" stroke="#555"/>
+        <path d="M0 10 L10 4 L20 10 L18 70 H2Z" fill="#0b0b0b"/><polygon points="7,10 10,20 13,10" fill="#ddd"/></g>`).join("")}
+      <rect x="180" y="110" width="120" height="8" fill="${C.woodLight}"/><rect x="190" y="118" width="8" height="32" fill="${C.wood}"/><rect x="282" y="118" width="8" height="32" fill="${C.wood}"/>
+      <rect x="210" y="98" width="60" height="12" fill="#5a2a1a"/><rect x="214" y="96" width="52" height="4" fill="${C.paper}"/>
+      ${candle(194, 96)}`),
+
+    ledger: frame(`
+      <rect width="320" height="180" fill="#2a1c14"/>
+      <path d="M30 30 H160 V170 H30Z" fill="#e6dcc4"/><path d="M160 30 H290 V170 H160Z" fill="#ddd2b8"/>
+      ${[...Array(10)].map((_, i) => `<line x1="44" y1="${46 + i * 12}" x2="146" y2="${46 + i * 12}" stroke="#8a7a66" stroke-width="1.5" opacity="0.6"/>`).join("")}
+      ${[...Array(7)].map((_, i) => `<line x1="174" y1="${46 + i * 12}" x2="276" y2="${46 + i * 12}" stroke="#8a7a66" stroke-width="1.5" opacity="0.6"/>`).join("")}
+      <line x1="174" y1="${46 + 7 * 12}" x2="236" y2="${46 + 7 * 12}" stroke="#7a1a1a" stroke-width="2.5"/>
+      <rect x="240" y="${36 + 7 * 12}" width="36" height="14" fill="none" stroke="#7a1a1a" stroke-dasharray="3 2"/>
+      <line x1="250" y1="160" x2="300" y2="120" stroke="#111" stroke-width="3"/>`),
+
+    truck: frame(`
+      <path d="M0 120 Q120 70 220 90 T320 80 V180 H0Z" fill="${C.ground}"/>
+      ${mansionSil(30, 40, 0.4)}
+      <path d="M0 180 L140 130 L200 130 L320 180Z" fill="#1a1d26"/>
+      <rect x="170" y="110" width="80" height="34" fill="#2a2f3a"/><rect x="250" y="120" width="30" height="24" fill="#2a2f3a"/>
+      <circle cx="190" cy="148" r="8" fill="#05060a"/><circle cx="262" cy="148" r="8" fill="#05060a"/>
+      <circle cx="278" cy="134" r="4" fill="#ffe6a0"/>
+      <polygon points="282,130 320,118 320,150 282,138" fill="rgba(255,230,160,0.2)"/>
+      ${rain(40)}`),
+
     car: frame(`
       <circle cx="260" cy="30" r="14" fill="${C.moon}" opacity="0.5"/>
       <path d="M0 110 Q120 60 220 80 T320 70 V180 H0Z" fill="${C.ground}"/>
@@ -124,7 +341,8 @@ const ILLUSTRATIONS = (() => {
       <rect x="58" y="74" width="24" height="26" fill="#1a1512"/>
       <rect x="130" y="70" width="36" height="70" fill="#120e0b"/>
       <path d="M130 70 Q148 54 166 70" fill="#120e0b"/>
-      ${candle(30, 120)}${candle(116, 116)}${candle(180, 118)}`),
+      ${candle(30, 120)}${candle(116, 116)}${candle(180, 118)}
+      ${catSil(262, 84, 0.45)}`),
 
     portrait: frame(`
       <rect width="320" height="180" fill="#1f1a16"/>

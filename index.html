@@ -3,11 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="선택에 따라 결말이 달라지는 텍스트 게임북. 폭우 속 낡은 저택에서 9개의 엔딩을 찾아보세요.">
+  <meta name="description" content="선택에 따라 결말이 달라지는 텍스트 게임북. 수많은 엔딩을 찾아보세요.">
   <title>게임북</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="#">게임북</a>
+      <nav id="story-nav" class="story-nav" aria-label="게임 바로가기"></nav>
+    </div>
+  </header>
+
   <div class="layout">
     <main id="app">
       <!-- 타이틀 화면 -->
@@ -92,14 +99,19 @@
 
   <footer class="footer">
     <div class="ad-slot" data-slot="footer"></div>
-    <nav><a href="privacy.html">개인정보처리방침</a></nav>
+    <nav>
+      <a href="privacy.html">개인정보처리방침</a>
+      <span aria-hidden="true">·</span>
+      문의 <a href="mailto:maserati910915@gmail.com">maserati910915@gmail.com</a>
+    </nav>
   </footer>
 
   <div id="toast" class="toast" hidden></div>
 
   <script src="js/ads.js"></script>
   <script src="js/illustrations.js"></script>
-  <script src="js/story.js"></script>
+  <!-- 이야기 파일: 새 게임북을 만들면 여기에 한 줄 추가 -->
+  <script src="js/stories/mansion.js"></script>
   <script src="js/engine.js"></script>
 </body>
 </html>

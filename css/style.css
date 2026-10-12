@@ -71,6 +71,59 @@ button {
   color: inherit;
 }
 
+/* ───── 상단 헤더 ───── */
+.site-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.site-header-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--text);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.story-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.story-link {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.story-link[aria-current="page"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.story-link.soon {
+  color: var(--muted);
+  font-weight: 400;
+  border-style: dashed;
+}
+
 /* ───── 레이아웃 ───── */
 .layout {
   max-width: 1040px;
@@ -365,6 +418,8 @@ h1 {
   list-style: none;
   padding: 0;
   margin: 0;
+  max-height: 360px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;

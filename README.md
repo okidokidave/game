@@ -3,15 +3,22 @@
 선택에 따라 이야기가 갈라지는 텍스트 게임북 사이트입니다. 빌드 도구 없이 `index.html`을 브라우저로 열면 바로 실행됩니다.
 
 ## 구조
-- `js/story.js`: 스토리 데이터 (장면, 선택지, 아이템, 엔딩, 엔딩 힌트)
+- `js/stories/*.js`: 이야기 파일 (한 파일에 이야기 하나)
+  - `mansion.js`: 「자정의 저택」 장면 69개, 엔딩 30개
 - `js/illustrations.js`: 장면 삽화 (SVG)
 - `js/engine.js`: 게임 엔진 (장면 표시, 아이템, 저장/이어하기, 되돌리기, 사이드바)
 - `js/ads.js`: Google AdSense 설정
 - `css/style.css`: 스타일 (사이드바 레이아웃, 다크모드, 모바일 대응)
 - `privacy.html`: 개인정보처리방침 (AdSense 승인에 필요)
 
-## 스토리 작성법
-`js/story.js`의 `scenes`에 장면을 추가합니다.
+## 새 이야기(게임) 추가하기
+1. `js/stories/mansion.js`를 복사해 `js/stories/새이름.js`를 만들고 `id`, `title`, `intro`, `cover`, `start`, `scenes`를 고칩니다.
+2. `index.html` 아래쪽 `<script src="js/stories/mansion.js">` 밑에 한 줄을 추가합니다.
+
+상단 헤더에 바로가기 버튼이 자동으로 생기고, `index.html#새아이디` 주소로 바로 들어갈 수 있습니다. 엔딩 도감과 저장 기록은 이야기마다 따로 관리됩니다.
+
+## 장면 작성법
+이야기 파일의 `scenes`에 장면을 추가합니다.
 
 ```js
 hall: {

@@ -1,10 +1,6 @@
 (() => {
-  const KEYS = {
-    save: "gamebook:save",
-    endings: "gamebook:endings",
-    stats: "gamebook:stats",
-    settings: "gamebook:settings",
-  };
+  const STORIES = window.STORIES || [];
+  const SETTINGS_KEY = "gamebook:settings";
   const ENDING_LABELS = { true: "진 엔딩", good: "해피 엔딩", normal: "노멀 엔딩", bad: "배드 엔딩" };
 
   // localStorage는 사생활 보호 모드 등에서 실패할 수 있으므로 감싸서 사용
@@ -36,12 +32,37 @@
     return node;
   };
 
-  const allEndings = Object.entries(STORY.scenes).filter(([, s]) => s.ending);
-  const sceneCount = Object.keys(STORY.scenes).length;
+  // 현재 이야기 — 주소의 #아이디로 고름 (예: index.html#mansion)
+  let STORY, KEYS, allEndings, sceneCount;
 
   // state: { scene, items, history: [{ scene, items, label }] }
   let state = null;
   let newEnding = null;
+  let artId = 0;
+
+  function loadStory() {
+    const id = location.hash.slice(1);
+    STORY = STORIES.find((s) => s.id === id) || STORIES[0];
+    KEYS = {
+      save: `gamebook:${STORY.id}:save`,
+      endings: `gamebook:${STORY.id}:endings`,
+      stats: `gamebook:${STORY.id}:stats`,
+    };
+    allEndings = Object.entries(STORY.scenes).filter(([, s]) => s.ending);
+    sceneCount = Object.keys(STORY.scenes).length;
+    renderNav();
+    renderTitle();
+  }
+
+  function renderNav() {
+    const links = STORIES.map((s) => {
+      const a = el("a", { href: `#${s.id}`, className: "story-link", textContent: s.title });
+      if (s === STORY) a.setAttribute("aria-current", "page");
+      return a;
+    });
+    links.push(el("span", { className: "story-link soon", textContent: "새 이야기 준비 중" }));
+    $("story-nav").replaceChildren(...links);
+  }
 
   const getStats = () => storage.get(KEYS.stats, { plays: 0, visited: [] });
 
@@ -63,7 +84,9 @@
     target.hidden = !image;
     if (!image) return;
     if (ILLUSTRATIONS[image]) {
-      target.innerHTML = ILLUSTRATIONS[image];
+      target.innerHTML = ILLUSTRATIONS[image].replaceAll("__ID__", `art${++artId}`);
+      const svg = target.querySelector("svg");
+      if (svg && matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
     } else {
       target.append(el("img", { src: image, alt: "" }));
     }
@@ -75,7 +98,7 @@
     document.title = STORY.title;
     $("story-title").textContent = STORY.title;
     $("story-intro").textContent = STORY.intro;
-    renderArt($("title-art"), "mansion");
+    renderArt($("title-art"), STORY.cover);
 
     const save = storage.get(KEYS.save, null);
     $("btn-continue").hidden = !(save && STORY.scenes[save.scene]);
@@ -253,7 +276,7 @@
 
   // ───── 설정 ─────
   function applySettings() {
-    const settings = storage.get(KEYS.settings, { font: "md", theme: "auto" });
+    const settings = storage.get(SETTINGS_KEY, { font: "md", theme: "auto" });
     const root = document.documentElement;
     root.dataset.font = settings.font;
     if (settings.theme === "auto") delete root.dataset.theme;
@@ -270,8 +293,8 @@
     group.addEventListener("click", (e) => {
       const value = e.target.dataset.value;
       if (!value) return;
-      const settings = storage.get(KEYS.settings, { font: "md", theme: "auto" });
-      storage.set(KEYS.settings, { ...settings, [group.dataset.setting]: value });
+      const settings = storage.get(SETTINGS_KEY, { font: "md", theme: "auto" });
+      storage.set(SETTINGS_KEY, { ...settings, [group.dataset.setting]: value });
       applySettings();
     });
   });
@@ -279,7 +302,7 @@
   async function share() {
     const seen = storage.get(KEYS.endings, []).length;
     const text = `「${STORY.title}」에서 엔딩 ${seen}/${allEndings.length}개를 찾았어요! 당신은 몇 개나 찾을 수 있을까요?`;
-    const url = location.href.split("#")[0];
+    const url = `${location.href.split("#")[0]}#${STORY.id}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: STORY.title, text, url });
@@ -293,7 +316,7 @@
   }
 
   function resetAll() {
-    if (!confirm("엔딩 도감, 진행 현황, 저장된 게임을 모두 지울까요?")) return;
+    if (!confirm(`「${STORY.title}」의 엔딩 도감, 진행 현황, 저장된 게임을 모두 지울까요?`)) return;
     [KEYS.save, KEYS.endings, KEYS.stats].forEach(storage.remove);
     renderTitle();
     toast("기록을 초기화했어요");
@@ -308,6 +331,8 @@
   $("btn-share").addEventListener("click", share);
   $("btn-reset").addEventListener("click", resetAll);
 
+  window.addEventListener("hashchange", loadStory);
+
   applySettings();
-  renderTitle();
+  loadStory();
 })();
