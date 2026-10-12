@@ -3,47 +3,102 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="선택에 따라 결말이 달라지는 텍스트 게임북. 폭우 속 낡은 저택에서 9개의 엔딩을 찾아보세요.">
   <title>게임북</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <main id="app">
-    <!-- 타이틀 화면 -->
-    <section id="title-screen" class="screen">
-      <p class="eyebrow">선택형 게임북</p>
-      <h1 id="story-title"></h1>
-      <p id="story-intro" class="intro"></p>
-      <div class="menu">
-        <button id="btn-continue" class="btn primary" hidden>이어하기</button>
-        <button id="btn-new" class="btn">처음부터</button>
-        <button id="btn-endings" class="btn ghost">엔딩 도감 <span id="ending-count"></span></button>
-      </div>
-    </section>
+  <div class="layout">
+    <main id="app">
+      <!-- 타이틀 화면 -->
+      <section id="title-screen" class="screen">
+        <div id="title-art" class="art"></div>
+        <p class="eyebrow">선택형 게임북</p>
+        <h1 id="story-title"></h1>
+        <p id="story-intro" class="intro"></p>
+        <div class="menu">
+          <button id="btn-continue" class="btn primary" hidden>이어하기</button>
+          <button id="btn-new" class="btn">처음부터</button>
+        </div>
+      </section>
 
-    <!-- 게임 화면 -->
-    <section id="game-screen" class="screen" hidden>
-      <header class="topbar">
-        <button id="btn-home" class="link">← 타이틀</button>
-        <div id="inventory" class="inventory"></div>
-      </header>
-      <article id="scene" class="scene">
-        <div id="ending-badge" class="ending-badge" hidden></div>
-        <div id="scene-text" class="scene-text"></div>
-        <p id="scene-gain" class="gain" hidden></p>
-      </article>
-      <div id="choices" class="choices"></div>
-    </section>
+      <!-- 게임 화면 -->
+      <section id="game-screen" class="screen" hidden>
+        <header class="topbar">
+          <button id="btn-home" class="link">← 타이틀</button>
+          <button id="btn-undo-top" class="link">↶ 되돌리기</button>
+        </header>
+        <article id="scene" class="scene">
+          <div id="scene-art" class="art"></div>
+          <div class="scene-body">
+            <div id="ending-badge" class="ending-badge" hidden></div>
+            <div id="scene-text" class="scene-text"></div>
+            <p id="scene-gain" class="gain" hidden></p>
+          </div>
+        </article>
+        <div id="choices" class="choices"></div>
+      </section>
+    </main>
 
-    <!-- 엔딩 도감 -->
-    <section id="endings-screen" class="screen" hidden>
-      <header class="topbar">
-        <button id="btn-endings-back" class="link">← 타이틀</button>
-      </header>
-      <h2>엔딩 도감</h2>
-      <ul id="endings-list" class="endings-list"></ul>
-    </section>
-  </main>
+    <!-- 사이드바 -->
+    <aside id="sidebar" class="sidebar">
+      <details class="card" open>
+        <summary>소지품</summary>
+        <div id="side-inventory" class="inventory"></div>
+      </details>
 
+      <details class="card" open>
+        <summary>엔딩 도감 <span id="ending-count" class="count"></span></summary>
+        <div class="progress"><div id="ending-bar" class="bar"></div></div>
+        <ul id="endings-list" class="endings-list"></ul>
+      </details>
+
+      <details class="card">
+        <summary>진행 현황</summary>
+        <dl class="stats">
+          <dt>탐험률</dt><dd id="stat-explore"></dd>
+          <dt>플레이 횟수</dt><dd id="stat-plays"></dd>
+          <dt>이번 판 선택</dt><dd id="stat-steps"></dd>
+        </dl>
+      </details>
+
+      <details class="card">
+        <summary>지나온 길</summary>
+        <ol id="history-list" class="history"></ol>
+        <button id="btn-undo" class="btn small">↶ 한 단계 되돌리기</button>
+      </details>
+
+      <div class="ad-slot" data-slot="sidebar"></div>
+
+      <details class="card">
+        <summary>설정</summary>
+        <div class="setting">
+          <span>글자 크기</span>
+          <div class="segmented" data-setting="font">
+            <button data-value="sm">작게</button><button data-value="md">보통</button><button data-value="lg">크게</button>
+          </div>
+        </div>
+        <div class="setting">
+          <span>테마</span>
+          <div class="segmented" data-setting="theme">
+            <button data-value="auto">자동</button><button data-value="light">밝게</button><button data-value="dark">어둡게</button>
+          </div>
+        </div>
+        <button id="btn-share" class="btn small">🔗 공유하기</button>
+        <button id="btn-reset" class="btn small danger">기록 초기화</button>
+      </details>
+    </aside>
+  </div>
+
+  <footer class="footer">
+    <div class="ad-slot" data-slot="footer"></div>
+    <nav><a href="privacy.html">개인정보처리방침</a></nav>
+  </footer>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="js/ads.js"></script>
+  <script src="js/illustrations.js"></script>
   <script src="js/story.js"></script>
   <script src="js/engine.js"></script>
 </body>
