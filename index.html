@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게임북</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="app">
+    <!-- 타이틀 화면 -->
+    <section id="title-screen" class="screen">
+      <p class="eyebrow">선택형 게임북</p>
+      <h1 id="story-title"></h1>
+      <p id="story-intro" class="intro"></p>
+      <div class="menu">
+        <button id="btn-continue" class="btn primary" hidden>이어하기</button>
+        <button id="btn-new" class="btn">처음부터</button>
+        <button id="btn-endings" class="btn ghost">엔딩 도감 <span id="ending-count"></span></button>
+      </div>
+    </section>
+
+    <!-- 게임 화면 -->
+    <section id="game-screen" class="screen" hidden>
+      <header class="topbar">
+        <button id="btn-home" class="link">← 타이틀</button>
+        <div id="inventory" class="inventory"></div>
+      </header>
+      <article id="scene" class="scene">
+        <div id="ending-badge" class="ending-badge" hidden></div>
+        <div id="scene-text" class="scene-text"></div>
+        <p id="scene-gain" class="gain" hidden></p>
+      </article>
+      <div id="choices" class="choices"></div>
+    </section>
+
+    <!-- 엔딩 도감 -->
+    <section id="endings-screen" class="screen" hidden>
+      <header class="topbar">
+        <button id="btn-endings-back" class="link">← 타이틀</button>
+      </header>
+      <h2>엔딩 도감</h2>
+      <ul id="endings-list" class="endings-list"></ul>
+    </section>
+  </main>
+
+  <script src="js/story.js"></script>
+  <script src="js/engine.js"></script>
+</body>
+</html>
