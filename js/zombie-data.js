@@ -13,8 +13,9 @@
  *   trust: 김 씨 신뢰도, move: "random"이면 근처 장소로 이동, fortify: 바리케이드,
  *   later: { days, event } 며칠 뒤 밤에 그 사건이 일어남, end: 엔딩 아이디, cause: 사망 원인
  *
- * 장소의 scavenge: 탐색할 때 찾는 물자 [종류, 최소, 최대], med: 구급약 찾을 확률, risk: 다칠 확률
- *   같은 장소를 여러 번 탐색하면 찾는 양이 점점 줄어듭니다.
+ * 장소의 scavenge: 탐색할 때 찾는 물자 [종류, 최소, 최대], med·ammo: 구급약·탄약을 덤으로 찾을 확률, risk: 다칠 확률
+ *   같은 장소를 두 번 탐색할 때마다 찾는 양이 1씩 줄어듭니다.
+ * 장소의 survivor: "생존자를 찾아본다" 행동으로 만날 수 있는 동료 사건 아이디
  * 문장 안의 {name}은 사건 대상 동료의 이름으로 바뀝니다.
  */
 const ZOMBIE = {
@@ -23,11 +24,11 @@ const ZOMBIE = {
   max: { food: 15, water: 15, hp: 10, mind: 10, ammo: 10, med: 5 },
 
   locations: {
-    apartment: { name: "아파트", icon: "🏢", next: ["store", "school"], desc: "익숙한 우리 집. 현관문 너머가 조용할수록 더 무섭다.", scavenge: { loot: [["food", 0, 2], ["water", 1, 2]], med: 0.1, risk: 0.15 } },
-    store: { name: "편의점", icon: "🏪", next: ["apartment", "hospital", "subway"], desc: "깨진 유리문, 반쯤 빈 진열대. 아직 남은 게 있을지도.", scavenge: { loot: [["food", 1, 3], ["water", 1, 3]], med: 0.05, risk: 0.35 } },
-    school: { name: "학교", icon: "🏫", next: ["apartment", "hospital"], desc: "운동장에 좀비들이 서성인다. 교실 안은 의외로 조용하다.", scavenge: { loot: [["food", 0, 2], ["water", 1, 3]], med: 0.05, risk: 0.25 } },
-    hospital: { name: "병원", icon: "🏥", next: ["store", "school", "subway"], desc: "약이 있지만, 가장 먼저 무너진 곳이기도 하다.", scavenge: { loot: [["water", 0, 1], ["food", 0, 1]], med: 0.7, risk: 0.4 } },
-    subway: { name: "지하철역", icon: "🚇", next: ["store", "hospital", "han"], desc: "한강으로 이어지는 터널. 어둠 속에서 무언가 움직인다.", scavenge: { loot: [["water", 0, 2], ["ammo", 0, 2]], med: 0, risk: 0.35 } },
+    apartment: { name: "아파트", icon: "🏢", next: ["store", "school"], desc: "익숙한 우리 집. 현관문 너머가 조용할수록 더 무섭다.", scavenge: { loot: [["food", 1, 2], ["water", 1, 2]], med: 0.1, ammo: 0.1, risk: 0.15 }, survivor: "apt_kim" },
+    store: { name: "편의점", icon: "🏪", next: ["apartment", "hospital", "subway"], desc: "깨진 유리문, 반쯤 빈 진열대. 아직 남은 게 있을지도.", scavenge: { loot: [["food", 1, 3], ["water", 1, 3]], med: 0.05, ammo: 0.15, risk: 0.35 }, survivor: "store_park" },
+    school: { name: "학교", icon: "🏫", next: ["apartment", "hospital"], desc: "운동장에 좀비들이 서성인다. 교실 안은 의외로 조용하다.", scavenge: { loot: [["food", 1, 2], ["water", 1, 3]], med: 0.05, ammo: 0.1, risk: 0.25 }, survivor: "school_minjun" },
+    hospital: { name: "병원", icon: "🏥", next: ["store", "school", "subway"], desc: "약이 있지만, 가장 먼저 무너진 곳이기도 하다.", scavenge: { loot: [["water", 0, 1], ["food", 0, 1]], med: 0.7, risk: 0.4 }, survivor: "hosp_jieun" },
+    subway: { name: "지하철역", icon: "🚇", next: ["store", "hospital", "han"], desc: "한강으로 이어지는 터널. 어둠 속에서 무언가 움직인다.", scavenge: { loot: [["water", 1, 2], ["ammo", 0, 2]], med: 0, risk: 0.35 }, survivor: "store_park" },
     han: { name: "한강", icon: "🌉", next: ["subway"], desc: "구조 헬기가 올 다리 아래. 강바람에 섞여 좀비들의 신음이 들린다.", scavenge: { loot: [["water", 1, 3], ["food", 0, 1]], med: 0, risk: 0.3 } },
   },
 

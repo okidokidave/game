@@ -156,6 +156,7 @@
     const r = C.doAction(s, id);
     if (!r) return;
     if (r.ended) return renderEnding(r);
+    if (r.encounter) return renderEvent(`${s.day}일째 ${s.slot ? "오후" : "아침"}`);
     const afternoon = r.next === "afternoon";
     scene({ icon: afternoon ? "☀️" : "🌤️", kicker: `${s.day}일째 ${afternoon ? "아침" : "오후"}`, title: r.title, text: r.text, changes: r.changes, notes: r.notes });
     setChoices([afternoon ? { icon: "🌤️", label: "오후가 된다", action: () => renderMorning() } : { icon: "🌙", label: "밤이 된다", action: renderNight }]);
@@ -164,9 +165,15 @@
 
   // ───── 밤 ─────
   function renderNight() {
-    const p = C.drawEvent(s);
+    C.drawEvent(s);
+    renderEvent(`${s.day}일째 밤`);
+  }
+
+  // 밤 사건 또는 낮에 만난 생존자
+  function renderEvent(kicker) {
+    const p = s.pending;
     const ev = C.getEvent(p.event);
-    scene({ icon: ev.icon, kicker: `${s.day}일째 밤`, title: ev.title, text: C.fill(ev.text, p.target) });
+    scene({ icon: ev.icon, kicker, title: ev.title, text: C.fill(ev.text, p.target) });
     setChoices(
       C.visibleChoices(s, ev).map((c, i) => {
         const st = C.choiceState(s, c);
@@ -179,9 +186,18 @@
   function decide(i) {
     const p = s.pending;
     const ev = C.getEvent(p.event);
+    const wasDay = p.day;
     const r = C.choose(s, i);
     if (!r) return;
     if (r.ended || r.night?.ended) return renderEnding(r);
+    if (wasDay) {
+      // 낮 만남이 끝나면 오후 또는 밤으로
+      const afternoon = r.next === "afternoon";
+      scene({ icon: ev.icon, kicker: `${s.day}일째 ${afternoon ? "아침" : "오후"}`, title: ev.title, text: r.text, changes: r.changes, notes: r.notes });
+      setChoices([afternoon ? { icon: "🌤️", label: "오후가 된다", action: () => renderMorning() } : { icon: "🌙", label: "밤이 된다", action: renderNight }]);
+      save();
+      return;
+    }
     const notes = [...r.notes, ...r.night.notes];
     const changes = mergeChanges(r.changes, r.night.changes);
     scene({ icon: ev.icon, kicker: `${s.day - 1}일째 밤`, title: ev.title, text: r.text, changes, notes });
@@ -290,6 +306,7 @@
     if (!s) return renderIntro();
     show("zb-game");
     if (s.phase === "night") renderNight();
+    else if (s.pending?.day) renderEvent(`${s.day}일째 ${s.slot ? "오후" : "아침"}`);
     else renderMorning("이어서 시작합니다.");
   });
   $("zb-home").addEventListener("click", renderIntro);

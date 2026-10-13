@@ -94,13 +94,13 @@ const ZombieCore = (() => {
     if (fx.fortify) s.fortified = true;
     if (fx.add && !has(s, fx.add)) {
       s.comps.push(fx.add);
-      notes.push(`${D.companions[fx.add].name}이(가) 동료가 되었다.`);
+      notes.push(`🤝 동료 합류: ${D.companions[fx.add].name}`);
     }
     if (fx.remove) {
       const id = fx.remove === "target" ? ctx.target : fx.remove;
       if (id && has(s, id)) {
         s.comps = s.comps.filter((c) => c !== id);
-        notes.push(`${compName(id)}와(과) 헤어졌다.`);
+        notes.push(`👋 동료 이탈: ${D.companions[id].name}`);
       }
     }
     if (fx.move) {
@@ -120,6 +120,8 @@ const ZombieCore = (() => {
       { id: "rest", icon: "🛏️", label: "쉰다", desc: "체력 +1, 정신력 +1" },
       { id: "fortify", icon: "🪵", label: "바리케이드를 보강한다", desc: "다음 습격 피해 -1, 정신력 +1", disabled: s.fortified ? "이미 보강했어요" : null },
     ];
+    const survivor = survivorHere(s);
+    if (survivor) list.splice(1, 0, { id: "search", icon: "🧑‍🤝‍🧑", label: "생존자를 찾아본다", desc: "이곳 어딘가에 누군가 숨어 있을지도" });
     if (s.comps.length) list.push({ id: "talk", icon: "💬", label: "동료와 이야기한다", desc: "정신력 +2" });
     for (const dest of D.locations[s.loc].next) {
       const L = D.locations[dest];
@@ -128,8 +130,16 @@ const ZombieCore = (() => {
     return list;
   }
 
+  // 이 장소에서 아직 만나지 않은 동료 사건
+  function survivorHere(s) {
+    const evId = D.locations[s.loc].survivor;
+    if (!evId || s.seen.includes(evId)) return null;
+    const ev = D.events.find((e) => e.id === evId);
+    return ev.when?.noComp && has(s, ev.when.noComp) ? null : evId;
+  }
+
   function doAction(s, id) {
-    if (s.phase !== "morning") return null;
+    if (s.phase !== "morning" || s.pending) return null;
     const L = D.locations[s.loc];
     let title = "";
     let text = "";
@@ -141,10 +151,11 @@ const ZombieCore = (() => {
       s.scavCount[s.loc] = used + 1;
       fx = {};
       for (const [k, min, max] of sc.loot) {
-        const n = Math.max(0, randInt(s, min, max) - used);
+        const n = Math.max(0, randInt(s, min, max) - Math.floor(used / 2));
         if (n) fx[k] = (fx[k] || 0) + n;
       }
-      if (rand(s) < sc.med) fx.med = 1;
+      if (rand(s) < sc.med) fx.med = (fx.med || 0) + 1;
+      if (sc.ammo && rand(s) < sc.ammo) fx.ammo = (fx.ammo || 0) + 1;
       if (has(s, "minjun")) {
         const k = pick(s, sc.loot)[0];
         fx[k] = (fx[k] || 0) + 1;
@@ -157,7 +168,31 @@ const ZombieCore = (() => {
         hurt = true;
       }
       title = "탐색";
-      text = pick(s, D.actionText.scavenge) + (used >= 2 ? " 이곳은 이미 많이 뒤졌다." : "") + (hurt ? " 그러다 좀비에게 습격당했다!" : "");
+      const found = Object.entries(fx)
+        .filter(([k, v]) => LABELS[k] && v > 0)
+        .map(([k, v]) => `${ICONS[k]} ${LABELS[k]} ${v}`);
+      text = [
+        pick(s, D.actionText.scavenge),
+        found.length ? `${found.join(", ")}을(를) 찾았다!` : "아무것도 찾지 못했다.",
+        used >= 3 ? "이곳은 이미 많이 뒤졌다. 다른 곳으로 가 보는 게 좋겠다." : "",
+        hurt ? "그러다 좀비에게 습격당했다!" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+    } else if (id === "search") {
+      const evId = survivorHere(s);
+      title = "생존자 찾기";
+      if (evId && rand(s) < 0.75) {
+        s.seen.push(evId);
+        s.pending = { event: evId, target: null, day: true };
+        s.log.push({ day: s.day, text: title });
+        return { title, text: "어딘가에서 인기척이 느껴진다…", changes: [], notes: [], encounter: evId };
+      }
+      text = "구석구석 불러 봤지만 대답이 없었다. 다시 찾아보면 만날 수 있을지도.";
+      if (rand(s) < 0.2) {
+        fx = { hp: has(s, "park") ? -1 : -2, cause: "attack" };
+        text += " 대신 소리를 듣고 좀비가 다가왔다!";
+      }
     } else if (id === "rest") {
       fx = { hp: 1, mind: 1 };
       title = "휴식";
@@ -185,15 +220,20 @@ const ZombieCore = (() => {
     const result = applyFx(s, fx, ctx);
     s.log.push({ day: s.day, text: `${title}` });
 
-    if (s.res.hp <= 0) return { title, text, ...result, ended: finish(s, deathEnding(s)) };
-    if (s.day >= D.days) return { title, text, ...result, ended: finish(s, rescueEnding(s)) };
+    return { title, text, ...result, ...advance(s) };
+  }
+
+  // 낮 행동 하나가 끝난 뒤: 사망·구조 확인, 오후 또는 밤으로
+  function advance(s) {
+    if (s.res.hp <= 0) return { ended: finish(s, deathEnding(s)) };
+    if (s.day >= D.days) return { ended: finish(s, rescueEnding(s)) };
     if (!s.slot) {
-      s.slot = 1; // 오후 행동으로
-      return { title, text, ...result, next: "afternoon" };
+      s.slot = 1;
+      return { next: "afternoon" };
     }
     s.slot = 0;
     s.phase = "night";
-    return { title, text, ...result, next: "night" };
+    return { next: "night" };
   }
 
   // ───── 밤 사건 ─────
@@ -255,17 +295,20 @@ const ZombieCore = (() => {
   const visibleChoices = (s, ev) => ev.choices.filter((c) => !(c.req?.comp && !has(s, c.req.comp)));
 
   function choose(s, choiceIndex) {
-    if (s.phase !== "night" || !s.pending) return null;
+    if (!s.pending) return null;
+    if (s.phase !== "night" && !s.pending.day) return null;
     const ev = getEvent(s.pending.event);
     const target = s.pending.target;
     const choice = visibleChoices(s, ev)[choiceIndex];
     if (!choice || !choiceState(s, choice).ok) return null;
     const outcome = weighted(s, choice.outcomes, (o) => o.p || 1);
     const result = applyFx(s, outcome.fx, { attack: ev.attack, target });
+    const dayEncounter = s.pending.day;
     s.pending = null;
     const text = fill(outcome.text, target);
     s.log.push({ day: s.day, text: `${ev.title}: ${choice.label}` });
     if (s.ending) return { text, ...result, ended: finish(s, s.ending) };
+    if (dayEncounter) return { text, ...result, ...advance(s) };
     const night = endOfDay(s);
     return { text, ...result, night };
   }
