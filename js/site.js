@@ -63,7 +63,7 @@ const Site = (() => {
     if (settings.theme === "auto") delete root.dataset.theme;
     else root.dataset.theme = settings.theme;
 
-    document.querySelectorAll(".segmented").forEach((group) => {
+    document.querySelectorAll(".segmented[data-setting]").forEach((group) => {
       group.querySelectorAll("button").forEach((b) => {
         b.classList.toggle("active", b.dataset.value === settings[group.dataset.setting]);
       });
@@ -71,7 +71,7 @@ const Site = (() => {
   }
 
   function bindSettings() {
-    document.querySelectorAll(".segmented").forEach((group) => {
+    document.querySelectorAll(".segmented[data-setting]").forEach((group) => {
       group.addEventListener("click", (e) => {
         const value = e.target.dataset.value;
         if (!value) return;

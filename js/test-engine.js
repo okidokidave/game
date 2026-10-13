@@ -159,5 +159,13 @@
   window.addEventListener("hashchange", load);
 
   Site.init({ current: "" });
+  if (TESTS.length === 0) {
+    $("page-title").textContent = "심리테스트 준비 중";
+    $("page-intro").textContent = "곧 새로운 테스트로 찾아올게요.";
+    $("btn-start").hidden = true;
+    $("btn-share").hidden = true;
+    Site.renderNav("");
+    return;
+  }
   load();
 })();

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="쉬운 단어로 가볍게 즐기는 무료 한글 십자말풀이. 가로세로 단서를 보고 빈칸을 채워 보세요.">
+  <title>십자말풀이</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html">게임북</a>
+      <nav id="story-nav" class="story-nav" aria-label="콘텐츠 바로가기"></nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main id="app">
+      <section class="puzzle-page">
+        <div class="puzzle-head">
+          <h1>십자말풀이</h1>
+          <div id="cw-picker" class="segmented cw-picker" aria-label="문제 선택"></div>
+        </div>
+        <p id="cw-status" class="puzzle-status"></p>
+
+        <div id="cw-grid" class="cw-grid"></div>
+
+        <div class="cw-entry">
+          <p id="cw-clue" class="cw-clue"></p>
+          <form id="cw-form" class="cw-form" autocomplete="off">
+            <input id="cw-input" type="text" inputmode="text" lang="ko" aria-label="정답 입력">
+            <button class="btn small primary" type="submit">입력</button>
+          </form>
+          <div class="cw-tools">
+            <button id="cw-check" class="btn small" type="button">✔ 정답 확인</button>
+            <button id="cw-hint" class="btn small" type="button">💡 한 글자 힌트</button>
+            <button id="cw-erase" class="btn small" type="button">⌫ 단어 지우기</button>
+          </div>
+        </div>
+
+        <div id="cw-done" class="puzzle-done" hidden>
+          <strong>🎉 완성!</strong>
+          <div class="done-actions">
+            <button id="cw-share-result" class="btn small">결과 공유하기</button>
+            <button id="cw-next" class="btn small primary">다음 문제</button>
+          </div>
+        </div>
+
+        <div class="cw-lists">
+          <div>
+            <h2>가로 열쇠</h2>
+            <ol id="cw-list-across" class="cw-list"></ol>
+          </div>
+          <div>
+            <h2>세로 열쇠</h2>
+            <ol id="cw-list-down" class="cw-list"></ol>
+          </div>
+        </div>
+
+        <details class="card howto">
+          <summary>푸는 방법</summary>
+          <p>칸을 누르면 그 칸이 들어간 단어의 열쇠(단서)가 나와요. 같은 칸을 한 번 더 누르면 가로와 세로가 바뀌어요.</p>
+          <p>정답을 입력창에 쓰고 <strong>입력</strong>을 누르면 칸이 채워져요. 아래 열쇠 목록을 눌러 단어를 고를 수도 있어요.</p>
+        </details>
+      </section>
+    </main>
+
+    <aside id="sidebar" class="sidebar">
+      <details class="card" open>
+        <summary>내 기록</summary>
+        <p id="cw-records" class="records-line"></p>
+        <button id="cw-reset" class="btn small">이 문제 다시 풀기</button>
+      </details>
+
+      <details class="card" open>
+        <summary>다른 콘텐츠</summary>
+        <div id="more-list" class="more-list"></div>
+      </details>
+
+      <button id="btn-share" class="btn share-open">📤 친구에게 공유하기</button>
+
+      <div class="ad-slot" data-slot="sidebar"></div>
+
+      <details class="card">
+        <summary>설정</summary>
+        <div class="setting">
+          <span>글자 크기</span>
+          <div class="segmented" data-setting="font">
+            <button data-value="sm">작게</button><button data-value="md">보통</button><button data-value="lg">크게</button>
+          </div>
+        </div>
+        <div class="setting">
+          <span>테마</span>
+          <div class="segmented" data-setting="theme">
+            <button data-value="auto">자동</button><button data-value="light">밝게</button><button data-value="dark">어둡게</button>
+          </div>
+        </div>
+      </details>
+    </aside>
+  </div>
+
+  <footer class="footer">
+    <div class="ad-slot" data-slot="footer"></div>
+    <nav>
+      <a href="privacy.html">개인정보처리방침</a>
+      <span aria-hidden="true">·</span>
+      문의 <a href="mailto:maserati910915@gmail.com">maserati910915@gmail.com</a>
+    </nav>
+  </footer>
+
+  <dialog id="share-dialog" class="share-dialog">
+    <div class="share-head">
+      <strong>공유하기</strong>
+      <button class="share-close link" aria-label="닫기">✕</button>
+    </div>
+    <p class="share-preview"></p>
+    <div class="share-grid"></div>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="js/ads.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/site.js"></script>
+  <script src="js/illustrations.js"></script>
+  <script src="js/crosswords/basic.js"></script>
+  <script src="js/crossword.js"></script>
+</body>
+</html>

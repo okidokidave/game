@@ -613,6 +613,362 @@ a.choice {
   color: var(--muted);
 }
 
+/* ───── 퍼즐 공통 ───── */
+.puzzle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.puzzle-head h1 {
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+.puzzle-status {
+  display: flex;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 12px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.segmented button[data-level].active,
+.cw-picker button.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.cw-picker {
+  flex-wrap: wrap;
+}
+
+.puzzle-done {
+  margin: 16px 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 2px solid var(--good);
+  background: var(--surface);
+  text-align: center;
+}
+
+.puzzle-done p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.done-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.done-actions .btn {
+  margin-top: 0;
+}
+
+.howto {
+  margin-top: 24px;
+  font-size: 0.92rem;
+}
+
+.records {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.record-row {
+  display: grid;
+  grid-template-columns: 4em 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.record-row strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.record-row small,
+.records-line {
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ───── 스도쿠 ───── */
+.sd-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  aspect-ratio: 1;
+  border: 2px solid var(--text);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface);
+  user-select: none;
+}
+
+.sd-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: clamp(1rem, 5vw, 1.6rem);
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  aspect-ratio: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sd-cell.br { border-right: 2px solid var(--text); }
+.sd-cell.bb { border-bottom: 2px solid var(--text); }
+.sd-cell.given { color: var(--text); font-weight: 700; }
+.sd-cell.peer { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.sd-cell.same { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.sd-cell.selected { background: color-mix(in srgb, var(--accent) 38%, var(--surface)); }
+.sd-cell.wrong { color: var(--bad); }
+
+.sd-notes {
+  position: absolute;
+  inset: 2px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  font-size: clamp(0.45rem, 2vw, 0.7rem);
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.sd-notes span {
+  display: grid;
+  place-items: center;
+}
+
+.sd-tools {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-width: 520px;
+  margin: 14px auto 0;
+}
+
+.sd-tools .btn {
+  margin-top: 0;
+  padding: 8px 4px;
+  font-size: 0.82rem;
+}
+
+#sd-note.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.sd-pad {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  max-width: 520px;
+  margin: 8px auto 0;
+}
+
+.sd-num {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.sd-num strong {
+  font-size: 1.3rem;
+  color: var(--accent);
+}
+
+.sd-num small {
+  font-size: 0.65rem;
+  color: var(--muted);
+  min-height: 1em;
+}
+
+.sd-num:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.sd-new {
+  display: block;
+  max-width: 520px;
+  margin: 10px auto 0;
+}
+
+/* ───── 십자말풀이 ───── */
+.cw-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  gap: 3px;
+  width: 100%;
+  max-width: calc(var(--cols) * 64px);
+  margin: 0 auto;
+}
+
+.cw-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cw-cell.block {
+  background: transparent;
+  border-color: transparent;
+}
+
+.cw-cell.in-word {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  border-color: var(--accent);
+}
+
+.cw-cell.active {
+  background: color-mix(in srgb, var(--accent) 38%, var(--surface));
+}
+
+.cw-cell.wrong {
+  border: 2px solid var(--bad);
+}
+
+.cw-cell.wrong .cw-letter {
+  color: var(--bad);
+}
+
+.cw-num {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 0.65rem;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.cw-letter {
+  font-size: clamp(1.1rem, 6vw, 1.6rem);
+  font-weight: 700;
+}
+
+.cw-entry {
+  position: sticky;
+  bottom: 0;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 2;
+}
+
+.cw-clue {
+  margin: 0 0 8px;
+}
+
+.cw-clue small {
+  color: var(--muted);
+}
+
+.cw-form {
+  display: flex;
+  gap: 6px;
+}
+
+.cw-form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 1.05rem;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.cw-form .btn {
+  width: auto;
+  margin-top: 0;
+  padding: 8px 18px;
+}
+
+.cw-tools {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.cw-tools .btn {
+  font-size: 0.8rem;
+  padding: 8px 4px;
+}
+
+.cw-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+@media (max-width: 560px) {
+  .cw-lists {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cw-lists h2 {
+  font-size: 1rem;
+  margin: 0 0 6px;
+}
+
+.cw-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.92rem;
+}
+
+.cw-list li {
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.cw-list li.current {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+
+.cw-list li.solved {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
 /* ───── 사이드바 ───── */
 .sidebar {
   display: flex;

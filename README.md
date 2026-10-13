@@ -6,7 +6,9 @@
 | 페이지 | 내용 |
 |---|---|
 | `index.html` | 게임북 (`js/engine.js`, 이야기는 `js/stories/`) |
-| `test.html` | 심리테스트 (`js/test-engine.js`, 테스트는 `js/tests/`) |
+| `sudoku.html` | 스도쿠 (`js/sudoku.js`, 문제는 매번 자동 생성) |
+| `crossword.html` | 십자말풀이 (`js/crossword.js`, 문제는 `js/crosswords/`) |
+| `test.html` | 심리테스트 (`js/test-engine.js`, 테스트는 `js/tests/`, 현재 없음) |
 | `quiz.html` | 퀴즈 (`js/quiz-engine.js`, 퀴즈는 `js/quizzes/`) |
 | `privacy.html` | 개인정보처리방침 |
 
@@ -67,3 +69,10 @@ end_fall: {
 - `siteUrl`: 배포한 사이트 주소. 넣지 않으면 현재 페이지 주소를 공유합니다.
 - `kakaoKey`: [카카오 디벨로퍼스](https://developers.kakao.com)에서 앱을 만들고 JavaScript 키를 발급받아 넣습니다. 앱 설정 → 플랫폼 → Web에 사이트 도메인을 등록해야 합니다.
 - 공유와 복사 기능은 https 주소에서만 제대로 동작합니다. 파일을 직접 열면 브라우저가 막을 수 있습니다.
+
+## 십자말풀이 문제 만들기
+`tools/words.py`에 단어와 열쇠(단서)를 추가한 뒤 아래 명령을 실행하면 서로 겹치지 않는 문제들이 만들어집니다. 만들어진 JSON을 `js/crosswords/basic.js`의 `window.CROSSWORDS = ` 뒤에 넣으면 됩니다.
+
+```
+python3 tools/gen_cross.py tools 결과.json
+```
