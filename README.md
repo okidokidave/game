@@ -30,7 +30,7 @@
 ## 새 이야기(게임) 추가하기
 게임북은 위 방법과 같고, 자세히는 다음과 같습니다.
 1. `js/stories/mansion.js`를 복사해 `js/stories/새이름.js`를 만들고 `id`, `title`, `intro`, `cover`, `start`, `scenes`를 고칩니다.
-2. `story.html` 아래쪽 `<script src="js/stories/mansion.js?v=20261013e">` 밑에 한 줄을 추가합니다.
+2. `story.html` 아래쪽 `<script src="js/stories/mansion.js?v=20261014a">` 밑에 한 줄을 추가합니다.
 
 상단 헤더에 바로가기 버튼이 자동으로 생기고, `story.html#새아이디` 주소로 바로 들어갈 수 있습니다. 엔딩 도감과 저장 기록은 이야기마다 따로 관리됩니다.
 
@@ -81,7 +81,7 @@ python3 tools/gen_cross.py tools 결과.json
 ```
 
 ## 수정한 뒤 꼭 할 일: 버전 번호 올리기
-html 파일의 css/js 주소 끝에 `?v=20261013e` 같은 버전 번호가 붙어 있습니다. css나 js를 고쳤다면 모든 html에서 이 번호를 새 값으로 바꿔 주세요. 그래야 방문자의 브라우저가 예전 파일(캐시)을 쓰지 않고 새 파일을 받아 옵니다.
+html 파일의 css/js 주소 끝에 `?v=20261014a` 같은 버전 번호가 붙어 있습니다. css나 js를 고쳤다면 모든 html에서 이 번호를 새 값으로 바꿔 주세요. 그래야 방문자의 브라우저가 예전 파일(캐시)을 쓰지 않고 새 파일을 받아 옵니다.
 
 ## 새 소식 고치기
 홈 화면 오른쪽의 "새 소식"은 `index.html`의 `<ul class="news-list">` 안에 한 줄씩 적습니다.
