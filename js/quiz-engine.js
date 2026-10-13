@@ -30,7 +30,7 @@
   }
 
   function renderIntro() {
-    document.title = `${QUIZ.title} - 퀴즈`;
+    document.title = `${QUIZ.title} | 틈놀`;
     $("page-title").textContent = QUIZ.title;
     $("page-intro").textContent = QUIZ.intro;
     renderArt($("intro-art"), QUIZ.cover);

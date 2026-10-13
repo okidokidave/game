@@ -20,7 +20,7 @@
   }
 
   function renderIntro() {
-    document.title = `${TEST.title} - 심리테스트`;
+    document.title = `${TEST.title} | 틈놀`;
     $("page-title").textContent = TEST.title;
     $("page-intro").textContent = TEST.intro;
     renderArt($("intro-art"), TEST.cover);

@@ -54,7 +54,7 @@
   // ───── 타이틀 ─────
   function renderTitle() {
     state = null;
-    document.title = STORY.title;
+    document.title = `${STORY.title} | 틈놀`;
     $("story-title").textContent = STORY.title;
     $("story-intro").textContent = STORY.intro;
     renderArt($("title-art"), STORY.cover);
