@@ -19,7 +19,7 @@
  */
 const ZOMBIE = {
   days: 15,
-  start: { loc: "apartment", food: 5, water: 6, hp: 8, mind: 7, ammo: 2, med: 1 },
+  start: { loc: "apartment", food: 5, water: 7, hp: 8, mind: 7, ammo: 2, med: 1 },
   max: { food: 15, water: 15, hp: 10, mind: 10, ammo: 10, med: 5 },
 
   locations: {

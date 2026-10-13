@@ -64,7 +64,7 @@
   // ───── 상태 표시 ─────
   function renderStatus(changes = []) {
     const delta = Object.fromEntries(changes.map((c) => [c.key, c.delta]));
-    $("zb-day").textContent = `${s.day}일째`;
+    $("zb-day").textContent = `${s.day}일째 ${s.phase === "night" ? "밤" : s.slot ? "오후" : "아침"}`;
     $("zb-days-left").textContent = s.day >= D.days ? "오늘 구조 헬기!" : `구조까지 ${D.days - s.day}일`;
     $("zb-day-bar").style.width = `${(s.day / D.days) * 100}%`;
     const L = D.locations[s.loc];
@@ -136,8 +136,8 @@
     const L = D.locations[s.loc];
     scene({
       icon: L.icon,
-      kicker: `${s.day}일째 아침 · ${L.name}`,
-      title: s.day >= D.days ? "오늘 정오, 구조 헬기가 온다" : "오늘은 무엇을 할까?",
+      kicker: `${s.day}일째 ${s.slot ? "오후" : "아침"} · ${L.name}`,
+      title: s.day >= D.days ? "오늘 정오, 구조 헬기가 온다" : s.slot ? "오후에는 무엇을 할까?" : "오늘 아침은 무엇을 할까?",
       text: [intro, s.day >= D.days && s.loc !== "han" ? "지금 한강에 있지 않다면, 이동해야 한다!" : L.desc],
     });
     setChoices(
@@ -156,8 +156,9 @@
     const r = C.doAction(s, id);
     if (!r) return;
     if (r.ended) return renderEnding(r);
-    scene({ icon: "☀️", kicker: `${s.day}일째 낮`, title: r.title, text: r.text, changes: r.changes, notes: r.notes });
-    setChoices([{ icon: "🌙", label: "밤이 된다", action: renderNight }]);
+    const afternoon = r.next === "afternoon";
+    scene({ icon: afternoon ? "☀️" : "🌤️", kicker: `${s.day}일째 ${afternoon ? "아침" : "오후"}`, title: r.title, text: r.text, changes: r.changes, notes: r.notes });
+    setChoices([afternoon ? { icon: "🌤️", label: "오후가 된다", action: () => renderMorning() } : { icon: "🌙", label: "밤이 된다", action: renderNight }]);
     save();
   }
 

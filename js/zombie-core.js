@@ -1,8 +1,8 @@
 /*
  * 좀비 생존 게임 규칙 (화면과 분리되어 있어 시뮬레이션에도 씁니다)
  *
- * 하루 흐름: 아침 행동(doAction) → 밤 사건(drawEvent → choose) → 하루 마무리(식량·물 소비, 생존 확인)
- * 15일째 아침 행동을 마치면 한강에 있는지에 따라 엔딩이 정해집니다.
+ * 하루 흐름: 아침 행동 → 오후 행동(doAction 두 번) → 밤 사건(drawEvent → choose) → 하루 마무리(식량·물 소비, 생존 확인)
+ * 15일째 아침 행동을 마치면(정오) 한강에 있는지에 따라 엔딩이 정해집니다.
  */
 const ZombieCore = (() => {
   const D = typeof ZOMBIE !== "undefined" ? ZOMBIE : require("./zombie-data.js");
@@ -38,7 +38,8 @@ const ZombieCore = (() => {
       daily,
       seed: seed | 0,
       day: 1,
-      phase: "morning", // morning → night → morning … → end
+      phase: "morning", // morning(행동) → night → morning … → end
+      slot: 0, // 0: 아침, 1: 오후
       loc: st.loc,
       res: Object.fromEntries(RES.map((k) => [k, st[k] || 0])),
       comps: [],
@@ -116,7 +117,7 @@ const ZombieCore = (() => {
   function actions(s) {
     const list = [
       { id: "scavenge", icon: "🔍", label: "주변을 탐색한다", desc: "물자를 찾지만 다칠 수 있어요" },
-      { id: "rest", icon: "🛏️", label: "쉰다", desc: "체력 +2, 정신력 +1" },
+      { id: "rest", icon: "🛏️", label: "쉰다", desc: "체력 +1, 정신력 +1" },
       { id: "fortify", icon: "🪵", label: "바리케이드를 보강한다", desc: "다음 습격 피해 -1, 정신력 +1", disabled: s.fortified ? "이미 보강했어요" : null },
     ];
     if (s.comps.length) list.push({ id: "talk", icon: "💬", label: "동료와 이야기한다", desc: "정신력 +2" });
@@ -158,7 +159,7 @@ const ZombieCore = (() => {
       title = "탐색";
       text = pick(s, D.actionText.scavenge) + (used >= 2 ? " 이곳은 이미 많이 뒤졌다." : "") + (hurt ? " 그러다 좀비에게 습격당했다!" : "");
     } else if (id === "rest") {
-      fx = { hp: 2, mind: 1 };
+      fx = { hp: 1, mind: 1 };
       title = "휴식";
       text = pick(s, D.actionText.rest);
     } else if (id === "fortify") {
@@ -186,8 +187,13 @@ const ZombieCore = (() => {
 
     if (s.res.hp <= 0) return { title, text, ...result, ended: finish(s, deathEnding(s)) };
     if (s.day >= D.days) return { title, text, ...result, ended: finish(s, rescueEnding(s)) };
+    if (!s.slot) {
+      s.slot = 1; // 오후 행동으로
+      return { title, text, ...result, next: "afternoon" };
+    }
+    s.slot = 0;
     s.phase = "night";
-    return { title, text, ...result };
+    return { title, text, ...result, next: "night" };
   }
 
   // ───── 밤 사건 ─────
@@ -269,7 +275,7 @@ const ZombieCore = (() => {
     const notes = [];
     const changes = [];
     const n = 1 + s.comps.length;
-    const need = Math.ceil(n / 2);
+    const need = Math.ceil((n * 2) / 3); // 1명 1개, 2~3명 2개, 4명 3개, 5명 4개
     const before = { ...s.res };
     s.res.food -= need;
     s.res.water -= need;
