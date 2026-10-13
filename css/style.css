@@ -351,6 +351,8 @@ h1 {
 .card summary {
   font-weight: 700;
   cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
   list-style: none;
   display: flex;
   align-items: center;
@@ -400,15 +402,18 @@ h1 {
   border: 1px solid var(--border);
 }
 
-.progress {
+.card summary .progress {
+  flex: 1;
+  min-width: 40px;
   height: 6px;
   border-radius: 999px;
   background: var(--bg);
   overflow: hidden;
-  margin-bottom: 10px;
+  margin: 0 4px;
 }
 
 .bar {
+  display: block;
   height: 100%;
   background: var(--accent);
   transition: width 0.4s;
@@ -531,6 +536,37 @@ h1 {
 .segmented button.active {
   background: var(--accent);
   color: var(--accent-text);
+}
+
+/* 모바일: 사이드바가 본문 아래로 내려가므로 안쪽 스크롤을 없애고 접기/펼치기를 글자로 표시 */
+@media (max-width: 860px) {
+  .endings-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .history {
+    max-height: none;
+  }
+
+  .card summary {
+    padding: 4px 0;
+  }
+
+  .card summary::after {
+    content: "펼치기 ▾";
+    font-size: 0.8rem;
+    font-weight: 400;
+    transform: none;
+  }
+
+  .card[open] summary::after {
+    content: "접기 ▴";
+  }
+
+  .card:not([open]) summary::after {
+    transform: none;
+  }
 }
 
 /* ───── 광고 ───── */

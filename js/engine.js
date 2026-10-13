@@ -326,6 +326,9 @@
 
   window.addEventListener("hashchange", loadStory);
 
+  // 모바일에서는 긴 엔딩 도감을 접은 채로 시작
+  if (matchMedia("(max-width: 860px)").matches) $("endings-card").open = false;
+
   Share.init({ onNotify: toast });
   applySettings();
   loadStory();
