@@ -613,6 +613,139 @@ a.choice {
   color: var(--muted);
 }
 
+/* ───── 왼쪽 칸 (넓은 화면 전용) ───── */
+.left-rail {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .site-header-inner,
+  footer.footer {
+    max-width: 1320px;
+  }
+
+  .layout {
+    max-width: 1320px;
+    grid-template-columns: 230px minmax(0, 1fr) 300px;
+  }
+
+  .left-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 0.9rem;
+  }
+}
+
+#left-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rail-card h2 {
+  font-size: 0.95rem;
+  margin: 0 0 10px;
+}
+
+.rail-link {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  text-decoration: none;
+  line-height: 1.45;
+}
+
+.rail-link span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.rail-link:hover,
+.rail-item:hover {
+  outline: 1px solid var(--accent);
+}
+
+.rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.rail-group .nav-type {
+  color: var(--accent);
+  opacity: 1;
+  margin-bottom: 2px;
+}
+
+.rail-item {
+  padding: 5px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.rail-item[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.daily-q {
+  margin: 0 0 8px;
+  line-height: 1.6;
+}
+
+.daily-q .blank {
+  min-width: 2.5em;
+}
+
+.daily-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.daily-opt {
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.daily-opt.correct {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.daily-opt.wrong {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.daily-explain {
+  margin: 8px 0 4px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.daily-more {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ad-slot.ad-tall {
+  min-height: 600px;
+}
+
 /* ───── 퍼즐 공통 ───── */
 .puzzle-head {
   display: flex;

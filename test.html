@@ -16,6 +16,11 @@
   </header>
 
   <div class="layout">
+    <!-- 왼쪽 칸 (넓은 화면에서만 보임): 내용은 js/site.js가 채움 -->
+    <aside id="left-rail" class="left-rail">
+      <div id="left-content"></div>
+      <div class="ad-slot ad-tall" data-slot="left"></div>
+    </aside>
     <main id="app">
       <!-- 시작 화면 -->
       <section id="intro-screen" class="screen intro-screen">
@@ -101,6 +106,7 @@
   <script src="js/share.js"></script>
   <script src="js/catalog.js"></script>
   <script src="js/site.js"></script>
+  <script src="js/quizzes/spelling.js"></script>
   <script src="js/illustrations.js"></script>
   <!-- 테스트 파일: 새 테스트를 만들면 여기에 한 줄 추가 (예: <script src="js/tests/아이디.js"></script>) -->
   <script src="js/test-engine.js"></script>

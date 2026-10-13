@@ -97,6 +97,108 @@ const Site = (() => {
         return a;
       })
     );
+    renderLeft(current);
+  }
+
+  // ───── 왼쪽 칸: 이어하기 · 오늘의 맞춤법 · 카테고리 ─────
+  function continueItems() {
+    const items = [];
+    const sd = storage.get("sudoku:current", null);
+    if (sd && !sd.done && sd.history?.length) {
+      const level = { easy: "쉬움", medium: "보통", hard: "어려움" }[sd.level];
+      const t = `${String(Math.floor(sd.elapsed / 60)).padStart(2, "0")}:${String(sd.elapsed % 60).padStart(2, "0")}`;
+      items.push({ title: "스도쿠", detail: `${level} · ${t}`, href: "sudoku.html" });
+    }
+    const cw = storage.get("crossword:progress", {});
+    const cwIndex = Object.keys(cw).find((i) => !cw[i].done && Object.keys(cw[i].fills || {}).length);
+    if (cwIndex !== undefined) {
+      items.push({ title: "십자말풀이", detail: `${Number(cwIndex) + 1}번 문제 풀던 중`, href: "crossword.html" });
+    }
+    SITE_CATALOG.filter((c) => c.type === "story").forEach((c) => {
+      const save = storage.get(`gamebook:${c.id}:save`, null);
+      if (save?.history?.length) items.push({ title: c.title, detail: `선택 ${save.history.length}번째`, href: c.href });
+    });
+    return items;
+  }
+
+  function dailyQuestion() {
+    const quiz = (window.QUIZZES || [])[0];
+    if (!quiz) return null;
+    const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
+    const item = quiz.pool[day % quiz.pool.length];
+    const stateKey = "daily:answer";
+    const saved = storage.get(stateKey, null);
+    const picked = saved?.day === day ? saved.picked : null;
+    // 날마다 보기 순서를 바꿔 정답 위치를 외우지 못하게
+    const order = day % 2 ? [1, 0] : [0, 1];
+
+    const wrap = el("div", { className: "daily" });
+    const draw = (pickedIdx) => {
+      const [before, after = ""] = item.q.split("___");
+      const blank = el("span", { className: "blank", textContent: pickedIdx === null ? "　　" : item.options[item.answer] });
+      const buttons = order.map((i) => {
+        const b = el("button", { className: "daily-opt", type: "button", textContent: item.options[i] });
+        if (pickedIdx !== null) {
+          b.disabled = true;
+          if (i === item.answer) b.classList.add("correct");
+          else if (i === pickedIdx) b.classList.add("wrong");
+        }
+        b.addEventListener("click", () => {
+          storage.set(stateKey, { day, picked: i });
+          draw(i);
+        });
+        return b;
+      });
+      const parts = [el("p", { className: "daily-q" }, [before, blank, after]), el("div", { className: "daily-opts" }, buttons)];
+      if (pickedIdx !== null) {
+        parts.push(el("p", { className: "daily-explain", textContent: `${pickedIdx === item.answer ? "⭕ 정답!" : "❌ 아쉬워요."} ${item.explain}` }));
+        parts.push(el("a", { className: "daily-more", href: `quiz.html#${quiz.id}`, textContent: `${quiz.count}문제 더 풀어 보기 →` }));
+      }
+      wrap.replaceChildren(...parts);
+    };
+    draw(picked);
+    return wrap;
+  }
+
+  function renderLeft(current) {
+    const target = $("left-content");
+    if (!target) return;
+    const sections = [];
+
+    const items = continueItems();
+    sections.push(
+      el("section", { className: "card rail-card" }, [
+        el("h2", { textContent: "이어하기" }),
+        ...(items.length
+          ? items.map((it) =>
+              el("a", { className: "rail-link", href: it.href }, [el("strong", { textContent: it.title }), el("span", { textContent: it.detail })])
+            )
+          : [el("p", { className: "empty", textContent: "하던 게임이 여기에 나타나요." })]),
+      ])
+    );
+
+    const daily = dailyQuestion();
+    if (daily) {
+      sections.push(el("section", { className: "card rail-card" }, [el("h2", { textContent: "오늘의 맞춤법" }), daily]));
+    }
+
+    const groups = Object.keys(CATALOG_LABELS).filter((t) => SITE_CATALOG.some((c) => c.type === t));
+    sections.push(
+      el("nav", { className: "card rail-card", ariaLabel: "카테고리" }, [
+        el("h2", { textContent: "카테고리" }),
+        ...groups.map((t) =>
+          el("div", { className: "rail-group" }, [
+            el("span", { className: "nav-type", textContent: CATALOG_LABELS[t] }),
+            ...SITE_CATALOG.filter((c) => c.type === t).map((c) => {
+              const a = el("a", { className: "rail-item", href: c.href, textContent: c.title });
+              if (`${c.type}:${c.id}` === current) a.setAttribute("aria-current", "page");
+              return a;
+            }),
+          ])
+        ),
+      ])
+    );
+    target.replaceChildren(...sections);
   }
 
   function renderMore(target, current) {

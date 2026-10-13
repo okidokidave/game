@@ -10,6 +10,7 @@
 const ADSENSE = {
   client: "",
   slots: {
+    left: "", // 왼쪽 칸 세로형 (넓은 화면에서만 보임)
     sidebar: "",
     footer: "",
   },
@@ -34,7 +35,8 @@ const ADSENSE = {
 
   slots.forEach((el) => {
     const slotId = ADSENSE.slots[el.dataset.slot];
-    if (!slotId) {
+    // 화면 크기 때문에 숨겨진 칸에는 광고를 넣지 않음 (AdSense 오류 방지)
+    if (!slotId || el.offsetParent === null) {
       el.remove();
       return;
     }
