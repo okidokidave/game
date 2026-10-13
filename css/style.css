@@ -169,6 +169,7 @@ button {
   padding: 24px 16px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-areas: "main side";
   gap: 32px;
   align-items: start;
 }
@@ -176,11 +177,18 @@ button {
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main" "side";
   }
 }
 
+/* 칸마다 자리를 고정해 두어, 어떤 경우에도 게임 화면이 가운데에 오도록 함 */
 #app {
+  grid-area: main;
   min-width: 0;
+}
+
+.sidebar {
+  grid-area: side;
 }
 
 /* ───── 삽화 ───── */
@@ -627,9 +635,11 @@ a.choice {
   .layout {
     max-width: 1320px;
     grid-template-columns: 230px minmax(0, 1fr) 300px;
+    grid-template-areas: "left main side";
   }
 
   .left-rail {
+    grid-area: left;
     display: flex;
     flex-direction: column;
     gap: 12px;
