@@ -1,11 +1,12 @@
 # 게임북
 
-선택에 따라 이야기가 갈라지는 텍스트 게임북 사이트입니다. 빌드 도구 없이 `index.html`을 브라우저로 열면 바로 실행됩니다.
+선택에 따라 이야기가 갈라지는 텍스트 게임북 사이트입니다. 퍼즐, 퀴즈, 게임북을 모은 사이트입니다. 빌드 도구 없이 `index.html`을 브라우저로 열면 바로 실행됩니다.
 
 ## 구조
 | 페이지 | 내용 |
 |---|---|
-| `index.html` | 게임북 (`js/engine.js`, 이야기는 `js/stories/`) |
+| `index.html` | 홈: 소개, 오늘의 운세·맞춤법, 이어하기, 콘텐츠 목록 (`js/home.js`) |
+| `story.html` | 게임북 (`js/engine.js`, 이야기는 `js/stories/`) |
 | `sudoku.html` | 스도쿠 (`js/sudoku.js`, 문제는 매번 자동 생성) |
 | `crossword.html` | 십자말풀이 (`js/crossword.js`, 문제는 `js/crosswords/`) |
 | `test.html` | 심리테스트 (`js/test-engine.js`, 테스트는 `js/tests/`, 현재 없음) |
@@ -14,7 +15,8 @@
 
 공통 파일
 - `js/catalog.js`: 사이트 콘텐츠 목록. 상단 메뉴와 "다른 콘텐츠" 목록이 여기서 만들어집니다.
-- `js/site.js`: 저장, 알림, 설정, 메뉴, 삽화 그리기 등 모든 페이지 공통 기능
+- `js/site.js`: 저장, 알림, 설정, 메뉴, 왼쪽 칸, 삽화 그리기 등 모든 페이지 공통 기능
+- `js/daily.js`: 오늘의 운세(문구·행운의 색·물건 목록)와 오늘의 맞춤법
 - `js/illustrations.js`: 삽화 (SVG)
 - `js/share.js`: 공유하기, `js/ads.js`: 광고 설정
 - `css/style.css`: 스타일
@@ -27,9 +29,9 @@
 ## 새 이야기(게임) 추가하기
 게임북은 위 방법과 같고, 자세히는 다음과 같습니다.
 1. `js/stories/mansion.js`를 복사해 `js/stories/새이름.js`를 만들고 `id`, `title`, `intro`, `cover`, `start`, `scenes`를 고칩니다.
-2. `index.html` 아래쪽 `<script src="js/stories/mansion.js">` 밑에 한 줄을 추가합니다.
+2. `story.html` 아래쪽 `<script src="js/stories/mansion.js">` 밑에 한 줄을 추가합니다.
 
-상단 헤더에 바로가기 버튼이 자동으로 생기고, `index.html#새아이디` 주소로 바로 들어갈 수 있습니다. 엔딩 도감과 저장 기록은 이야기마다 따로 관리됩니다.
+상단 헤더에 바로가기 버튼이 자동으로 생기고, `story.html#새아이디` 주소로 바로 들어갈 수 있습니다. 엔딩 도감과 저장 기록은 이야기마다 따로 관리됩니다.
 
 ## 시간 제한 (게임북)
 이야기에 `clock: { start: 23 * 60 + 12, limit: 48, cost: 2, timeout: "end_midnight" }`처럼 적으면 상단에 시계가 나타나고, 선택할 때마다 시간이 흐릅니다. 제한 시간이 지나면 `timeout` 장면(엔딩)으로 갑니다. 선택지에 `time: 1`을 적으면 그 선택지만 소요 시간이 바뀝니다.
@@ -78,4 +80,7 @@ python3 tools/gen_cross.py tools 결과.json
 ```
 
 ## 수정한 뒤 꼭 할 일: 버전 번호 올리기
-html 파일의 css/js 주소 끝에 `?v=20261013b` 같은 버전 번호가 붙어 있습니다. css나 js를 고쳤다면 모든 html에서 이 번호를 새 값으로 바꿔 주세요. 그래야 방문자의 브라우저가 예전 파일(캐시)을 쓰지 않고 새 파일을 받아 옵니다.
+html 파일의 css/js 주소 끝에 `?v=20261013c` 같은 버전 번호가 붙어 있습니다. css나 js를 고쳤다면 모든 html에서 이 번호를 새 값으로 바꿔 주세요. 그래야 방문자의 브라우저가 예전 파일(캐시)을 쓰지 않고 새 파일을 받아 옵니다.
+
+## 새 소식 고치기
+홈 화면 오른쪽의 "새 소식"은 `index.html`의 `<ul class="news-list">` 안에 한 줄씩 적습니다.

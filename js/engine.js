@@ -3,7 +3,7 @@
   const ENDING_LABELS = { true: "진 엔딩", good: "해피 엔딩", normal: "노멀 엔딩", bad: "배드 엔딩" };
   const { storage, $, el, toast, renderArt } = Site;
 
-  // 현재 이야기 — 주소의 #아이디로 고름 (예: index.html#mansion)
+  // 현재 이야기 — 주소의 #아이디로 고름 (예: story.html#mansion)
   let STORY, KEYS, allEndings, sceneCount;
 
   // state: { scene, items, time, history: [{ scene, items, time, label }] }

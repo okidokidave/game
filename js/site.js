@@ -121,45 +121,6 @@ const Site = (() => {
     return items;
   }
 
-  function dailyQuestion() {
-    const quiz = (window.QUIZZES || [])[0];
-    if (!quiz) return null;
-    const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
-    const item = quiz.pool[day % quiz.pool.length];
-    const stateKey = "daily:answer";
-    const saved = storage.get(stateKey, null);
-    const picked = saved?.day === day ? saved.picked : null;
-    // 날마다 보기 순서를 바꿔 정답 위치를 외우지 못하게
-    const order = day % 2 ? [1, 0] : [0, 1];
-
-    const wrap = el("div", { className: "daily" });
-    const draw = (pickedIdx) => {
-      const [before, after = ""] = item.q.split("___");
-      const blank = el("span", { className: "blank", textContent: pickedIdx === null ? "　　" : item.options[item.answer] });
-      const buttons = order.map((i) => {
-        const b = el("button", { className: "daily-opt", type: "button", textContent: item.options[i] });
-        if (pickedIdx !== null) {
-          b.disabled = true;
-          if (i === item.answer) b.classList.add("correct");
-          else if (i === pickedIdx) b.classList.add("wrong");
-        }
-        b.addEventListener("click", () => {
-          storage.set(stateKey, { day, picked: i });
-          draw(i);
-        });
-        return b;
-      });
-      const parts = [el("p", { className: "daily-q" }, [before, blank, after]), el("div", { className: "daily-opts" }, buttons)];
-      if (pickedIdx !== null) {
-        parts.push(el("p", { className: "daily-explain", textContent: `${pickedIdx === item.answer ? "⭕ 정답!" : "❌ 아쉬워요."} ${item.explain}` }));
-        parts.push(el("a", { className: "daily-more", href: `quiz.html#${quiz.id}`, textContent: `${quiz.count}문제 더 풀어 보기 →` }));
-      }
-      wrap.replaceChildren(...parts);
-    };
-    draw(picked);
-    return wrap;
-  }
-
   function renderLeft(current) {
     const target = $("left-content");
     if (!target) return;
@@ -177,9 +138,11 @@ const Site = (() => {
       ])
     );
 
-    const daily = dailyQuestion();
-    if (daily) {
-      sections.push(el("section", { className: "card rail-card" }, [el("h2", { textContent: "오늘의 맞춤법" }), daily]));
+    // 홈 화면은 본문에 오늘의 콘텐츠가 있으므로 왼쪽 칸에서는 생략
+    if (typeof Daily !== "undefined" && !$("home")) {
+      sections.push(el("section", { className: "card rail-card" }, [el("h2", { textContent: "오늘의 운세" }), Daily.fortuneWidget({ compact: true })]));
+      const spelling = Daily.spellingWidget();
+      if (spelling) sections.push(el("section", { className: "card rail-card" }, [el("h2", { textContent: "오늘의 맞춤법" }), spelling]));
     }
 
     const groups = Object.keys(CATALOG_LABELS).filter((t) => SITE_CATALOG.some((c) => c.type === t));
@@ -221,5 +184,5 @@ const Site = (() => {
     Share.init({ onNotify: toast });
   }
 
-  return { storage, $, el, toast, renderArt, renderNav, renderMore, init };
+  return { storage, $, el, toast, renderArt, renderNav, renderMore, continueItems, init };
 })();
