@@ -1,44 +1,15 @@
 (() => {
   const STORIES = window.STORIES || [];
-  const SETTINGS_KEY = "gamebook:settings";
   const ENDING_LABELS = { true: "진 엔딩", good: "해피 엔딩", normal: "노멀 엔딩", bad: "배드 엔딩" };
+  const { storage, $, el, toast, renderArt } = Site;
 
-  // localStorage는 사생활 보호 모드 등에서 실패할 수 있으므로 감싸서 사용
-  const storage = {
-    get(key, fallback) {
-      try {
-        const raw = localStorage.getItem(key);
-        return raw ? JSON.parse(raw) : fallback;
-      } catch {
-        return fallback;
-      }
-    },
-    set(key, value) {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-      } catch {}
-    },
-    remove(key) {
-      try {
-        localStorage.removeItem(key);
-      } catch {}
-    },
-  };
-
-  const $ = (id) => document.getElementById(id);
-  const el = (tag, props = {}, children = []) => {
-    const node = Object.assign(document.createElement(tag), props);
-    node.append(...children);
-    return node;
-  };
-
-  // 현재 이야기 — 주소의 #아이디로 고름 (예: index.html#mansion)
+  // 현재 이야기 — 주소의 #아이디로 고름 (예: story.html#mansion)
   let STORY, KEYS, allEndings, sceneCount;
 
-  // state: { scene, items, history: [{ scene, items, label }] }
+  // state: { scene, items, time, history: [{ scene, items, time, label }] }
+  // time: 이야기 시작 후 흐른 시간(분). 이야기에 clock이 있을 때만 사용
   let state = null;
   let newEnding = null;
-  let artId = 0;
 
   function loadStory() {
     const id = location.hash.slice(1);
@@ -50,18 +21,27 @@
     };
     allEndings = Object.entries(STORY.scenes).filter(([, s]) => s.ending);
     sceneCount = Object.keys(STORY.scenes).length;
-    renderNav();
+    Site.renderNav(`story:${STORY.id}`);
+    Site.renderMore($("more-list"), `story:${STORY.id}`);
     renderTitle();
   }
 
-  function renderNav() {
-    const links = STORIES.map((s) => {
-      const a = el("a", { href: `#${s.id}`, className: "story-link", textContent: s.title });
-      if (s === STORY) a.setAttribute("aria-current", "page");
-      return a;
-    });
-    links.push(el("span", { className: "story-link soon", textContent: "새 이야기 준비 중" }));
-    $("story-nav").replaceChildren(...links);
+  // ───── 시계 (시간 압박) ─────
+  // STORY.clock = { start: 시작 시각(분), limit: 제한 시간(분), cost: 선택지 기본 소요 시간, timeout: 시간 초과 시 장면 }
+  // 선택지에 time: n 을 적으면 그 선택지는 n분이 걸립니다.
+  const formatTime = (elapsed) => {
+    const t = (STORY.clock.start + elapsed) % (24 * 60);
+    return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  };
+  const costOf = (choice) => choice.time ?? STORY.clock.cost;
+
+  function renderClock(scene) {
+    const clock = $("clock");
+    clock.hidden = !STORY.clock || !!scene.ending;
+    if (clock.hidden) return;
+    const left = Math.max(0, STORY.clock.limit - state.time);
+    clock.textContent = `🕰 ${formatTime(state.time)} · 자정까지 ${left}분`;
+    clock.classList.toggle("warn", left <= 10);
   }
 
   const getStats = () => storage.get(KEYS.stats, { plays: 0, visited: [] });
@@ -71,31 +51,10 @@
     window.scrollTo(0, 0);
   }
 
-  function toast(message) {
-    const t = $("toast");
-    t.textContent = message;
-    t.hidden = false;
-    clearTimeout(toast.timer);
-    toast.timer = setTimeout(() => (t.hidden = true), 2000);
-  }
-
-  function renderArt(target, image) {
-    target.replaceChildren();
-    target.hidden = !image;
-    if (!image) return;
-    if (ILLUSTRATIONS[image]) {
-      target.innerHTML = ILLUSTRATIONS[image].replaceAll("__ID__", `art${++artId}`);
-      const svg = target.querySelector("svg");
-      if (svg && matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
-    } else {
-      target.append(el("img", { src: image, alt: "" }));
-    }
-  }
-
   // ───── 타이틀 ─────
   function renderTitle() {
     state = null;
-    document.title = STORY.title;
+    document.title = `${STORY.title} | 틈놀`;
     $("story-title").textContent = STORY.title;
     $("story-intro").textContent = STORY.intro;
     renderArt($("title-art"), STORY.cover);
@@ -110,18 +69,27 @@
   function startNew() {
     const stats = getStats();
     storage.set(KEYS.stats, { ...stats, plays: stats.plays + 1 });
-    state = { scene: STORY.start, items: [], history: [] };
+    state = { scene: STORY.start, items: [], time: 0, history: [] };
     goTo(STORY.start);
   }
 
   function continueGame() {
     state = storage.get(KEYS.save, null);
     state.history = state.history || [];
+    state.time = state.time || 0;
     renderScene();
   }
 
   function choose(choice) {
-    state.history.push({ scene: state.scene, items: [...state.items], label: choice.label });
+    state.history.push({ scene: state.scene, items: [...state.items], time: state.time, label: choice.label });
+    if (STORY.clock) {
+      state.time += costOf(choice);
+      // 자정이 지나면 엔딩으로 가는 선택이 아닌 한 시간 초과 장면으로
+      if (state.time >= STORY.clock.limit && !STORY.scenes[choice.next].ending) {
+        goTo(STORY.clock.timeout);
+        return;
+      }
+    }
     goTo(choice.next);
   }
 
@@ -130,6 +98,7 @@
     const prev = state.history.pop();
     state.scene = prev.scene;
     state.items = prev.items;
+    state.time = prev.time || 0;
     storage.set(KEYS.save, state);
     renderScene();
   }
@@ -183,7 +152,14 @@
       badge.dataset.type = scene.ending.type;
     }
 
-    $("scene-text").replaceChildren(...scene.text.map((para) => el("p", { textContent: para })));
+    // "> "로 시작하는 문단은 메시지·쪽지처럼 표시
+    $("scene-text").replaceChildren(
+      ...scene.text.map((para) =>
+        para.startsWith("> ")
+          ? el("p", { className: "note", textContent: para.slice(2) })
+          : el("p", { textContent: para })
+      )
+    );
 
     const gain = $("scene-gain");
     gain.hidden = gained.length === 0;
@@ -191,18 +167,26 @@
 
     const choices = scene.ending
       ? [
+          { label: "이 엔딩 공유하기", action: () => share(scene.ending) },
           { label: "처음부터 다시", action: startNew },
           { label: "타이틀로", action: renderTitle },
         ]
-      : scene.choices.filter(isVisible).map((c) => ({ label: c.label, action: () => choose(c) }));
+      : scene.choices.filter(isVisible).map((c) => ({
+          label: c.label,
+          cost: STORY.clock ? costOf(c) : null,
+          action: () => choose(c),
+        }));
 
     $("choices").replaceChildren(
       ...choices.map((c) => {
-        const btn = el("button", { className: "choice", textContent: c.label });
+        const btn = el("button", { className: "choice" }, [el("span", { textContent: c.label })]);
+        if (c.cost) btn.append(el("span", { className: "cost", textContent: `${c.cost}분` }));
         btn.addEventListener("click", c.action);
         return btn;
       })
     );
+
+    renderClock(scene);
 
     $("btn-undo-top").hidden = state.history.length === 0;
 
@@ -274,45 +258,12 @@
     $("btn-undo").disabled = history.length === 0;
   }
 
-  // ───── 설정 ─────
-  function applySettings() {
-    const settings = storage.get(SETTINGS_KEY, { font: "md", theme: "auto" });
-    const root = document.documentElement;
-    root.dataset.font = settings.font;
-    if (settings.theme === "auto") delete root.dataset.theme;
-    else root.dataset.theme = settings.theme;
-
-    document.querySelectorAll(".segmented").forEach((group) => {
-      group.querySelectorAll("button").forEach((b) => {
-        b.classList.toggle("active", b.dataset.value === settings[group.dataset.setting]);
-      });
-    });
-  }
-
-  document.querySelectorAll(".segmented").forEach((group) => {
-    group.addEventListener("click", (e) => {
-      const value = e.target.dataset.value;
-      if (!value) return;
-      const settings = storage.get(SETTINGS_KEY, { font: "md", theme: "auto" });
-      storage.set(SETTINGS_KEY, { ...settings, [group.dataset.setting]: value });
-      applySettings();
-    });
-  });
-
-  async function share() {
+  function share(ending) {
     const seen = storage.get(KEYS.endings, []).length;
-    const text = `「${STORY.title}」에서 엔딩 ${seen}/${allEndings.length}개를 찾았어요! 당신은 몇 개나 찾을 수 있을까요?`;
-    const url = `${location.href.split("#")[0]}#${STORY.id}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: STORY.title, text, url });
-        return;
-      }
-      await navigator.clipboard.writeText(`${text}\n${url}`);
-      toast("링크를 복사했어요");
-    } catch (e) {
-      if (e.name !== "AbortError") toast("공유하지 못했어요");
-    }
+    const text = ending
+      ? `「${STORY.title}」에서 「${ending.title}」 엔딩을 봤어요! (${seen}/${allEndings.length}) 당신은 어떤 결말을 맞이할까요?`
+      : `「${STORY.title}」에서 엔딩 ${seen}/${allEndings.length}개를 찾았어요! 당신은 몇 개나 찾을 수 있을까요?`;
+    Share.open({ title: STORY.title, text, path: `#${STORY.id}` });
   }
 
   function resetAll() {
@@ -328,11 +279,14 @@
   $("btn-home").addEventListener("click", renderTitle);
   $("btn-undo").addEventListener("click", undo);
   $("btn-undo-top").addEventListener("click", undo);
-  $("btn-share").addEventListener("click", share);
+  $("btn-share").addEventListener("click", () => share());
   $("btn-reset").addEventListener("click", resetAll);
 
   window.addEventListener("hashchange", loadStory);
 
-  applySettings();
+  // 모바일에서는 긴 엔딩 도감을 접은 채로 시작
+  if (matchMedia("(max-width: 860px)").matches) $("endings-card").open = false;
+
+  Site.init({ current: "" });
   loadStory();
 })();

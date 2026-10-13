@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="헷갈리는 맞춤법부터 상식까지, 해설과 함께 즐기는 무료 퀴즈.">
+  <title>퀴즈 | 틈놀</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/style.css?v=20261014b">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">틈</span>틈놀</a>
+      <nav id="story-nav" class="story-nav" aria-label="콘텐츠 바로가기"></nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- 왼쪽 칸 (넓은 화면에서만 보임): 내용은 js/site.js가 채움 -->
+    <aside id="left-rail" class="left-rail">
+      <div id="left-content"></div>
+      <div class="ad-slot ad-tall" data-slot="left"></div>
+    </aside>
+    <main id="app">
+      <!-- 시작 화면 -->
+      <section id="intro-screen" class="screen intro-screen">
+        <div id="intro-art" class="art"></div>
+        <p class="eyebrow">퀴즈</p>
+        <h1 id="page-title"></h1>
+        <p id="page-intro" class="intro"></p>
+        <div class="menu">
+          <button id="btn-start" class="btn primary">시작하기</button>
+        </div>
+        <p id="last-result" class="last-result" hidden></p>
+      </section>
+
+      <!-- 문제 화면 -->
+      <section id="question-screen" class="screen" hidden>
+        <div class="q-progress"><div id="q-bar" class="bar"></div></div>
+        <p id="q-count" class="q-count"></p>
+        <h2 id="q-text" class="q-text"></h2>
+        <div id="q-options" class="choices"></div>
+        <div id="q-feedback" class="q-feedback" hidden></div>
+        <button id="btn-next" class="btn primary q-next" hidden>다음 문제</button>
+      </section>
+
+      <!-- 결과 화면 -->
+      <section id="result-screen" class="screen" hidden>
+        <article class="scene result">
+          <div id="result-art" class="art"></div>
+          <div class="scene-body" id="result-body"></div>
+        </article>
+        <div id="result-actions" class="choices"></div>
+      </section>
+    </main>
+
+    <aside id="sidebar" class="sidebar">
+      <details class="card" open>
+        <summary>다른 콘텐츠</summary>
+        <div id="more-list" class="more-list"></div>
+      </details>
+
+      <button id="btn-share" class="btn share-open">📤 친구에게 공유하기</button>
+
+      <div class="ad-slot" data-slot="sidebar"></div>
+
+      <details class="card">
+        <summary>설정</summary>
+        <div class="setting">
+          <span>글자 크기</span>
+          <div class="segmented" data-setting="font">
+            <button data-value="sm">작게</button><button data-value="md">보통</button><button data-value="lg">크게</button>
+          </div>
+        </div>
+        <div class="setting">
+          <span>테마</span>
+          <div class="segmented" data-setting="theme">
+            <button data-value="auto">자동</button><button data-value="light">밝게</button><button data-value="dark">어둡게</button>
+          </div>
+        </div>
+      </details>
+    </aside>
+  </div>
+
+  <footer class="footer">
+    <div class="ad-slot" data-slot="footer"></div>
+    <nav>
+      <a href="privacy.html">개인정보처리방침</a>
+      <span aria-hidden="true">·</span>
+      문의 <a href="mailto:maserati910915@gmail.com">maserati910915@gmail.com</a>
+    </nav>
+  </footer>
+
+  <dialog id="share-dialog" class="share-dialog">
+    <div class="share-head">
+      <strong>공유하기</strong>
+      <button class="share-close link" aria-label="닫기">✕</button>
+    </div>
+    <p class="share-preview"></p>
+    <div class="share-grid"></div>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="js/ads.js?v=20261014b"></script>
+  <script src="js/share.js?v=20261014b"></script>
+  <script src="js/catalog.js?v=20261014b"></script>
+  <script src="js/site.js?v=20261014b"></script>
+  <script src="js/illustrations.js?v=20261014b"></script>
+  <!-- 퀴즈 파일: 새 퀴즈를 만들면 여기에 한 줄 추가 -->
+  <script src="js/quizzes/spelling.js?v=20261014b"></script>
+  <script src="js/daily.js?v=20261014b"></script>
+  <script src="js/quiz-engine.js?v=20261014b"></script>
+</body>
+</html>

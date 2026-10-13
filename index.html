@@ -3,77 +3,90 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="선택에 따라 결말이 달라지는 텍스트 게임북. 수많은 엔딩을 찾아보세요.">
-  <title>게임북</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="description" content="스도쿠, 십자말풀이, 맞춤법 퀴즈, 선택형 게임북까지. 가입 없이 바로 즐기는 무료 퍼즐·게임 놀이터. 오늘의 운세도 확인해 보세요.">
+  <title>틈놀 - 짧은 틈에 즐기는 퍼즐·퀴즈·게임북 놀이터</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/style.css?v=20261014b">
 </head>
 <body>
   <header class="site-header">
     <div class="site-header-inner">
-      <a class="brand" href="#">게임북</a>
-      <nav id="story-nav" class="story-nav" aria-label="게임 바로가기"></nav>
+      <a class="brand" href="index.html"><span class="brand-mark">틈</span>틈놀</a>
+      <nav id="story-nav" class="story-nav" aria-label="콘텐츠 바로가기"></nav>
     </div>
   </header>
 
   <div class="layout">
+    <!-- 왼쪽 칸 (넓은 화면에서만 보임): 내용은 js/site.js가 채움 -->
+    <aside id="left-rail" class="left-rail">
+      <div id="left-content"></div>
+      <div class="ad-slot ad-tall" data-slot="left"></div>
+    </aside>
     <main id="app">
-      <!-- 타이틀 화면 -->
-      <section id="title-screen" class="screen">
-        <div id="title-art" class="art"></div>
-        <p class="eyebrow">선택형 게임북</p>
-        <h1 id="story-title"></h1>
-        <p id="story-intro" class="intro"></p>
-        <div class="menu">
-          <button id="btn-continue" class="btn primary" hidden>이어하기</button>
-          <button id="btn-new" class="btn">처음부터</button>
-        </div>
-      </section>
-
-      <!-- 게임 화면 -->
-      <section id="game-screen" class="screen" hidden>
-        <header class="topbar">
-          <button id="btn-home" class="link">← 타이틀</button>
-          <button id="btn-undo-top" class="link">↶ 되돌리기</button>
-        </header>
-        <article id="scene" class="scene">
-          <div id="scene-art" class="art"></div>
-          <div class="scene-body">
-            <div id="ending-badge" class="ending-badge" hidden></div>
-            <div id="scene-text" class="scene-text"></div>
-            <p id="scene-gain" class="gain" hidden></p>
+      <div id="home" class="home">
+        <section class="hero">
+          <p class="hero-badge">틈새놀이터 · 무료 · 가입 없음</p>
+          <h1>잠깐의 쉬는 시간,<br>머리가 즐거워지는 곳</h1>
+          <p class="hero-text">틈놀(틈새놀이터)은 스도쿠·십자말풀이 같은 퍼즐, 헷갈리는 맞춤법 퀴즈, 선택에 따라 결말이 바뀌는 이야기 게임을 한곳에 모아 둔 놀이터예요. 설치도 가입도 없이, 지금 바로 즐겨 보세요.</p>
+          <div class="hero-actions">
+            <a class="btn primary" href="sudoku.html">퍼즐부터 시작하기</a>
+            <a class="btn" href="zombie.html">🧟 생존 게임 해 보기</a>
           </div>
-        </article>
-        <div id="choices" class="choices"></div>
-      </section>
+        </section>
+
+        <div class="today-grid">
+          <section class="card today-card">
+            <h2>🔮 오늘의 운세</h2>
+            <div id="home-fortune"></div>
+          </section>
+          <section class="card today-card">
+            <h2>📝 오늘의 맞춤법</h2>
+            <div id="home-spelling"></div>
+          </section>
+        </div>
+
+        <section id="home-continue" class="home-section" hidden>
+          <h2>이어하기</h2>
+          <div id="home-continue-list" class="continue-grid"></div>
+        </section>
+
+        <section class="home-section">
+          <h2>모든 콘텐츠</h2>
+          <div id="home-contents" class="content-grid"></div>
+        </section>
+
+        <section class="home-section about">
+          <h2>틈놀은 이런 곳이에요</h2>
+          <p>출퇴근길, 점심시간, 잠들기 전 10분처럼 짧은 틈에 가볍게 즐길 수 있는 콘텐츠를 만들고 있어요. 모든 콘텐츠는 무료이고, 진행 상황은 여러분의 브라우저에만 저장되어 회원가입 없이도 이어서 할 수 있어요.</p>
+          <ul class="about-list">
+            <li><strong>퍼즐</strong> 매번 새 문제가 나오는 스도쿠와 쉬운 단어로 푸는 한글 십자말풀이</li>
+            <li><strong>퀴즈</strong> 해설과 함께 배우는 맞춤법 퀴즈, 매일 바뀌는 오늘의 한 문제</li>
+            <li><strong>게임</strong> 좀비 사태 속 서울에서 15일을 버티는 생존 게임. 할 때마다 다른 사건이 일어나요</li>
+            <li><strong>게임북</strong> 선택에 따라 결말이 달라지는 텍스트 게임. 숨겨진 엔딩을 모아 보세요</li>
+          </ul>
+          <p>새로운 퍼즐과 이야기를 계속 추가할 예정이에요. 하고 싶은 게임이나 고쳤으면 하는 점이 있다면 아래 이메일로 알려 주세요.</p>
+        </section>
+      </div>
     </main>
 
-    <!-- 사이드바 -->
     <aside id="sidebar" class="sidebar">
-      <details class="card" open>
-        <summary>소지품</summary>
-        <div id="side-inventory" class="inventory"></div>
-      </details>
+      <section class="card news">
+        <h2>새 소식</h2>
+        <ul class="news-list">
+          <li><time>10.13</time> 🧟 좀비 생존 게임 「서울, 구조까지 15일」 오픈</li>
+          <li><time>10.13</time> 스도쿠·십자말풀이 오픈</li>
+          <li><time>10.13</time> 오늘의 운세·오늘의 맞춤법 추가</li>
+          <li><time>10.13</time> 맞춤법 퀴즈 오픈</li>
+          <li><time>10.12</time> 게임북 「자정의 저택」 오픈</li>
+        </ul>
+      </section>
 
       <details class="card" open>
-        <summary>엔딩 도감 <span id="ending-count" class="count"></span></summary>
-        <div class="progress"><div id="ending-bar" class="bar"></div></div>
-        <ul id="endings-list" class="endings-list"></ul>
+        <summary>다른 콘텐츠</summary>
+        <div id="more-list" class="more-list"></div>
       </details>
 
-      <details class="card">
-        <summary>진행 현황</summary>
-        <dl class="stats">
-          <dt>탐험률</dt><dd id="stat-explore"></dd>
-          <dt>플레이 횟수</dt><dd id="stat-plays"></dd>
-          <dt>이번 판 선택</dt><dd id="stat-steps"></dd>
-        </dl>
-      </details>
-
-      <details class="card">
-        <summary>지나온 길</summary>
-        <ol id="history-list" class="history"></ol>
-        <button id="btn-undo" class="btn small">↶ 한 단계 되돌리기</button>
-      </details>
+      <button id="btn-share" class="btn share-open">📤 친구에게 공유하기</button>
 
       <div class="ad-slot" data-slot="sidebar"></div>
 
@@ -91,8 +104,6 @@
             <button data-value="auto">자동</button><button data-value="light">밝게</button><button data-value="dark">어둡게</button>
           </div>
         </div>
-        <button id="btn-share" class="btn small">🔗 공유하기</button>
-        <button id="btn-reset" class="btn small danger">기록 초기화</button>
       </details>
     </aside>
   </div>
@@ -106,12 +117,24 @@
     </nav>
   </footer>
 
+  <dialog id="share-dialog" class="share-dialog">
+    <div class="share-head">
+      <strong>공유하기</strong>
+      <button class="share-close link" aria-label="닫기">✕</button>
+    </div>
+    <p class="share-preview"></p>
+    <div class="share-grid"></div>
+  </dialog>
+
   <div id="toast" class="toast" hidden></div>
 
-  <script src="js/ads.js"></script>
-  <script src="js/illustrations.js"></script>
-  <!-- 이야기 파일: 새 게임북을 만들면 여기에 한 줄 추가 -->
-  <script src="js/stories/mansion.js"></script>
-  <script src="js/engine.js"></script>
+  <script src="js/ads.js?v=20261014b"></script>
+  <script src="js/share.js?v=20261014b"></script>
+  <script src="js/catalog.js?v=20261014b"></script>
+  <script src="js/site.js?v=20261014b"></script>
+  <script src="js/quizzes/spelling.js?v=20261014b"></script>
+  <script src="js/daily.js?v=20261014b"></script>
+  <script src="js/illustrations.js?v=20261014b"></script>
+  <script src="js/home.js?v=20261014b"></script>
 </body>
 </html>

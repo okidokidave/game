@@ -91,6 +91,58 @@ const ILLUSTRATIONS = (() => {
       .join("");
 
   return {
+    phone: frame(`
+      ${mansionSil(200, 30, 0.35)}
+      ${rain(50, "rgba(180,200,230,0.3)")}
+      <path d="M0 0 H320 V30 Q160 10 0 30Z" fill="#06070b"/>
+      <path d="M0 120 Q160 100 320 120 V180 H0Z" fill="#06070b"/>
+      <path d="M0 0 L40 0 L20 130 L0 130Z" fill="#06070b"/><path d="M320 0 L280 0 L300 130 L320 130Z" fill="#06070b"/>
+      <circle cx="90" cy="150" r="44" fill="none" stroke="#111318" stroke-width="12"/>
+      <rect x="150" y="70" width="62" height="104" rx="9" fill="#0d0f14" stroke="#2a2f3a" stroke-width="2"/>
+      <rect x="155" y="78" width="52" height="90" rx="4" fill="#1d2433"/>
+      <circle cx="181" cy="124" r="70" fill="rgba(170,200,255,0.10)"/>
+      <rect x="159" y="88" width="44" height="22" rx="5" fill="#e8eefc"/>
+      <rect x="163" y="93" width="30" height="3" rx="1.5" fill="#6a7690"/>
+      <rect x="163" y="99" width="36" height="3" rx="1.5" fill="#6a7690"/>
+      <rect x="163" y="104" width="20" height="3" rx="1.5" fill="#6a7690"/>
+      <text x="181" y="128" font-size="9" fill="#9fb0d0" text-anchor="middle">1975.10.13</text>
+      <text x="181" y="142" font-size="12" fill="#e8eefc" text-anchor="middle" font-weight="700">23:12</text>`, { sky: "#0e121c", low: "#1a2030" }),
+
+    cast: frame(`
+      <circle cx="160" cy="200" r="150" fill="rgba(242,179,91,0.12)"/>
+      <rect y="150" width="320" height="30" fill="#141218"/>
+      <g fill="#0a0c12">
+        <circle cx="70" cy="70" r="11"/><path d="M56 150 L58 84 Q70 78 82 84 L84 150Z"/>
+        <circle cx="124" cy="96" r="9"/><path d="M112 150 Q114 108 124 106 Q134 108 136 150Z"/>
+        <circle cx="196" cy="74" r="11"/><path d="M182 150 Q182 90 196 88 Q210 90 210 150Z"/>
+        <circle cx="256" cy="80" r="11"/><path d="M240 150 Q242 94 256 92 Q270 94 272 150Z"/>
+      </g>
+      <polygon points="67,84 70,92 73,84" fill="#ddd"/>
+      <path d="M118 98 q6 -6 12 0" stroke="#c77" stroke-width="3" fill="none"/>
+      <path d="M186 66 Q196 56 206 66" fill="#cfcfcf"/>
+      <rect x="246" y="112" width="20" height="14" rx="2" fill="#2a2f3a"/>
+      ${catSil(160, 150, 0.55)}
+      <text x="70" y="172" font-size="9" fill="#9b9287" text-anchor="middle">집사</text>
+      <text x="124" y="172" font-size="9" fill="#9b9287" text-anchor="middle">소녀</text>
+      <text x="160" y="172" font-size="9" fill="#9b9287" text-anchor="middle">고양이</text>
+      <text x="196" y="172" font-size="9" fill="#9b9287" text-anchor="middle">노인</text>
+      <text x="256" y="172" font-size="9" fill="#9b9287" text-anchor="middle">손님</text>
+      <text x="160" y="40" font-size="22" fill="#f2b35b" text-anchor="middle" font-weight="800">?</text>`, { sky: "#1b1a24", low: "#2a2433" }),
+
+    notebook: frame(`
+      <rect width="320" height="180" fill="#e9e2d3"/>
+      <rect x="50" y="18" width="220" height="150" rx="6" fill="#fffdf6" stroke="#d8cfbc"/>
+      ${[...Array(8)].map((_, i) => `<line x1="70" y1="${46 + i * 15}" x2="252" y2="${46 + i * 15}" stroke="#c9d8ea"/>`).join("")}
+      <line x1="84" y1="22" x2="84" y2="164" stroke="#efb2b2"/>
+      <text x="96" y="57" font-size="12" fill="#3a3f4d">어떡해</text>
+      <path d="M150 50 l5 6 l10 -12" stroke="#d33" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <text x="96" y="87" font-size="12" fill="#3a3f4d" text-decoration="line-through">어떻해</text>
+      <path d="M150 78 l12 12 M162 78 l-12 12" stroke="#d33" stroke-width="3" stroke-linecap="round"/>
+      <text x="96" y="117" font-size="12" fill="#3a3f4d">금세 · 며칠 · 설렘</text>
+      <path d="M210 110 l5 6 l10 -12" stroke="#d33" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <rect x="236" y="118" width="64" height="10" rx="2" fill="#f2b35b" transform="rotate(-35 268 123)"/>
+      <polygon points="230,150 236,138 242,144" fill="#3a3f4d" transform="rotate(-35 268 123)"/>`, { sky: "#e9e2d3", low: "#e9e2d3" }),
+
     garden: frame(`
       <rect y="130" width="320" height="50" fill="#141a14"/>
       <circle cx="60" cy="118" r="16" fill="#1d2a1d"/><circle cx="84" cy="124" r="12" fill="#1d2a1d"/>
