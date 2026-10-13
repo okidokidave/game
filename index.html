@@ -10,7 +10,7 @@
 <body>
   <header class="site-header">
     <div class="site-header-inner">
-      <a class="brand" href="#">게임북</a>
+      <a class="brand" href="index.html">게임북</a>
       <nav id="story-nav" class="story-nav" aria-label="게임 바로가기"></nav>
     </div>
   </header>
@@ -33,6 +33,7 @@
       <section id="game-screen" class="screen" hidden>
         <header class="topbar">
           <button id="btn-home" class="link">← 타이틀</button>
+          <span id="clock" class="clock" hidden></span>
           <button id="btn-undo-top" class="link">↶ 되돌리기</button>
         </header>
         <article id="scene" class="scene">
@@ -63,6 +64,11 @@
       </details>
 
       <button id="btn-share" class="btn share-open">📤 친구에게 공유하기</button>
+
+      <details class="card" open>
+        <summary>다른 콘텐츠</summary>
+        <div id="more-list" class="more-list"></div>
+      </details>
 
       <details class="card">
         <summary>진행 현황</summary>
@@ -122,6 +128,8 @@
 
   <script src="js/ads.js"></script>
   <script src="js/share.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/site.js"></script>
   <script src="js/illustrations.js"></script>
   <!-- 이야기 파일: 새 게임북을 만들면 여기에 한 줄 추가 -->
   <script src="js/stories/mansion.js"></script>

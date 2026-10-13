@@ -118,6 +118,44 @@ button {
   color: var(--accent-text);
 }
 
+.nav-type {
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.7;
+  margin-right: 6px;
+}
+
+.more-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.more-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  text-decoration: none;
+  line-height: 1.5;
+}
+
+.more-item:hover {
+  outline: 1px solid var(--accent);
+}
+
+.more-item .nav-type {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.more-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .story-link.soon {
   color: var(--muted);
   font-weight: 400;
@@ -230,7 +268,9 @@ h1 {
 /* ───── 게임 ───── */
 .topbar {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-bottom: 16px;
 }
 
@@ -277,6 +317,37 @@ h1 {
   margin-bottom: 0;
 }
 
+.scene-text p.note {
+  margin-left: 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg);
+  border-radius: 0 10px 10px 0;
+  font-size: 0.95em;
+}
+
+.clock {
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 2px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.clock.warn {
+  color: var(--bad);
+  border-color: var(--bad);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
 .gain {
   margin: 16px 0 0;
   color: var(--accent);
@@ -312,6 +383,9 @@ h1 {
 }
 
 .choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   text-align: left;
   padding: 14px 18px;
   font-size: var(--scene-size);
@@ -323,14 +397,220 @@ h1 {
 }
 
 .choice::before {
-  content: "▸ ";
+  content: "▸";
   color: var(--accent);
+}
+
+.choice .cost {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .choice:hover,
 .choice:focus-visible {
   border-color: var(--accent);
   background: var(--surface);
+}
+
+/* ───── 테스트 · 퀴즈 ───── */
+.intro-screen {
+  text-align: center;
+  padding-top: 8px;
+}
+
+.intro-screen .art {
+  margin-bottom: 28px;
+}
+
+.last-result {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.last-result .link {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.q-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.q-count {
+  margin: 12px 0 4px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.q-text {
+  font-size: calc(var(--scene-size) * 1.3);
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+
+.blank {
+  display: inline-block;
+  min-width: 3em;
+  padding: 0 6px;
+  border-bottom: 3px solid var(--accent);
+  color: var(--accent);
+  text-align: center;
+}
+
+.q-back {
+  align-self: flex-start;
+  font-size: 0.9rem;
+}
+
+.choice:disabled {
+  cursor: default;
+}
+
+.choice.correct {
+  border-color: var(--good);
+  background: color-mix(in srgb, var(--good) 12%, transparent);
+}
+
+.choice.correct::before {
+  content: "⭕";
+}
+
+.choice.wrong {
+  border-color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+}
+
+.choice.wrong::before {
+  content: "❌";
+}
+
+.q-feedback {
+  margin-top: 16px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.q-feedback.ok strong { color: var(--good); }
+.q-feedback.no strong { color: var(--bad); }
+
+.q-feedback p {
+  margin: 6px 0 0;
+}
+
+.q-next {
+  width: 100%;
+  margin-top: 16px;
+}
+
+a.choice {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.choice.primary-choice {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.choice.primary-choice::before {
+  color: inherit;
+}
+
+.result .scene-body h3 {
+  font-size: 1rem;
+  margin: 24px 0 8px;
+}
+
+.result-name {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+.result-title {
+  color: var(--accent);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.traits {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.match {
+  margin-top: 16px;
+  font-weight: 600;
+}
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+}
+
+.breakdown-row {
+  display: grid;
+  grid-template-columns: 6.5em 1fr 3em;
+  align-items: center;
+  gap: 8px;
+}
+
+.breakdown-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.breakdown-track .bar {
+  display: block;
+}
+
+.breakdown-pct {
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.review {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review li {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.review p {
+  margin: 0;
+}
+
+.review-a {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--bad);
+}
+
+.review-e {
+  font-size: 0.88rem;
+  color: var(--muted);
 }
 
 /* ───── 사이드바 ───── */
