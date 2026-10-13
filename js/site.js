@@ -114,6 +114,8 @@ const Site = (() => {
     if (cwIndex !== undefined) {
       items.push({ title: "십자말풀이", detail: `${Number(cwIndex) + 1}번 문제 풀던 중`, href: "crossword.html" });
     }
+    const zb = storage.get("zombie:save", null);
+    if (zb && !zb.ending) items.push({ title: "서울, 구조까지 15일", detail: `${zb.day}일째 생존 중`, href: "zombie.html" });
     SITE_CATALOG.filter((c) => c.type === "story").forEach((c) => {
       const save = storage.get(`gamebook:${c.id}:save`, null);
       if (save?.history?.length) items.push({ title: c.title, detail: `선택 ${save.history.length}번째`, href: c.href });
