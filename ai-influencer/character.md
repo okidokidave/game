@@ -17,9 +17,10 @@
 ## 2. 외모
 | 항목 | 설정 |
 |---|---|
-| 헤어 | 어깨에 닿는 단발 |
-| 눈매 | 무쌍, 살짝 올라간 고양이 눈매 |
-| 인상 | 고양이상이지만 자주 웃어서 차가워 보이지 않음 |
+| 헤어 | 어깨에 닿는 단발, 겉은 흑갈색 + 안쪽은 블루 이너컬러 (수원 삼성 블루) |
+| 눈매 | 무쌍, 살짝 올라간 고양이 눈매, 눈꼬리를 얇게 뺀 브라운 아이라인 |
+| 시그니처 | 왼쪽 눈 밑(눈꼬리 쪽) 작은 점, 블루 이너컬러 |
+| 인상 | 첫인상은 시크한 고양이상, 웃으면 햇살 같은 반전 매력 |
 | 분위기 | 봄날의 햇살처럼 밝고 따뜻함 |
 | 패션 | 요즘 20대 데일리룩 (아래 참고) |
 
@@ -31,15 +32,17 @@
 
 > ⚠️ 이미지 생성 지시문에 실존 연예인 이름을 넣지 않는다. 특정인과 닮은 얼굴이 나오면 초상권 문제가 생기므로, "고양이상 무쌍" 같은 특징으로만 묘사한다.
 
-### 기준 얼굴 (v1 후보, Gemini로 생성)
-- `reference/face-main-v1.png`: 메인 기준 사진 (웃는 정면)
-- `reference/face-sheet-v1.png`: 각도별 시트 (웃음, 정면, 무표정, 측면, 45도)
+### 기준 얼굴 (Gemini로 생성)
+- **현재 기준** `reference/face-main-v2.png`: 시그니처(고양이 눈매 아이라인, 눈 밑 점, 블루 이너컬러) 적용
+- 이전 버전: `reference/face-main-v1.png`, `reference/face-sheet-v1.png` (시그니처 적용 전)
 - 새 사진을 만들 때는 메인 기준 사진을 항상 함께 넣는다
 
 ### 이미지 생성 기본 지시문 (영문)
 ```
-a 20-year-old Korean woman, shoulder-length bob haircut, monolid cat-like eyes,
-slightly upturned eye corners, bright warm smile, friendly and cheerful vibe,
+a 20-year-old Korean woman, shoulder-length bob haircut, dark brown hair with
+blue inner-color underlayer, monolid cat-like eyes, slightly upturned eye corners,
+thin brown winged eyeliner, small beauty mark under the outer corner of her left eye,
+bright warm smile, friendly and cheerful vibe,
 soft spring sunlight, natural makeup, trendy casual Korean street fashion,
 realistic photo, smartphone snapshot style
 ```
