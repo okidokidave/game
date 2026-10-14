@@ -58,24 +58,28 @@ class _MineViewState extends State<MineView> {
             child: Stack(
               children: [
                 Center(
-                  child: AnimatedScale(
-                    scale: _pressed ? 0.92 : 1.0,
-                    duration: const Duration(milliseconds: 80),
-                    child: Container(
-                      width: 180,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const RadialGradient(
-                          colors: [Color(0xFF6D4C41), Color(0xFF3E2723)],
+                  // 작은 화면에서는 광산 그림을 줄여서 넘치지 않게 한다.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: AnimatedScale(
+                      scale: _pressed ? 0.92 : 1.0,
+                      duration: const Duration(milliseconds: 80),
+                      child: Container(
+                        width: 180,
+                        height: 180,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const RadialGradient(
+                            colors: [Color(0xFF6D4C41), Color(0xFF3E2723)],
+                          ),
+                          border: Border.all(color: Colors.amber, width: 3),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black54, blurRadius: 16),
+                          ],
                         ),
-                        border: Border.all(color: Colors.amber, width: 3),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black54, blurRadius: 16),
-                        ],
+                        alignment: Alignment.center,
+                        child: const Text('⛏️', style: TextStyle(fontSize: 80)),
                       ),
-                      alignment: Alignment.center,
-                      child: const Text('⛏️', style: TextStyle(fontSize: 80)),
                     ),
                   ),
                 ),

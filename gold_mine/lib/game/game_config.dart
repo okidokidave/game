@@ -33,6 +33,16 @@ class GameConfig {
   /// 오프라인 동안은 실제 생산량의 몇 %를 주는지.
   static const double offlineEfficiency = 0.5;
 
+  // ── 광고 보상 ───────────────────────────────────────
+  /// 광고를 보면 채굴 속도가 몇 배가 되는지.
+  static const double boostMultiplier = 2;
+
+  /// 광고 한 번에 늘어나는 부스트 시간.
+  static const Duration boostDuration = Duration(minutes: 5);
+
+  /// 부스트를 최대 몇 분까지 쌓아 둘 수 있는지.
+  static const Duration maxBoostTime = Duration(minutes: 30);
+
   /// 자동 저장 주기.
   static const Duration autoSaveInterval = Duration(seconds: 10);
 

@@ -127,6 +127,64 @@ void main() {
     });
   });
 
+  group('광고 부스트', () {
+    late DateTime now;
+    late GameController game;
+
+    setUp(() async {
+      now = DateTime(2026, 1, 1);
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      game = GameController(SaveRepository(prefs), clock: () => now);
+    });
+
+    test('부스트 중에는 생산량이 배수만큼 오른다', () {
+      expect(game.activateBoost(), isTrue);
+      expect(
+        game.goldPerSecond,
+        game.baseGoldPerSecond * GameConfig.boostMultiplier,
+      );
+      game.tick(10);
+      expect(game.gold, closeTo(10 * GameConfig.boostMultiplier, 1e-9));
+    });
+
+    test('시간이 지나면 부스트가 끝난다', () {
+      game.activateBoost();
+      now = now.add(GameConfig.boostDuration);
+      expect(game.isBoostActive, isFalse);
+      expect(game.goldPerSecond, game.baseGoldPerSecond);
+    });
+
+    test('부스트는 최대 시간까지만 쌓인다', () {
+      while (game.activateBoost()) {}
+      expect(game.boostRemaining, lessThanOrEqualTo(GameConfig.maxBoostTime));
+      expect(game.canActivateBoost, isFalse);
+    });
+
+    test('오프라인 보상에는 부스트가 적용되지 않는다', () async {
+      await game.save(now);
+      game.activateBoost();
+      final earned = game.collectOfflineEarnings(
+        now.add(const Duration(hours: 1)),
+      );
+      expect(earned, closeTo(3600 * GameConfig.offlineEfficiency, 1e-6));
+    });
+
+    test('광고 보너스 골드를 지급한다', () {
+      game.grantBonusGold(500);
+      expect(game.gold, 500);
+      expect(game.totalEarned, 500);
+    });
+
+    test('부스트 종료 시각이 저장된다', () async {
+      game.activateBoost();
+      await game.save(now);
+      final prefs = await SharedPreferences.getInstance();
+      final loaded = GameController(SaveRepository(prefs), clock: () => now);
+      expect(loaded.boostRemaining, GameConfig.boostDuration);
+    });
+  });
+
   group('저장', () {
     test('저장한 진행 상황을 다시 불러온다', () async {
       SharedPreferences.setMockInitialValues({});

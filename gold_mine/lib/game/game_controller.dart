@@ -8,11 +8,15 @@ import 'save_repository.dart';
 
 /// 게임 규칙을 실행하고, 값이 바뀌면 화면에 알린다.
 class GameController extends ChangeNotifier {
-  GameController(this._repository) : _state = _repository.load() ?? GameState();
+  /// [clock]은 테스트에서 시간을 바꿔 가며 확인할 때만 넘긴다.
+  GameController(this._repository, {DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now,
+      _state = _repository.load() ?? GameState();
 
   static const _tickInterval = Duration(milliseconds: 100);
 
   final SaveRepository _repository;
+  final DateTime Function() _clock;
   GameState _state;
   Timer? _ticker;
 
@@ -25,8 +29,11 @@ class GameController extends ChangeNotifier {
   int get maxWorkers => GameConfig.maxWorkers(_state.mineLevel);
   String get mineName => GameConfig.mineName(_state.mineLevel);
 
-  double get goldPerSecond =>
+  /// 부스트를 뺀 기본 초당 생산량. 오프라인 보상은 이 값으로 계산한다.
+  double get baseGoldPerSecond =>
       GameConfig.goldPerSecond(_state.workers, _state.mineLevel);
+  double get goldPerSecond =>
+      baseGoldPerSecond * (isBoostActive ? GameConfig.boostMultiplier : 1);
   double get goldPerTap =>
       GameConfig.goldPerTap(_state.pickaxeLevel, _state.mineLevel);
 
@@ -39,6 +46,19 @@ class GameController extends ChangeNotifier {
   bool get canHireWorker => !isWorkerFull && gold >= workerCost;
   bool get canUpgradeMine => gold >= mineUpgradeCost;
   bool get canUpgradePickaxe => gold >= pickaxeUpgradeCost;
+
+  Duration get boostRemaining {
+    final endsAt = _state.boostEndsAt;
+    if (endsAt == null) return Duration.zero;
+    final remaining = endsAt.difference(_clock());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  bool get isBoostActive => boostRemaining > Duration.zero;
+
+  /// 부스트를 한 번 더 쌓아도 최대 시간을 넘지 않을 때만 true.
+  bool get canActivateBoost =>
+      boostRemaining + GameConfig.boostDuration <= GameConfig.maxBoostTime;
 
   // ── 게임 동작 ───────────────────────────────────────
   /// 인부들이 [seconds]초 동안 채굴한다.
@@ -80,6 +100,23 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
+  /// 광고 시청 보상: 채굴 속도 부스트 시간을 늘린다.
+  bool activateBoost() {
+    if (!canActivateBoost) return false;
+    _state.boostEndsAt = _clock().add(
+      boostRemaining + GameConfig.boostDuration,
+    );
+    notifyListeners();
+    return true;
+  }
+
+  /// 광고 시청 보상: 골드를 바로 지급한다 (오프라인 보상 2배 등).
+  void grantBonusGold(double amount) {
+    if (amount <= 0) return;
+    _earn(amount);
+    notifyListeners();
+  }
+
   /// 마지막 저장 이후 [now]까지 앱이 꺼져 있던 동안의 보상을 지급한다.
   /// 지급한 골드를 돌려준다.
   double collectOfflineEarnings(DateTime now) {
@@ -90,7 +127,7 @@ class GameController extends ChangeNotifier {
       elapsed = GameConfig.maxOfflineTime;
     }
     final earned =
-        goldPerSecond *
+        baseGoldPerSecond *
         (elapsed.inMilliseconds / 1000) *
         GameConfig.offlineEfficiency;
     _state.lastSavedAt = now;
@@ -132,7 +169,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> save([DateTime? now]) {
-    _state.lastSavedAt = now ?? DateTime.now();
+    _state.lastSavedAt = now ?? _clock();
     return _repository.save(_state);
   }
 

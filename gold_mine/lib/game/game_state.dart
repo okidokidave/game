@@ -7,6 +7,7 @@ class GameState {
     this.workers = 1,
     this.pickaxeLevel = 1,
     DateTime? lastSavedAt,
+    this.boostEndsAt,
   }) : lastSavedAt = lastSavedAt ?? DateTime.now();
 
   double gold;
@@ -21,6 +22,9 @@ class GameState {
   /// 마지막으로 저장한 시각. 오프라인 보상 계산의 기준이 된다.
   DateTime lastSavedAt;
 
+  /// 광고 부스트가 끝나는 시각. 부스트가 없으면 null.
+  DateTime? boostEndsAt;
+
   Map<String, dynamic> toJson() => {
     'gold': gold,
     'totalEarned': totalEarned,
@@ -28,10 +32,12 @@ class GameState {
     'workers': workers,
     'pickaxeLevel': pickaxeLevel,
     'lastSavedAt': lastSavedAt.millisecondsSinceEpoch,
+    'boostEndsAt': boostEndsAt?.millisecondsSinceEpoch,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
     final savedAt = json['lastSavedAt'] as int?;
+    final boostEndsAt = json['boostEndsAt'] as int?;
     return GameState(
       gold: (json['gold'] as num?)?.toDouble() ?? 0,
       totalEarned: (json['totalEarned'] as num?)?.toDouble() ?? 0,
@@ -41,6 +47,9 @@ class GameState {
       lastSavedAt: savedAt == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(savedAt),
+      boostEndsAt: boostEndsAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(boostEndsAt),
     );
   }
 }

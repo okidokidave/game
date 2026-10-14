@@ -1,23 +1,30 @@
 import 'package:flutter/material.dart';
 
+import '../ads/ad_service.dart';
 import '../game/game_config.dart';
 import '../game/game_controller.dart';
 import 'number_format.dart';
+import 'widgets/boost_bar.dart';
 import 'widgets/gold_header.dart';
 import 'widgets/mine_view.dart';
 import 'widgets/upgrade_tile.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.controller});
+  const HomeScreen({super.key, required this.controller, required this.ads});
 
   final GameController controller;
+  final AdService ads;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  /// 이보다 짧게 자리를 비웠으면 (광고 시청 등) 환영 팝업을 띄우지 않는다.
+  static const _minAwayForDialog = Duration(minutes: 1);
+
   GameController get _game => widget.controller;
+  AdService get _ads => widget.ads;
 
   @override
   void initState() {
@@ -54,8 +61,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_game.isRunning) return;
     final earned = _game.collectOfflineEarnings(DateTime.now());
     _game.start();
-    // 1초 미만의 짧은 전환에는 팝업을 띄우지 않는다.
-    if (earned >= _game.goldPerSecond * GameConfig.offlineEfficiency) {
+    final minEarned =
+        _game.baseGoldPerSecond *
+        _minAwayForDialog.inSeconds *
+        GameConfig.offlineEfficiency;
+    if (earned > 0 && earned >= minEarned) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showOfflineDialog(earned);
       });
@@ -72,6 +82,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           textAlign: TextAlign.center,
         ),
         actions: [
+          ValueListenableBuilder<bool>(
+            valueListenable: _ads.rewardedReady,
+            builder: (context, ready, _) => TextButton.icon(
+              onPressed: ready
+                  ? () {
+                      Navigator.of(context).pop();
+                      _watchAdForBonus(earned);
+                    }
+                  : null,
+              icon: const Icon(Icons.ondemand_video),
+              label: const Text('광고 보고 2배'),
+            ),
+          ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('받기'),
@@ -81,29 +104,72 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// 오프라인 보상은 이미 받은 상태이므로 같은 양을 한 번 더 준다.
+  Future<void> _watchAdForBonus(double earned) async {
+    if (!await _ads.showRewarded()) return;
+    _game.grantBonusGold(earned);
+    _showMessage('보너스 ${formatGold(earned)} 골드를 받았어요!');
+  }
+
+  Future<void> _watchAdForBoost() async {
+    if (!await _ads.showRewarded()) return;
+    if (_game.activateBoost()) {
+      _showMessage(
+        '${GameConfig.boostDuration.inMinutes}분간 채굴 속도가 '
+        '${GameConfig.boostMultiplier.toStringAsFixed(0)}배가 됩니다!',
+      );
+    }
+  }
+
+  void _showMessage(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: ListenableBuilder(
-          listenable: _game,
-          builder: (context, _) => Column(
-            children: [
-              GoldHeader(gold: _game.gold, goldPerSecond: _game.goldPerSecond),
-              Expanded(
-                child: MineView(
-                  mineName: _game.mineName,
-                  mineLevel: _game.mineLevel,
-                  workers: _game.workers,
-                  maxWorkers: _game.maxWorkers,
-                  onTap: _game.tap,
-                ),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListenableBuilder(
+                listenable: _game,
+                builder: (context, _) => _buildGame(),
               ),
-              _buildUpgrades(),
-            ],
-          ),
+            ),
+            // 배너는 0.1초마다 다시 그릴 필요가 없어서 밖에 둔다.
+            _ads.buildBanner(),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildGame() {
+    return Column(
+      children: [
+        GoldHeader(gold: _game.gold, goldPerSecond: _game.goldPerSecond),
+        ValueListenableBuilder<bool>(
+          valueListenable: _ads.rewardedReady,
+          builder: (context, ready, _) => BoostBar(
+            remaining: _game.boostRemaining,
+            canActivate: _game.canActivateBoost,
+            adReady: ready,
+            onPressed: _watchAdForBoost,
+          ),
+        ),
+        Expanded(
+          child: MineView(
+            mineName: _game.mineName,
+            mineLevel: _game.mineLevel,
+            workers: _game.workers,
+            maxWorkers: _game.maxWorkers,
+            onTap: _game.tap,
+          ),
+        ),
+        _buildUpgrades(),
+      ],
     );
   }
 
