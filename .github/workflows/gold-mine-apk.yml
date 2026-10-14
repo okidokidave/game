@@ -1,0 +1,97 @@
+# 골드 광산 키우기 APK를 GitHub 서버에서 빌드한다. (PC 없이 개발하기)
+#
+# - gold_mine/ 폴더가 바뀌어 push되면 자동으로 실행된다.
+# - 완성된 APK는 아래 고정 주소에 올라간다. 휴대폰에서 열면 바로 내려받을 수 있다.
+#   https://github.com/okidokidave/game/releases/download/test-build/gold-mine.apk
+# - 저장소 Secrets에 출시용 키(KEYSTORE_BASE64 등)가 있으면 그 키로, 없으면 테스트 키로 서명한다.
+name: 골드 광산 APK 빌드
+
+on:
+  push:
+    paths:
+      - 'gold_mine/**'
+      - '.github/workflows/gold-mine-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gold-mine-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gold_mine
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: 패키지 설치
+        run: flutter pub get
+
+      - name: 코드 검사
+        run: flutter analyze
+
+      - name: 테스트
+        run: flutter test
+
+      - name: 출시용 서명 키 준비 (Secrets에 등록된 경우에만)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "출시용 키가 없어서 테스트 키로 서명합니다."
+            echo "SIGNED_WITH=테스트 키 (스토어 등록 불가)" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=$RUNNER_TEMP/upload.jks
+          EOF
+          echo "SIGNED_WITH=출시용 키" >> "$GITHUB_ENV"
+
+      - name: APK 빌드
+        run: |
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk gold-mine.apk
+
+      - name: 빌드 결과 보관 (90일)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-mine-apk-${{ github.run_number }}
+          path: gold_mine/gold-mine.apk
+
+      - name: 다운로드 페이지에 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete test-build --cleanup-tag --yes || true
+          gh release create test-build gold-mine.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "골드 광산 테스트 빌드 #${{ github.run_number }}" \
+            --notes "브랜치: ${GITHUB_REF_NAME}
+          커밋: ${GITHUB_SHA::7}
+          서명: ${SIGNED_WITH}
+
+          휴대폰에서 gold-mine.apk를 눌러 내려받고 설치하세요."

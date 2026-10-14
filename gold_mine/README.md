@@ -48,6 +48,52 @@ gold_mine/
 
 ---
 
+## PC 없이 휴대폰만으로 개발하기 (현재 방식)
+
+PC가 없어도 됩니다. APK 빌드는 GitHub 서버가 대신 해요.
+
+```
+휴대폰에서 Claude와 대화 → 코드 수정 & GitHub에 push
+      → GitHub Actions가 자동으로 검사·테스트·APK 빌드 (약 5~10분)
+      → 휴대폰에서 고정 주소로 APK 내려받아 설치
+```
+
+**APK 다운로드 주소 (항상 최신 빌드):**
+https://github.com/okidokidave/game/releases/download/test-build/gold-mine.apk
+
+### 처음 설치할 때 (한 번만)
+1. 휴대폰 브라우저에서 위 주소를 엽니다 → `gold-mine.apk`가 내려받아집니다.
+2. 알림창이나 "내 파일 → 다운로드"에서 파일을 누릅니다.
+3. "출처를 알 수 없는 앱 설치" 경고가 뜨면 **설정 → 이 출처 허용**을 켜고 돌아와 **설치**를 누릅니다.
+4. Play 프로텍트가 "확인되지 않은 앱"이라고 경고하면 **세부정보 → 무시하고 설치**를 누릅니다
+   (스토어를 거치지 않은 앱이라 뜨는 정상적인 경고예요).
+
+### 업데이트할 때
+같은 주소에서 새 APK를 받아 설치하면 **덮어 설치**됩니다. 게임 저장 데이터는 그대로 유지돼요.
+모든 테스트 빌드는 레포에 들어 있는 테스트 키(`android/app/test-signing.keystore`)로 서명되기 때문이에요.
+
+### 빌드 상태 확인
+- https://github.com/okidokidave/game/actions 에서 "골드 광산 APK 빌드"를 봅니다.
+- 초록 체크(✓)면 성공, 빨간 X면 실패입니다. 실패하면 Claude에게 "빌드 실패했어"라고 말하면 됩니다.
+- 직접 다시 빌드하려면: Actions → 골드 광산 APK 빌드 → **Run workflow**
+
+### 출시용 APK (원스토어 등록 시)
+테스트 키는 공개돼 있어서 스토어에 올릴 수 없어요. 출시할 때는 출시용 키를 만들어
+GitHub 저장소 **Settings → Secrets and variables → Actions**에 아래 4개를 등록하면,
+그 다음 빌드부터 출시용 키로 서명됩니다.
+
+| Secret 이름 | 값 |
+|---|---|
+| `KEYSTORE_BASE64` | 키 파일(.jks)을 base64로 바꾼 글자 |
+| `KEYSTORE_PASSWORD` | 키스토어 비밀번호 |
+| `KEY_ALIAS` | `upload` |
+| `KEY_PASSWORD` | 키 비밀번호 |
+
+> ⚠️ 출시용 키로 바꾸면 서명이 달라져서, 테스트 빌드를 **한 번 삭제한 뒤** 설치해야 합니다.
+> 출시용 키 만드는 방법은 출시 직전에 따로 안내합니다.
+
+아래 3~5장은 나중에 PC가 생겼을 때 직접 빌드하는 방법입니다.
+
 ## 3. 개발 환경 설치 (Windows 기준, 처음 한 번만)
 
 ### 3-1. Android Studio 설치

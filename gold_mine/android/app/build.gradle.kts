@@ -40,6 +40,15 @@ android {
     }
 
     signingConfigs {
+        // 테스트용 서명 키. 레포에 함께 들어 있어서 어디서 빌드해도 같은 키로 서명된다.
+        // 덕분에 새 테스트 APK를 지우지 않고 덮어 설치할 수 있다 (저장 데이터 유지).
+        // 공개된 키이므로 스토어 출시용으로는 절대 쓰지 않는다.
+        getByName("debug") {
+            storeFile = file("test-signing.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         create("release") {
             if (keystorePropertiesFile.exists()) {
                 keyAlias = keystoreProperties["keyAlias"] as String
@@ -52,7 +61,7 @@ android {
 
     buildTypes {
         release {
-            // key.properties가 없으면 디버그 키로 서명한다 (테스트용, 스토어 등록 불가).
+            // key.properties가 없으면 테스트 키로 서명한다 (스토어 등록 불가).
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
