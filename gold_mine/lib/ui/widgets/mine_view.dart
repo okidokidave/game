@@ -46,9 +46,9 @@ class _MineViewState extends State<MineView> {
       children: [
         Text(
           '${widget.mineName}  Lv.${widget.mineLevel}',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         Expanded(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -89,17 +89,23 @@ class _MineViewState extends State<MineView> {
                     data: f,
                     onDone: () => setState(() => _floats.remove(f)),
                   ),
+                // 안내 문구는 광산 영역 안 아래쪽에 겹쳐서 공간을 아낀다.
+                const Align(
+                  alignment: Alignment.bottomCenter,
+                  child: IgnorePointer(
+                    child: Text(
+                      '광산을 터치해서 직접 캐 보세요!',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ),
-        const Text(
-          '광산을 터치해서 직접 캐 보세요!',
-          style: TextStyle(color: Colors.white54),
-        ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         _WorkerRow(workers: widget.workers, maxWorkers: widget.maxWorkers),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -129,7 +135,7 @@ class _WorkerRow extends StatelessWidget {
         for (var i = 0; i < maxWorkers; i++)
           Icon(
             Icons.engineering,
-            size: 28,
+            size: 24,
             color: i < workers ? Colors.amber : Colors.white24,
           ),
       ],

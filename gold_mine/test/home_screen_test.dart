@@ -77,10 +77,11 @@ void main() {
     await tester.binding.setSurfaceSize(null);
   });
 
-  testWidgets('작은 화면에서도 레이아웃이 넘치지 않는다', (tester) async {
+  testWidgets('작은 화면에서도 넘치지 않고 광산을 터치할 수 있다', (tester) async {
     final game = await newGame();
 
-    await tester.binding.setSurfaceSize(const Size(360, 640));
+    // 아주 작은 폰(320x640)에서 상태 표시줄을 뺀 크기.
+    await tester.binding.setSurfaceSize(const Size(320, 616));
     await tester.pumpWidget(
       GoldMineApp(controller: game, ads: FakeAdService()),
     );
@@ -88,6 +89,24 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
+    // 광산 그림이 줄어들더라도 손가락으로 누를 수 있는 크기는 남아야 한다.
+    final mine = tester.getSize(find.byType(FittedBox));
+    expect(mine.height, greaterThanOrEqualTo(90));
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('보통 크기 폰에서는 광산이 충분히 크게 보인다', (tester) async {
+    final game = await newGame();
+
+    await tester.binding.setSurfaceSize(const Size(360, 740));
+    await tester.pumpWidget(
+      GoldMineApp(controller: game, ads: FakeAdService()),
+    );
+    game.stop();
+    await tester.pump();
+
+    final mine = tester.getSize(find.byType(FittedBox));
+    expect(mine.height, greaterThanOrEqualTo(170));
     await tester.binding.setSurfaceSize(null);
   });
 }

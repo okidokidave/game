@@ -178,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         GameConfig.mineMultiplier(_game.mineLevel + 1) /
         GameConfig.mineMultiplier(_game.mineLevel);
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: const BoxDecoration(
         color: Color(0xFF2B2018),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

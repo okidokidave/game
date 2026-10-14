@@ -16,18 +16,18 @@ class GoldHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.monetization_on, color: Colors.amber, size: 36),
+              const Icon(Icons.monetization_on, color: Colors.amber, size: 32),
               const SizedBox(width: 8),
               Text(
                 formatGold(gold),
                 style: const TextStyle(
-                  fontSize: 40,
+                  fontSize: 36,
                   fontWeight: FontWeight.bold,
                   color: Colors.amber,
                 ),

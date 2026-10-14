@@ -27,9 +27,9 @@ class UpgradeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       color: const Color(0xFF3A2C20),
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 3),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(
           children: [
             Icon(icon, color: Colors.amber, size: 32),
