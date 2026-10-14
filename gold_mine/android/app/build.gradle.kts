@@ -61,6 +61,10 @@ android {
 
     buildTypes {
         release {
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             // key.properties가 없으면 테스트 키로 서명한다 (스토어 등록 불가).
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
