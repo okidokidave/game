@@ -31,6 +31,11 @@
 
 > ⚠️ 이미지 생성 지시문에 실존 연예인 이름을 넣지 않는다. 특정인과 닮은 얼굴이 나오면 초상권 문제가 생기므로, "고양이상 무쌍" 같은 특징으로만 묘사한다.
 
+### 기준 얼굴 (v1 후보, Gemini로 생성)
+- `reference/face-main-v1.png`: 메인 기준 사진 (웃는 정면)
+- `reference/face-sheet-v1.png`: 각도별 시트 (웃음, 정면, 무표정, 측면, 45도)
+- 새 사진을 만들 때는 메인 기준 사진을 항상 함께 넣는다
+
 ### 이미지 생성 기본 지시문 (영문)
 ```
 a 20-year-old Korean woman, shoulder-length bob haircut, monolid cat-like eyes,
