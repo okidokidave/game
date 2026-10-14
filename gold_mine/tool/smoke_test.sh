@@ -15,6 +15,9 @@ adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
 sleep 25
 
 adb exec-out screencap -p > "$OUT/screenshot.png"
+# 움직이는 모습을 6초 녹화한다 (다운로드 페이지에 GIF로 올라간다).
+adb shell screenrecord --time-limit 6 /sdcard/demo.mp4 || true
+adb pull /sdcard/demo.mp4 "$OUT/demo.mp4" || true
 adb logcat -d > "$OUT/logcat.txt"
 
 echo "===== 오류 로그 ====="

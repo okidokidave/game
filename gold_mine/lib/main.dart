@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'ads/ad_service.dart';
 import 'game/game_controller.dart';
 import 'game/save_repository.dart';
+import 'scene/sprites.dart';
 import 'ui/home_screen.dart';
 
 Future<void> main() async {
@@ -14,18 +15,25 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final controller = GameController(SaveRepository(prefs));
 
+  final sprites = await Sprites.load();
   final ads = AdMobService();
 
-  runApp(GoldMineApp(controller: controller, ads: ads));
+  runApp(GoldMineApp(controller: controller, ads: ads, sprites: sprites));
   // 동의 창은 화면이 뜬 뒤에 띄워야 하므로 runApp 다음에 시작한다.
   ads.initialize();
 }
 
 class GoldMineApp extends StatelessWidget {
-  const GoldMineApp({super.key, required this.controller, required this.ads});
+  const GoldMineApp({
+    super.key,
+    required this.controller,
+    required this.ads,
+    this.sprites,
+  });
 
   final GameController controller;
   final AdService ads;
+  final Sprites? sprites;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +47,7 @@ class GoldMineApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFF1E1610),
       ),
-      home: HomeScreen(controller: controller, ads: ads),
+      home: HomeScreen(controller: controller, ads: ads, sprites: sprites),
     );
   }
 }

@@ -3,17 +3,24 @@ import 'package:flutter/material.dart';
 import '../ads/ad_service.dart';
 import '../game/game_config.dart';
 import '../game/game_controller.dart';
+import '../scene/mine_scene.dart';
+import '../scene/sprites.dart';
 import 'number_format.dart';
 import 'widgets/boost_bar.dart';
 import 'widgets/gold_header.dart';
-import 'widgets/mine_view.dart';
 import 'widgets/upgrade_tile.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.controller, required this.ads});
+  const HomeScreen({
+    super.key,
+    required this.controller,
+    required this.ads,
+    this.sprites,
+  });
 
   final GameController controller;
   final AdService ads;
+  final Sprites? sprites;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -160,12 +167,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         Expanded(
-          child: MineView(
-            mineName: _game.mineName,
-            mineLevel: _game.mineLevel,
-            workers: _game.workers,
-            maxWorkers: _game.maxWorkers,
-            onTap: _game.tap,
+          child: ClipRect(
+            child: MineScene(game: _game, sprites: widget.sprites),
           ),
         ),
         _buildUpgrades(),
