@@ -18,26 +18,33 @@ class GoldHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.monetization_on, color: Colors.amber, size: 32),
-              const SizedBox(width: 8),
-              Text(
-                formatGold(gold),
-                style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.amber,
+              const Icon(Icons.monetization_on, color: Colors.amber, size: 28),
+              const SizedBox(width: 6),
+              // 숫자가 길어지면 글자를 줄여서 옆 버튼과 겹치지 않게 한다.
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    formatGold(gold),
+                    style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
           Text(
             '초당 ${formatRate(goldPerSecond)} 골드',
-            style: const TextStyle(fontSize: 16, color: Colors.white70),
+            style: const TextStyle(fontSize: 13, color: Colors.white70),
           ),
         ],
       ),

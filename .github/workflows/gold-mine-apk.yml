@@ -114,6 +114,7 @@ jobs:
         if: always()
         run: |
           if [ -f smoke/demo.mp4 ]; then
+            sudo apt-get install -y -qq ffmpeg > /dev/null
             ffmpeg -loglevel error -y -i smoke/demo.mp4 \
               -vf "fps=10,scale=360:-1:flags=neighbor,split[a][b];[a]palettegen[p];[b][p]paletteuse" \
               smoke/preview.gif || true

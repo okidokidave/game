@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../game/game_config.dart';
 
-/// 광고를 보고 채굴 속도를 올리는 버튼과 남은 부스트 시간.
+/// 광고를 보고 채굴 속도를 올리는 작은 버튼과 남은 부스트 시간.
+/// 골드 표시 오른쪽에 놓인다.
 class BoostBar extends StatelessWidget {
   const BoostBar({
     super.key,
@@ -23,35 +24,36 @@ class BoostBar extends StatelessWidget {
     final multiplier = GameConfig.boostMultiplier.toStringAsFixed(0);
     final minutes = GameConfig.boostDuration.inMinutes;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (active) ...[
-            const Icon(Icons.bolt, color: Colors.orangeAccent),
-            Text(
-              '채굴 ×$multiplier  ${_format(remaining)}',
-              style: const TextStyle(
-                color: Colors.orangeAccent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          OutlinedButton.icon(
-            onPressed: canActivate && adReady ? onPressed : null,
-            icon: const Icon(Icons.ondemand_video, size: 18),
-            label: Text(
-              !canActivate
-                  ? '부스트 가득 참'
-                  : active
-                  ? '+$minutes분 연장'
-                  : '광고 보고 $minutes분간 채굴 ×$multiplier',
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (active)
+          Text(
+            '⚡ 채굴 ×$multiplier  ${_format(remaining)}',
+            style: const TextStyle(
+              color: Colors.orangeAccent,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
             ),
           ),
-        ],
-      ),
+        OutlinedButton.icon(
+          onPressed: canActivate && adReady ? onPressed : null,
+          icon: const Icon(Icons.ondemand_video, size: 16),
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            textStyle: const TextStyle(fontSize: 12),
+          ),
+          label: Text(
+            !canActivate
+                ? '부스트 가득 참'
+                : active
+                ? '+$minutes분 연장'
+                : '광고 보고 채굴 ×$multiplier',
+          ),
+        ),
+      ],
     );
   }
 

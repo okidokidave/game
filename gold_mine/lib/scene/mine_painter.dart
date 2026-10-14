@@ -73,6 +73,7 @@ class MinePainter extends CustomPainter {
       _paintFloor(canvas, f, t);
     }
     _paintLockedFloor(canvas);
+    _paintBedrock(canvas, size.height / scale);
     _paintShaft(canvas, t);
     _paintPopups(canvas);
 
@@ -287,6 +288,29 @@ class MinePainter extends CustomPainter {
       Colors.black.withValues(alpha: 0.55),
     );
     _text(c, lockedLabel, 6, top + 11, 4.5, Colors.white70);
+  }
+
+  /// 잠긴 층 아래 남는 공간을 어두운 암반으로 채운다.
+  void _paintBedrock(Canvas c, double bottom) {
+    final top = MineLayout.floorTop(floors) + MineLayout.lockedHeight;
+    if (bottom <= top) return;
+    final s = sprites;
+    if (s != null) {
+      final theme = MineLayout.theme(floors + 1);
+      for (var y = top; y < bottom; y += 16) {
+        for (var x = 0.0; x < MineLayout.sceneWidth; x += 16) {
+          s.dirt.draw(c, theme, x, y);
+        }
+      }
+    }
+    _rect(
+      c,
+      0,
+      top,
+      MineLayout.sceneWidth,
+      bottom - top,
+      Colors.black.withValues(alpha: 0.75),
+    );
   }
 
   // ── 엘리베이터 통로 ─────────────────────────────────

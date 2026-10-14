@@ -98,7 +98,11 @@ class _MineSceneState extends State<MineScene>
         final width = constraints.maxWidth;
         final scale = width / MineLayout.sceneWidth;
         final floors = _game.mineLevel;
-        final height = MineLayout.sceneHeight(floors) * scale;
+        // 층이 적어서 화면이 남으면 아래를 깊은 암반으로 채운다.
+        final height = max(
+          MineLayout.sceneHeight(floors) * scale,
+          constraints.maxHeight.isFinite ? constraints.maxHeight : 0.0,
+        );
         return SingleChildScrollView(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,

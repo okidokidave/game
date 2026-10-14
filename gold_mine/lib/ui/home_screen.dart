@@ -156,14 +156,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildGame() {
     return Column(
       children: [
-        GoldHeader(gold: _game.gold, goldPerSecond: _game.goldPerSecond),
-        ValueListenableBuilder<bool>(
-          valueListenable: _ads.rewardedReady,
-          builder: (context, ready, _) => BoostBar(
-            remaining: _game.boostRemaining,
-            canActivate: _game.canActivateBoost,
-            adReady: ready,
-            onPressed: _watchAdForBoost,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: GoldHeader(
+                  gold: _game.gold,
+                  goldPerSecond: _game.goldPerSecond,
+                ),
+              ),
+              ValueListenableBuilder<bool>(
+                valueListenable: _ads.rewardedReady,
+                builder: (context, ready, _) => BoostBar(
+                  remaining: _game.boostRemaining,
+                  canActivate: _game.canActivateBoost,
+                  adReady: ready,
+                  onPressed: _watchAdForBoost,
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -181,43 +193,45 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         GameConfig.mineMultiplier(_game.mineLevel + 1) /
         GameConfig.mineMultiplier(_game.mineLevel);
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: const BoxDecoration(
-        color: Color(0xFF2B2018),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+      color: const Color(0xFF2B2018),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          UpgradeTile(
-            icon: Icons.engineering,
-            title: '인부 고용',
-            description: _game.isWorkerFull
-                ? '광산이 가득 찼어요. 광산을 확장하세요!'
-                : '인부 ${_game.workers}/${_game.maxWorkers}명 · 초당 생산 증가',
-            cost: _game.workerCost,
-            enabled: _game.canHireWorker,
-            maxed: _game.isWorkerFull,
-            onPressed: _game.hireWorker,
+          Expanded(
+            child: UpgradeTile(
+              icon: Icons.engineering,
+              title: '인부 고용',
+              description: _game.isWorkerFull
+                  ? '광산 확장 필요'
+                  : '${_game.workers}/${_game.maxWorkers}명',
+              cost: _game.workerCost,
+              enabled: _game.canHireWorker,
+              maxed: _game.isWorkerFull,
+              onPressed: _game.hireWorker,
+            ),
           ),
-          UpgradeTile(
-            icon: Icons.terrain,
-            title: '광산 확장',
-            description:
-                'Lv.${_game.mineLevel} → ${_game.mineLevel + 1} · 생산 ×${nextMultiplier.toStringAsFixed(1)}, '
-                '인부 +${GameConfig.workersPerMineLevel}칸',
-            cost: _game.mineUpgradeCost,
-            enabled: _game.canUpgradeMine,
-            onPressed: _game.upgradeMine,
+          Expanded(
+            child: UpgradeTile(
+              icon: Icons.terrain,
+              title: '광산 확장',
+              description:
+                  'B${_game.mineLevel + 1}층 · 생산 ×${nextMultiplier.toStringAsFixed(1)}',
+              cost: _game.mineUpgradeCost,
+              enabled: _game.canUpgradeMine,
+              onPressed: _game.upgradeMine,
+            ),
           ),
-          UpgradeTile(
-            icon: Icons.hardware,
-            title: '곡괭이 강화',
-            description:
-                'Lv.${_game.pickaxeLevel} · 터치당 ${formatRate(_game.goldPerTap)} 골드',
-            cost: _game.pickaxeUpgradeCost,
-            enabled: _game.canUpgradePickaxe,
-            onPressed: _game.upgradePickaxe,
+          Expanded(
+            child: UpgradeTile(
+              icon: Icons.hardware,
+              title: '곡괭이',
+              description:
+                  'Lv.${_game.pickaxeLevel} · 터치 +${formatRate(_game.goldPerTap)}',
+              cost: _game.pickaxeUpgradeCost,
+              enabled: _game.canUpgradePickaxe,
+              onPressed: _game.upgradePickaxe,
+            ),
           ),
         ],
       ),

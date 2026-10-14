@@ -75,7 +75,7 @@ void main() {
 
     expect(ads.shown, 1);
     expect(game.isBoostActive, isTrue);
-    expect(find.textContaining('연장'), findsOneWidget);
+    expect(find.textContaining('분 연장'), findsOneWidget);
 
     await tester.binding.setSurfaceSize(null);
   });
@@ -92,13 +92,19 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
-    // 광산 장면은 스크롤되지만, 한눈에 한 층 이상은 보여야 한다.
+    // 광산 장면은 스크롤되지만, 작은 폰에서도 지상과 첫 층은 한눈에 보여야 한다.
     final mine = tester.getSize(find.byType(MineScene));
-    expect(mine.height, greaterThanOrEqualTo(150));
+    final scale = 320 / MineLayout.sceneWidth;
+    expect(
+      mine.height,
+      greaterThanOrEqualTo(
+        (MineLayout.surfaceHeight + MineLayout.floorHeight) * scale,
+      ),
+    );
     await tester.binding.setSurfaceSize(null);
   });
 
-  testWidgets('보통 크기 폰에서는 지상과 첫 층이 함께 보인다', (tester) async {
+  testWidgets('보통 크기 폰에서는 지상과 두 층이 함께 보인다', (tester) async {
     final game = await newGame();
 
     await tester.binding.setSurfaceSize(const Size(360, 740));
@@ -113,7 +119,7 @@ void main() {
     expect(
       mine.height,
       greaterThanOrEqualTo(
-        (MineLayout.surfaceHeight + MineLayout.floorHeight) * scale,
+        (MineLayout.surfaceHeight + MineLayout.floorHeight * 2) * scale,
       ),
     );
     await tester.binding.setSurfaceSize(null);
