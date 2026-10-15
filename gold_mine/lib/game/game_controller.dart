@@ -24,6 +24,9 @@ class GameController extends ChangeNotifier {
 
   /// 상황이 생기거나 바뀔 때 화면에 알리는 함수 (반장에게 보고).
   void Function(MineEvent event, String message)? onEventNotice;
+
+  /// 그 밖의 소식 (예: 승급 준비 완료)을 반장에게 알리는 함수.
+  void Function(String message)? onMessage;
   GameState _state;
   Timer? _ticker;
 
@@ -37,24 +40,29 @@ class GameController extends ChangeNotifier {
   String get mineName => GameConfig.mineName(_state.mineLevel);
 
   /// 돌발상황이 없을 때의 초당 생산량. 오프라인 보상은 이 값으로 계산한다.
-  double get steadyGoldPerSecond => GameConfig.goldPerSecond(
-    _state.workers,
-    _state.mineLevel,
-    _state.pickaxeLevel,
-  );
+  double get steadyGoldPerSecond {
+    var grades = 0.0;
+    for (var slot = 0; slot < _state.workers; slot++) {
+      grades += gradeOf(slot).multiplier;
+    }
+    return _perWorkerGold * grades;
+  }
+
+  /// 견습 인부 한 명이 1초에 캐는 골드 (광산 레벨, 장비 반영).
+  double get _perWorkerGold =>
+      GameConfig.goldPerWorkerPerSecond *
+      GameConfig.mineMultiplier(_state.mineLevel) *
+      GameConfig.equipmentMultiplier(_state.pickaxeLevel);
 
   /// 돌발상황(부상, 금맥 등)을 반영하고 광고 부스트는 뺀 초당 생산량.
   double get baseGoldPerSecond {
-    final perWorker =
-        GameConfig.goldPerWorkerPerSecond *
-        GameConfig.mineMultiplier(_state.mineLevel) *
-        GameConfig.equipmentMultiplier(_state.pickaxeLevel);
+    final perWorker = _perWorkerGold;
     var total = 0.0;
     for (var f = 0; f < _state.mineLevel; f++) {
       final count = GameConfig.workersOnFloor(f, _state.workers);
       var floorTotal = 0.0;
       for (var i = 0; i < count; i++) {
-        floorTotal += workerSpeed(f, i);
+        floorTotal += workerSpeed(f, i) * workerGrade(f, i).multiplier;
       }
       total += floorTotal * floorMultiplier(f);
     }
@@ -357,11 +365,86 @@ class GameController extends ChangeNotifier {
 
   void _notice(MineEvent e, String message) => onEventNotice?.call(e, message);
 
+  // ── 인부 등급 ───────────────────────────────────────
+  /// 인부 번호 (B1의 첫 인부가 0, 층마다 3명씩).
+  static int slotOf(int floor, int worker) =>
+      floor * GameConfig.workersPerMineLevel + worker;
+
+  /// "B1-2"처럼 화면에 보이는 인부 이름.
+  static String workerLabel(int slot) =>
+      'B${slot ~/ GameConfig.workersPerMineLevel + 1}-'
+      '${slot % GameConfig.workersPerMineLevel + 1}';
+
+  WorkerGrade gradeOf(int slot) =>
+      GameConfig.workerGrades[_state.workerGrades[slot]];
+
+  int gradeIndexOf(int slot) => _state.workerGrades[slot];
+
+  WorkerGrade workerGrade(int floor, int worker) =>
+      gradeOf(slotOf(floor, worker));
+
+  double xpOf(int slot) => _state.workerXp[slot];
+
+  /// 다음 등급까지 필요한 경험치. 최고 등급이면 null.
+  double? xpNeeded(int slot) => gradeOf(slot).xpToPromote;
+
+  bool isPromotionReady(int slot) {
+    final need = xpNeeded(slot);
+    return need != null && xpOf(slot) >= need;
+  }
+
+  int get promotionReadyCount => [
+    for (var s = 0; s < _state.workers; s++)
+      if (isPromotionReady(s)) s,
+  ].length;
+
+  double promotionCost(int slot) {
+    final grade = gradeOf(slot);
+    return max(
+      grade.minPromoteCost,
+      steadyGoldPerSecond * grade.promoteCostSeconds,
+    );
+  }
+
+  bool canPromote(int slot) =>
+      isPromotionReady(slot) && gold >= promotionCost(slot);
+
+  /// 반장이 인부를 다음 등급으로 올린다.
+  bool promote(int slot) {
+    if (!canPromote(slot)) return false;
+    _state.gold -= promotionCost(slot);
+    _state.workerGrades[slot]++;
+    _state.workerXp[slot] = 0;
+    notifyListeners();
+    return true;
+  }
+
+  /// 일한 만큼 경험치를 쌓는다 (지치면 느리게, 쉬거나 다치면 안 쌓임).
+  void _gainXp(double seconds, {required bool notify}) {
+    for (var slot = 0; slot < _state.workers; slot++) {
+      final need = xpNeeded(slot);
+      if (need == null || xpOf(slot) >= need) continue;
+      final floor = slot ~/ GameConfig.workersPerMineLevel;
+      final worker = slot % GameConfig.workersPerMineLevel;
+      _state.workerXp[slot] = min(
+        need,
+        xpOf(slot) + seconds * workerSpeed(floor, worker),
+      );
+      if (notify && xpOf(slot) >= need) {
+        onMessage?.call(
+          '반장님, ${workerLabel(slot)} ${gradeOf(slot).name} 인부가 '
+          '승급할 준비가 됐어요! ⬆',
+        );
+      }
+    }
+  }
+
   // ── 게임 동작 ───────────────────────────────────────
   /// 인부들이 [seconds]초 동안 채굴한다.
   void tick(double seconds) {
     if (seconds <= 0) return;
     _earn(goldPerSecond * seconds);
+    _gainXp(seconds, notify: true);
     notifyListeners();
   }
 
@@ -377,6 +460,8 @@ class GameController extends ChangeNotifier {
     if (!canHireWorker) return false;
     _state.gold -= workerCost;
     _state.workers++;
+    _state.workerGrades.add(0);
+    _state.workerXp.add(0);
     notifyListeners();
     return true;
   }
@@ -423,11 +508,10 @@ class GameController extends ChangeNotifier {
     if (elapsed > GameConfig.maxOfflineTime) {
       elapsed = GameConfig.maxOfflineTime;
     }
-    final earned =
-        steadyGoldPerSecond *
-        (elapsed.inMilliseconds / 1000) *
-        GameConfig.offlineEfficiency;
+    final seconds = elapsed.inMilliseconds / 1000;
+    final earned = steadyGoldPerSecond * seconds * GameConfig.offlineEfficiency;
     _state.lastSavedAt = now;
+    _gainXp(seconds * GameConfig.offlineEfficiency, notify: false);
     if (earned > 0) {
       _earn(earned);
       notifyListeners();

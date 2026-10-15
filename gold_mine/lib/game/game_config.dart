@@ -1,5 +1,28 @@
 import 'dart:math';
 
+/// 인부 등급. 일한 시간(경험치)이 차면 반장이 골드를 내고 승급시킨다.
+class WorkerGrade {
+  const WorkerGrade(
+    this.name,
+    this.multiplier, {
+    this.xpToPromote,
+    this.promoteCostSeconds = 0,
+    this.minPromoteCost = 0,
+  });
+
+  final String name;
+
+  /// 이 등급 인부의 생산량 배수.
+  final double multiplier;
+
+  /// 다음 등급까지 필요한 경험치 (일한 초). 마지막 등급이면 null.
+  final double? xpToPromote;
+
+  /// 승급 비용 = 초당 생산량 × 이 초 (최소 [minPromoteCost]).
+  final double promoteCostSeconds;
+  final double minPromoteCost;
+}
+
 /// 채굴 장비 단계. 장비 레벨이 [startLevel]에 닿으면 이 장비로 바뀐다.
 class EquipmentTier {
   const EquipmentTier(
@@ -46,6 +69,32 @@ class GameConfig {
 
   static const double pickaxeBaseCost = 40;
   static const double pickaxeCostGrowth = 2;
+
+  // ── 인부 등급 ───────────────────────────────────────
+  static const List<WorkerGrade> workerGrades = [
+    WorkerGrade(
+      '견습',
+      1,
+      xpToPromote: 300,
+      promoteCostSeconds: 90,
+      minPromoteCost: 50,
+    ),
+    WorkerGrade(
+      '숙련',
+      1.5,
+      xpToPromote: 1200,
+      promoteCostSeconds: 300,
+      minPromoteCost: 300,
+    ),
+    WorkerGrade(
+      '베테랑',
+      2.2,
+      xpToPromote: 3600,
+      promoteCostSeconds: 900,
+      minPromoteCost: 2000,
+    ),
+    WorkerGrade('장인', 3),
+  ];
 
   // ── 채굴 장비 단계 ──────────────────────────────────
   // 목표: 드릴 약 10분, 다이너마이트 약 30분, 굴착 기계 약 75분.

@@ -12,8 +12,20 @@ class GameState {
     this.boostEndsAt,
     List<MineEvent>? events,
     this.nextEventId = 1,
+    List<int>? workerGrades,
+    List<double>? workerXp,
   }) : lastSavedAt = lastSavedAt ?? DateTime.now(),
-       events = events ?? [];
+       events = events ?? [],
+       workerGrades = workerGrades ?? [],
+       workerXp = workerXp ?? [] {
+    // 예전 저장에는 등급 정보가 없으니 인부 수만큼 견습으로 채운다.
+    while (this.workerGrades.length < workers) {
+      this.workerGrades.add(0);
+    }
+    while (this.workerXp.length < workers) {
+      this.workerXp.add(0);
+    }
+  }
 
   double gold;
 
@@ -34,6 +46,10 @@ class GameState {
   List<MineEvent> events;
   int nextEventId;
 
+  /// 인부마다의 등급과 경험치. 순서는 B1의 첫 인부부터 층마다 3명씩.
+  List<int> workerGrades;
+  List<double> workerXp;
+
   Map<String, dynamic> toJson() => {
     'gold': gold,
     'totalEarned': totalEarned,
@@ -44,6 +60,8 @@ class GameState {
     'boostEndsAt': boostEndsAt?.millisecondsSinceEpoch,
     'events': [for (final e in events) e.toJson()],
     'nextEventId': nextEventId,
+    'workerGrades': workerGrades,
+    'workerXp': workerXp,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -66,6 +84,14 @@ class GameState {
           ?MineEvent.fromJson(e as Map<String, dynamic>),
       ],
       nextEventId: json['nextEventId'] as int? ?? 1,
+      workerGrades: [
+        for (final g in (json['workerGrades'] as List<dynamic>? ?? const []))
+          g as int,
+      ],
+      workerXp: [
+        for (final x in (json['workerXp'] as List<dynamic>? ?? const []))
+          (x as num).toDouble(),
+      ],
     );
   }
 }

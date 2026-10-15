@@ -35,6 +35,7 @@ class BoostBar extends StatelessWidget {
               color: Colors.orangeAccent,
               fontWeight: FontWeight.bold,
               fontSize: 12,
+              shadows: [Shadow(color: Colors.black, blurRadius: 3)],
             ),
           ),
         OutlinedButton.icon(
@@ -44,6 +45,8 @@ class BoostBar extends StatelessWidget {
             visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             textStyle: const TextStyle(fontSize: 12),
+            // 하늘 그림 위에서도 잘 보이게 어두운 바탕을 깐다.
+            backgroundColor: const Color(0xCC1E1610),
           ),
           label: Text(
             !canActivate

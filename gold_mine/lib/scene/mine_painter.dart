@@ -29,6 +29,8 @@ class MinePainter extends CustomPainter {
     required this.workerLook,
     required this.hasGoldVein,
     required this.tool,
+    required this.workerGrade,
+    required this.promotionReady,
     required this.title,
     required this.lockedLabel,
     required this.popups,
@@ -52,6 +54,10 @@ class MinePainter extends CustomPainter {
 
   /// 지금 쓰는 채굴 장비 (Tool.pickaxe ~ Tool.machine).
   final int tool;
+
+  /// 인부 등급 (안전모 색 줄 번호), 승급 준비가 됐는지.
+  final int Function(int floor, int worker) workerGrade;
+  final bool Function(int floor, int worker) promotionReady;
   final String title;
   final String lockedLabel;
   final List<GoldPopup> popups;
@@ -140,7 +146,7 @@ class MinePainter extends CustomPainter {
     _rect(c, MineLayout.shaftLeft + 2, 18, 16, 1, _woodDark);
     s?.wheel.draw(c, (t * 4).floor() % 2, 103, 0);
 
-    _text(c, title, 38, 2, 5, Colors.white, shadow: true, bold: true);
+    _text(c, title, 3, 2, 5, Colors.white, shadow: true, bold: true);
   }
 
   // ── 땅속 층 ─────────────────────────────────────────
@@ -265,11 +271,19 @@ class MinePainter extends CustomPainter {
           sprite.x,
           top + MineLayout.floorLine - MineLayout.minerHeight + 1,
           flip: sprite.flip,
+          row: workerGrade(floor, i),
         );
         if (sprite.action == MinerAction.mine) {
           _toolEffect(c, sprite, top, t, floor, i);
         }
-        _workerMark(c, look, floor, sprite.x, t);
+        _workerMark(
+          c,
+          look,
+          floor,
+          sprite.x,
+          t,
+          ready: promotionReady(floor, i),
+        );
       }
     }
 
@@ -285,19 +299,31 @@ class MinePainter extends CustomPainter {
   }
 
   /// 인부 머리 위 말풍선 (돌발상황, 좋은 일).
-  void _workerMark(Canvas c, WorkerLook look, int floor, double x, double t) {
-    final (icon, border) = switch (look) {
-      WorkerLook.tired => ('💦', const Color(0xFFE5533D)),
-      WorkerLook.injured => ('🩹', const Color(0xFFE5533D)),
-      WorkerLook.diamond => ('💎', const Color(0xFF5BC8F5)),
-      WorkerLook.resting => ('💤', const Color(0xFF9AA4B0)),
-      WorkerLook.energized => ('⚡', const Color(0xFFFFC83D)),
-      WorkerLook.normal => ('', const Color(0x00000000)),
-    };
+  void _workerMark(
+    Canvas c,
+    WorkerLook look,
+    int floor,
+    double x,
+    double t, {
+    bool ready = false,
+  }) {
+    final promote =
+        ready && (look == WorkerLook.normal || look == WorkerLook.energized);
+    final (icon, border) = promote
+        ? ('⬆', const Color(0xFF4CAF50))
+        : switch (look) {
+            WorkerLook.tired => ('💦', const Color(0xFFE5533D)),
+            WorkerLook.injured => ('🩹', const Color(0xFFE5533D)),
+            WorkerLook.diamond => ('💎', const Color(0xFF5BC8F5)),
+            WorkerLook.resting => ('💤', const Color(0xFF9AA4B0)),
+            WorkerLook.energized => ('⚡', const Color(0xFFFFC83D)),
+            WorkerLook.normal => ('', const Color(0x00000000)),
+          };
     if (icon.isEmpty) return;
     final center = MinerCycle.bubbleCenter(floor, x, look);
     // 반장을 부르는 말풍선은 살짝 통통 튄다.
     final needsForeman =
+        promote ||
         look == WorkerLook.tired ||
         look == WorkerLook.injured ||
         look == WorkerLook.diamond;

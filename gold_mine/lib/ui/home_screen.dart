@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _game.onEventNotice = _onEventNotice;
+    _game.onMessage = _onMessage;
     _resumeGame();
   }
 
@@ -46,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _game.onEventNotice = null;
+    _game.onMessage = null;
     _game.stop();
     super.dispose();
   }
@@ -287,6 +289,142 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // ── 인부 관리 ───────────────────────────────────────
+  /// 등급별 안전모 색 (도트 그림과 같은 색).
+  static const _gradeColors = [
+    Color(0xFFCDCDC3),
+    Color(0xFFF7C331),
+    Color(0xFFF07832),
+    Color(0xFFAA69EB),
+  ];
+
+  void _onMessage(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(label: '보기', onPressed: _showWorkers),
+      ),
+    );
+  }
+
+  void _showWorkers() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        builder: (context, scroll) => ListenableBuilder(
+          listenable: _game,
+          builder: (context, _) => ListView(
+            controller: scroll,
+            padding: const EdgeInsets.only(bottom: 16),
+            children: [
+              const ListTile(
+                title: Text(
+                  '👷 인부 관리',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('일한 만큼 경험치가 쌓여요. 가득 차면 승급시키세요.'),
+              ),
+              for (var slot = 0; slot < _game.workers; slot++)
+                _workerTile(slot),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _workerTile(int slot) {
+    final grade = _game.gradeOf(slot);
+    final need = _game.xpNeeded(slot);
+    final xp = _game.xpOf(slot);
+    final ready = _game.isPromotionReady(slot);
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: _gradeColors[_game.gradeIndexOf(slot)],
+        foregroundColor: Colors.black87,
+        child: const Icon(Icons.engineering),
+      ),
+      title: Text(
+        '${GameController.workerLabel(slot)}  ${grade.name}  ×${grade.multiplier}',
+      ),
+      subtitle: need == null
+          ? const Text('최고 등급이에요!')
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                LinearProgressIndicator(
+                  value: xp / need,
+                  color: ready ? const Color(0xFF4CAF50) : Colors.amber,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        ready
+                            ? '승급 준비 완료!'
+                            : '경험치 ${(xp / 60).floor()}/${(need / 60).round()}분',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    if (ready)
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: _game.canPromote(slot)
+                            ? () => _promote(slot)
+                            : null,
+                        child: Text(
+                          '승급 ${formatGold(_game.promotionCost(slot))}',
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+
+  void _showPromotionDialog(int slot) {
+    final grade = _game.gradeOf(slot);
+    final next = GameConfig.workerGrades[_game.gradeIndexOf(slot) + 1];
+    final cost = _game.promotionCost(slot);
+    _decide(
+      title: '⬆ 승급',
+      message:
+          '반장님, ${GameController.workerLabel(slot)} ${grade.name} 인부가 '
+          '승급할 준비가 됐어요!\n\n'
+          '${grade.name} → ${next.name}\n'
+          '생산 ×${grade.multiplier} → ×${next.multiplier}',
+      choices: [
+        ('나중에', false, () {}),
+        (
+          '승급시키기 (${formatGold(cost)} 골드)',
+          true,
+          _game.canPromote(slot) ? () => _promote(slot) : null,
+        ),
+      ],
+    );
+  }
+
+  void _promote(int slot) {
+    if (!_game.promote(slot)) return;
+    _showMessage(
+      '${GameController.workerLabel(slot)} 인부가 '
+      '${_game.gradeOf(slot).name}(으)로 승급했어요! 🎉',
+    );
+  }
+
   void _showSettings() {
     showModalBottomSheet<void>(
       context: context,
@@ -371,14 +509,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   goldPerSecond: _game.goldPerSecond,
                 ),
               ),
-              ValueListenableBuilder<bool>(
-                valueListenable: _ads.rewardedReady,
-                builder: (context, ready, _) => BoostBar(
-                  remaining: _game.boostRemaining,
-                  canActivate: _game.canActivateBoost,
-                  adReady: ready,
-                  onPressed: _watchAdForBoost,
+              IconButton(
+                tooltip: '인부 관리',
+                visualDensity: VisualDensity.compact,
+                icon: Badge(
+                  isLabelVisible: _game.promotionReadyCount > 0,
+                  label: Text('${_game.promotionReadyCount}'),
+                  child: const Icon(Icons.groups, color: Colors.white70),
                 ),
+                onPressed: _showWorkers,
               ),
               IconButton(
                 tooltip: '설정',
@@ -390,12 +529,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         Expanded(
-          child: ClipRect(
-            child: MineScene(
-              game: _game,
-              sprites: widget.sprites,
-              onEventTap: _showEventDialog,
-            ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: ClipRect(
+                  child: MineScene(
+                    game: _game,
+                    sprites: widget.sprites,
+                    onEventTap: _showEventDialog,
+                    onWorkerTap: _showPromotionDialog,
+                    onShowWorkers: _showWorkers,
+                  ),
+                ),
+              ),
+              // 광고 부스트 버튼은 광산 하늘 오른쪽 위에 띄운다 (머리 공간 절약).
+              Positioned(
+                top: 6,
+                right: 6,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _ads.rewardedReady,
+                  builder: (context, ready, _) => BoostBar(
+                    remaining: _game.boostRemaining,
+                    canActivate: _game.canActivateBoost,
+                    adReady: ready,
+                    onPressed: _watchAdForBoost,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         _buildUpgrades(),

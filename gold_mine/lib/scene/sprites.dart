@@ -18,10 +18,18 @@ class SpriteSheet {
     ..isAntiAlias = false;
 
   /// [frame]번 칸을 (x, y)에 그린다. [flip]이면 좌우를 뒤집는다.
-  void draw(Canvas canvas, int frame, double x, double y, {bool flip = false}) {
+  /// 여러 줄짜리 시트(예: 등급별 인부)는 [row]로 줄을 고른다.
+  void draw(
+    Canvas canvas,
+    int frame,
+    double x,
+    double y, {
+    bool flip = false,
+    int row = 0,
+  }) {
     final src = Rect.fromLTWH(
       (frame % frameCount) * frameWidth,
-      0,
+      row * frameHeight,
       frameWidth,
       frameHeight,
     );
@@ -59,6 +67,7 @@ class Sprites {
   /// 0-3 걷기, 4-7 광석 지고 걷기, 8-10 곡괭이질, 11 서 있기,
   /// 12 앉아 쉬기, 13 다쳐서 누움, 14 다이아 들기, 15-16 드릴,
   /// 17 다이너마이트 설치, 18 귀 막기, 19 기계 조종. 오른쪽을 본다.
+  /// 줄마다 인부 등급(견습, 숙련, 베테랑, 장인)의 안전모 색이 다르다.
   SpriteSheet get miner => _sheets['miner']!;
 
   /// 층 테마별 암벽 (흙, 돌, 깊은 돌, 수정, 용암).

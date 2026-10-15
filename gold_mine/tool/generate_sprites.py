@@ -246,6 +246,33 @@ def miner_sheet():
     return strip(frames)
 
 
+# 인부 등급별 안전모 색 (밝음, 그림자). 줄 순서 = 등급 순서.
+GRADE_HELMETS = [
+    ((205, 205, 195, 255), (150, 150, 140, 255)),  # 견습: 회색
+    (HELMET, HELMET_D),  # 숙련: 노랑
+    ((240, 120, 50, 255), (185, 75, 30, 255)),  # 베테랑: 주황
+    ((170, 105, 235, 255), (115, 60, 175, 255)),  # 장인: 보라
+]
+
+
+def graded_miner_sheet():
+    """등급마다 한 줄씩, 안전모 색만 바꾼 인부 그림."""
+    base = miner_sheet()
+    w, h = base.size
+    sheet = Image.new('RGBA', (w, h * len(GRADE_HELMETS)), CLEAR)
+    for row, (light, dark) in enumerate(GRADE_HELMETS):
+        img = base.copy()
+        px = img.load()
+        for y in range(h):
+            for x in range(w):
+                if px[x, y] == HELMET:
+                    px[x, y] = light
+                elif px[x, y] == HELMET_D:
+                    px[x, y] = dark
+        sheet.paste(img, (0, row * h))
+    return sheet
+
+
 def miner_plant():
     """쪼그려 앉아 벽에 다이너마이트를 꽂는다."""
     c = Canvas(MINER_W, MINER_H)
@@ -614,7 +641,7 @@ def cloud():
 def main():
     os.makedirs(OUT, exist_ok=True)
     sheets = {
-        'miner.png': miner_sheet(),
+        'miner.png': graded_miner_sheet(),
         'wall.png': wall_sheet(),
         'tunnel.png': tile_sheet(),
         'dirt.png': dirt_sheet(),

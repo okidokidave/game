@@ -19,6 +19,8 @@ class MineScene extends StatefulWidget {
     required this.game,
     this.sprites,
     this.onEventTap,
+    this.onWorkerTap,
+    this.onShowWorkers,
   });
 
   final GameController game;
@@ -28,6 +30,12 @@ class MineScene extends StatefulWidget {
 
   /// 반장이 처리해야 하는 상황을 눌렀을 때.
   final void Function(MineEvent event)? onEventTap;
+
+  /// 승급 준비가 된 인부(⬆)를 눌렀을 때. 인부 번호를 넘긴다.
+  final void Function(int slot)? onWorkerTap;
+
+  /// "승급 가능" 알림을 눌렀을 때.
+  final VoidCallback? onShowWorkers;
 
   @override
   State<MineScene> createState() => _MineSceneState();
@@ -118,6 +126,11 @@ class _MineSceneState extends State<MineScene>
       widget.onEventTap?.call(event);
       return;
     }
+    final ready = _readyWorkerAt(pos);
+    if (ready != null && widget.onWorkerTap != null) {
+      widget.onWorkerTap!(ready);
+      return;
+    }
     final earned = _game.tap();
     _popups.add(
       GoldPopup('+${formatRate(earned)}', pos.dx, pos.dy - 6, _realTime),
@@ -139,6 +152,30 @@ class _MineSceneState extends State<MineScene>
       final body = bubble.translate(0, 14);
       if ((pos - bubble).distance < 12 || (pos - body).distance < 12) {
         return e;
+      }
+    }
+    return null;
+  }
+
+  /// 누른 곳 가까이에 승급 준비가 된 인부가 있으면 그 인부 번호.
+  int? _readyWorkerAt(Offset pos) {
+    for (var f = 0; f < _game.mineLevel; f++) {
+      for (var i = 0; i < MineLayout.workersOnFloor(f, _game.workers); i++) {
+        final slot = GameController.slotOf(f, i);
+        if (!_game.isPromotionReady(slot)) continue;
+        final look = _look(f, i);
+        final sprite = MinerCycle.sprite(
+          look,
+          _workerTime(f, i),
+          f,
+          i,
+          _game.equipmentTier,
+        );
+        final bubble = MinerCycle.bubbleCenter(f, sprite.x, look);
+        if ((pos - bubble).distance < 12 ||
+            (pos - bubble.translate(0, 14)).distance < 12) {
+          return slot;
+        }
       }
     }
     return null;
@@ -174,6 +211,10 @@ class _MineSceneState extends State<MineScene>
                     workerLook: _look,
                     hasGoldVein: (f) => _game.floorEvent(f) != null,
                     tool: _game.equipmentTier,
+                    workerGrade: (f, i) =>
+                        _game.gradeIndexOf(GameController.slotOf(f, i)),
+                    promotionReady: (f, i) =>
+                        _game.isPromotionReady(GameController.slotOf(f, i)),
                     title: '${_game.mineName}  Lv.$floors',
                     lockedLabel:
                         '🔒 광산 확장하면 B${floors + 1}층이 열려요 '
@@ -191,6 +232,8 @@ class _MineSceneState extends State<MineScene>
                 events: _game.events,
                 now: DateTime.now(),
                 onTap: widget.onEventTap,
+                promotionReady: _game.promotionReadyCount,
+                onShowWorkers: widget.onShowWorkers,
               ),
             ),
           ],
@@ -202,11 +245,19 @@ class _MineSceneState extends State<MineScene>
 
 /// 광산 아래쪽에 떠 있는 상황 알림. 층이 화면 밖이어도 놓치지 않게 한다.
 class _EventBadges extends StatelessWidget {
-  const _EventBadges({required this.events, required this.now, this.onTap});
+  const _EventBadges({
+    required this.events,
+    required this.now,
+    this.onTap,
+    this.promotionReady = 0,
+    this.onShowWorkers,
+  });
 
   final List<MineEvent> events;
   final DateTime now;
   final void Function(MineEvent event)? onTap;
+  final int promotionReady;
+  final VoidCallback? onShowWorkers;
 
   @override
   Widget build(BuildContext context) {
@@ -214,11 +265,19 @@ class _EventBadges extends StatelessWidget {
       for (final e in events)
         if (e.type.needsForeman || e.type == MineEventType.goldVein) e,
     ];
-    if (shown.isEmpty) return const SizedBox.shrink();
+    if (shown.isEmpty && promotionReady == 0) return const SizedBox.shrink();
     return Wrap(
       spacing: 6,
       runSpacing: 4,
-      children: [for (final e in shown) _badge(e)],
+      children: [
+        for (final e in shown) _badge(e),
+        if (promotionReady > 0)
+          _chip(
+            '⬆ 승급 가능 $promotionReady명  ›',
+            const Color(0xFF2E7D32),
+            onShowWorkers,
+          ),
+      ],
     );
   }
 
@@ -240,16 +299,24 @@ class _EventBadges extends StatelessWidget {
         ? ''
         : ' ${left.inMinutes}:${(left.inSeconds % 60).toString().padLeft(2, '0')}';
     final tappable = e.type.needsForeman && onTap != null;
+    return _chip(
+      '$icon $label$timer${tappable ? '  ›' : ''}',
+      color,
+      tappable ? () => onTap!(e) : null,
+    );
+  }
+
+  Widget _chip(String text, Color color, VoidCallback? onTap) {
     return Material(
       color: color,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: tappable ? () => onTap!(e) : null,
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           child: Text(
-            '$icon $label$timer${tappable ? '  ›' : ''}',
+            text,
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
