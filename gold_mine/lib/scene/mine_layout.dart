@@ -46,9 +46,6 @@ class MineLayout {
   static double sceneHeight(int floors) =>
       surfaceHeight + floors * floorHeight + lockedHeight;
 
-  /// 층 번호에 맞는 암석 테마 (0 흙, 1 돌, 2 깊은 돌, 3 수정, 4 용암).
-  static int theme(int floor) => min(floor, 4);
-
   /// [floor]층에서 일하는 인부 수.
   static int workersOnFloor(int floor, int totalWorkers) =>
       GameConfig.workersOnFloor(floor, totalWorkers);

@@ -12,13 +12,6 @@ void main() {
       expect(perFloor, [3, 3, 1]);
       expect(MineLayout.workersOnFloor(3, 7), 0);
     });
-
-    test('깊은 층일수록 다른 암석 테마를 쓰고, 마지막 테마에서 멈춘다', () {
-      expect(
-        [for (var f = 0; f < 7; f++) MineLayout.theme(f)],
-        [0, 1, 2, 3, 4, 4, 4],
-      );
-    });
   });
 
   group('인부 움직임', () {

@@ -215,10 +215,15 @@ class _MineSceneState extends State<MineScene>
                         _game.gradeIndexOf(GameController.slotOf(f, i)),
                     promotionReady: (f, i) =>
                         _game.isPromotionReady(GameController.slotOf(f, i)),
-                    title: '${_game.mineName}  Lv.$floors',
-                    lockedLabel:
-                        '🔒 광산 확장하면 B${floors + 1}층이 열려요 '
-                        '(${formatGold(_game.mineUpgradeCost)} 골드)',
+                    themeOf: _game.region.themeOf,
+                    bottomFloor: _game.isAtBottom
+                        ? _game.region.bottomFloor - 1
+                        : null,
+                    title: _game.mineName,
+                    lockedLabel: _game.isAtBottom
+                        ? '⛏ 막장 도달! 막장 인부들이 희귀 광석을 찾아요'
+                        : '🔒 광산 확장하면 B${floors + 1}층이 열려요 '
+                              '(${formatGold(_game.mineUpgradeCost)} 골드)',
                     popups: _popups,
                   ),
                 ),

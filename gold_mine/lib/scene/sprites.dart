@@ -70,7 +70,7 @@ class Sprites {
   /// 줄마다 인부 등급(견습, 숙련, 베테랑, 반장)의 안전모 색이 다르다.
   SpriteSheet get miner => _sheets['miner']!;
 
-  /// 층 테마별 암벽 (흙, 돌, 깊은 돌, 수정, 용암).
+  /// 층 테마별 암벽 (흙, 돌, 깊은 돌, 수정, 용암, 유황). RockTheme 참고.
   SpriteSheet get wall => _sheets['wall']!;
 
   /// 층 테마별 굴 안쪽 배경 타일.

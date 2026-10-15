@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'game_config.dart';
 import 'game_state.dart';
 import 'mine_event.dart';
+import 'regions.dart';
 import 'save_repository.dart';
 
 /// 게임 규칙을 실행하고, 값이 바뀌면 화면에 알린다.
@@ -37,7 +38,7 @@ class GameController extends ChangeNotifier {
   int get workers => _state.workers;
   int get pickaxeLevel => _state.pickaxeLevel;
   int get maxWorkers => GameConfig.maxWorkers(_state.mineLevel);
-  String get mineName => GameConfig.mineName(_state.mineLevel);
+  String get mineName => region.name;
 
   /// 돌발상황이 없을 때의 초당 생산량. 오프라인 보상은 이 값으로 계산한다.
   double get steadyGoldPerSecond {
@@ -45,14 +46,20 @@ class GameController extends ChangeNotifier {
     for (var slot = 0; slot < _state.workers; slot++) {
       grades += gradeOf(slot).multiplier;
     }
-    return _perWorkerGold * grades;
+    return _perWorkerGold * grades + caretakerIncome;
   }
+
+  /// 관리인에게 맡긴 광산들이 보내 주는 초당 골드.
+  double get caretakerIncome =>
+      _state.caretakers.values.fold(0.0, (sum, v) => sum + v);
 
   /// 견습 인부 한 명이 1초에 캐는 골드 (광산 레벨, 장비 반영).
   double get _perWorkerGold =>
       GameConfig.goldPerWorkerPerSecond *
       GameConfig.mineMultiplier(_state.mineLevel) *
-      GameConfig.equipmentMultiplier(_state.pickaxeLevel);
+      GameConfig.equipmentMultiplier(_state.pickaxeLevel) *
+      region.productionMultiplier *
+      codexMultiplier;
 
   /// 돌발상황(부상, 금맥 등)을 반영하고 광고 부스트는 뺀 초당 생산량.
   double get baseGoldPerSecond {
@@ -66,13 +73,18 @@ class GameController extends ChangeNotifier {
       }
       total += floorTotal * floorMultiplier(f);
     }
-    return total * perWorker;
+    return total * perWorker + caretakerIncome;
   }
 
+  /// 광고 부스트는 지금 광산에만 걸리고, 관리인 수입에는 걸리지 않는다.
   double get goldPerSecond =>
-      baseGoldPerSecond * (isBoostActive ? GameConfig.boostMultiplier : 1);
+      (baseGoldPerSecond - caretakerIncome) *
+          (isBoostActive ? GameConfig.boostMultiplier : 1) +
+      caretakerIncome;
   double get goldPerTap =>
-      GameConfig.goldPerTap(_state.pickaxeLevel, _state.mineLevel);
+      GameConfig.goldPerTap(_state.pickaxeLevel, _state.mineLevel) *
+      region.productionMultiplier *
+      codexMultiplier;
 
   double get workerCost => GameConfig.workerCost(_state.workers);
   double get mineUpgradeCost => GameConfig.mineUpgradeCost(_state.mineLevel);
@@ -81,7 +93,105 @@ class GameController extends ChangeNotifier {
 
   bool get isWorkerFull => _state.workers >= maxWorkers;
   bool get canHireWorker => !isWorkerFull && gold >= workerCost;
-  bool get canUpgradeMine => gold >= mineUpgradeCost;
+  bool get canUpgradeMine => !isAtBottom && gold >= mineUpgradeCost;
+
+  // ── 지역 / 막장 / 도감 ──────────────────────────────
+  int get regionIndex => _state.regionIndex;
+  Region get region => Regions.at(_state.regionIndex);
+
+  /// 막장(이 지역의 가장 깊은 층)까지 파 내려갔는지.
+  bool get isAtBottom => _state.mineLevel >= region.bottomFloor;
+
+  Region? get nextRegion => _state.regionIndex + 1 < Regions.all.length
+      ? Regions.all[_state.regionIndex + 1]
+      : null;
+
+  double get pioneerCost =>
+      GameConfig.pioneerBaseCost *
+      pow(GameConfig.pioneerCostGrowth, _state.regionIndex);
+
+  bool get canPioneer =>
+      isAtBottom && nextRegion != null && gold >= pioneerCost;
+
+  /// 다음 지역을 개척한다. 지금 광산은 관리인에게 맡기고,
+  /// 새 지역 B1에서 인부 한 명과 곡괭이로 다시 시작한다.
+  bool pioneer() {
+    if (!canPioneer) return false;
+    _state.gold -= pioneerCost;
+    _state.caretakers[_state.regionIndex] =
+        (steadyGoldPerSecond - caretakerIncome) * GameConfig.caretakerShare;
+    _state
+      ..regionIndex += 1
+      ..mineLevel = 1
+      ..workers = 1
+      ..pickaxeLevel = 1
+      ..workerGrades = [0]
+      ..workerXp = [0]
+      ..events = [];
+    notifyListeners();
+    return true;
+  }
+
+  int oreCount(Ore ore) => _state.codex[ore.id] ?? 0;
+  bool isDiscovered(Ore ore) => oreCount(ore) > 0;
+  bool isUnseen(Ore ore) => _state.unseenOres.contains(ore.id);
+  int get unseenOreCount => _state.unseenOres.length;
+
+  /// 도감을 열어 새 광석을 확인했다.
+  void markCodexSeen() {
+    if (_state.unseenOres.isEmpty) return;
+    _state.unseenOres.clear();
+    notifyListeners();
+  }
+
+  bool isRegionComplete(Region r) => r.ores.every(isDiscovered);
+
+  int get completedSets => Regions.all.where(isRegionComplete).length;
+
+  double get codexMultiplier => 1 + GameConfig.regionSetBonus * completedSets;
+
+  /// 막장에서 일하는 인부들이 가끔 희귀 광석을 찾는다.
+  void _findRareOres(double seconds) {
+    if (!isAtBottom || seconds <= 0) return;
+    final floor = region.bottomFloor - 1;
+    final count = GameConfig.workersOnFloor(floor, _state.workers);
+    for (var i = 0; i < count; i++) {
+      final chance =
+          seconds * workerSpeed(floor, i) / GameConfig.rareOreInterval;
+      if (chance > 0 && _random.nextDouble() < chance) _discover(_pickOre());
+    }
+  }
+
+  Ore _pickOre() {
+    final ores = region.ores;
+    final total = ores.fold(0, (sum, o) => sum + o.rarity.weight);
+    var roll = _random.nextInt(total);
+    for (final ore in ores) {
+      if (roll < ore.rarity.weight) return ore;
+      roll -= ore.rarity.weight;
+    }
+    return ores.last;
+  }
+
+  void _discover(Ore ore) {
+    final first = !isDiscovered(ore);
+    final completedBefore = isRegionComplete(region);
+    _state.codex[ore.id] = oreCount(ore) + 1;
+    if (first) {
+      _state.unseenOres.add(ore.id);
+      onMessage?.call('📖 도감 등록! ${ore.name} (${ore.rarity.label})을(를) 찾았어요!');
+    } else {
+      onMessage?.call('✨ ${ore.name} 발견! (보관 ${oreCount(ore)}개)');
+    }
+    if (!completedBefore && isRegionComplete(region)) {
+      onMessage?.call(
+        '🎉 ${region.name} 도감 완성! 생산량이 영구히 '
+        '+${(GameConfig.regionSetBonus * 100).round()}% 올라요!',
+      );
+    }
+    notifyListeners();
+  }
+
   bool get canUpgradePickaxe =>
       equipmentLockedUntilMine == null && gold >= pickaxeUpgradeCost;
 
@@ -221,6 +331,7 @@ class GameController extends ChangeNotifier {
         _random.nextDouble() < seconds / GameConfig.eventMeanInterval) {
       changed = _spawnEvent(now) || changed;
     }
+    _findRareOres(seconds);
     if (changed) notifyListeners();
   }
 
@@ -295,7 +406,9 @@ class GameController extends ChangeNotifier {
       case MineEventType.injury:
         _notice(
           _add(type, floor, worker, now, GameConfig.injuryHealTime),
-          '소장님, $name가 다쳤어요!',
+          _sulfurDanger
+              ? '💥 유황 가스에 불이 붙었어요! $name가 다쳤어요!'
+              : '소장님, $name가 다쳤어요!',
         );
       case MineEventType.diamond:
         final reward = max(
@@ -321,10 +434,18 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
+  /// 유황 지역에서 다이너마이트를 쓰는 중이면 폭발 사고가 잦다.
+  bool get _sulfurDanger =>
+      region.dynamiteAccidents && equipmentTier == GameConfig.dynamiteTier;
+
   MineEventType _pickEventType() {
-    const weighted = [
+    final weighted = [
       (MineEventType.fatigue, GameConfig.fatigueWeight),
-      (MineEventType.injury, GameConfig.injuryWeight),
+      (
+        MineEventType.injury,
+        GameConfig.injuryWeight *
+            (_sulfurDanger ? GameConfig.sulfurInjuryMultiplier : 1),
+      ),
       (MineEventType.diamond, GameConfig.diamondWeight),
       (MineEventType.goldVein, GameConfig.goldVeinWeight),
     ];

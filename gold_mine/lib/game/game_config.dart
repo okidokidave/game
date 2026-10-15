@@ -111,6 +111,9 @@ class GameConfig {
     EquipmentTier('굴착 기계', 12, 5, 4),
   ];
 
+  /// 다이너마이트 단계 번호 (유황 지역 사고 판정에 쓴다).
+  static const int dynamiteTier = 2;
+
   /// 장비 레벨이 몇 번째 단계인지 (0 = 곡괭이).
   static int equipmentTier(int equipmentLevel) {
     var tier = 0;
@@ -179,18 +182,25 @@ class GameConfig {
   static const double goldVeinMultiplier = 3;
   static const Duration goldVeinDuration = Duration(minutes: 1);
 
+  // ── 지역 / 막장 / 도감 ──────────────────────────────
+  /// 막장 인부 한 명이 평균 몇 초 일하면 희귀 광석을 하나 찾는지.
+  static const double rareOreInterval = 540;
+
+  /// 한 지역의 광석을 모두 모으면 영구 생산량 보너스 (+10%).
+  static const double regionSetBonus = 0.1;
+
+  /// 떠난 광산을 맡은 관리인이 보내 주는 수입 (떠날 때 생산량의 10%).
+  static const double caretakerShare = 0.1;
+
+  /// 다음 지역 개척 비용 (지역이 바뀔수록 10배).
+  static const double pioneerBaseCost = 1e6;
+  static const double pioneerCostGrowth = 10;
+
+  /// 유황 지역에서 다이너마이트를 쓸 때 부상 상황이 나올 비율 배수.
+  static const int sulfurInjuryMultiplier = 4;
+
   /// 자동 저장 주기.
   static const Duration autoSaveInterval = Duration(seconds: 10);
-
-  static const List<String> mineNames = [
-    '작은 광산',
-    '동굴 광산',
-    '깊은 갱도',
-    '수정 광맥',
-    '용암 광산',
-    '고대 광산',
-    '황금 왕국',
-  ];
 
   // ── 계산식 ──────────────────────────────────────────
   static double mineMultiplier(int mineLevel) =>
@@ -231,9 +241,4 @@ class GameConfig {
   /// 현재 [pickaxeLevel]에서 다음 레벨로 강화하는 비용.
   static double pickaxeUpgradeCost(int pickaxeLevel) =>
       pickaxeBaseCost * pow(pickaxeCostGrowth, pickaxeLevel - 1);
-
-  static String mineName(int mineLevel) {
-    if (mineLevel <= mineNames.length) return mineNames[mineLevel - 1];
-    return '${mineNames.last} +${mineLevel - mineNames.length}';
-  }
 }

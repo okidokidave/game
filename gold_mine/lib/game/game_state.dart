@@ -14,7 +14,14 @@ class GameState {
     this.nextEventId = 1,
     List<int>? workerGrades,
     List<double>? workerXp,
-  }) : lastSavedAt = lastSavedAt ?? DateTime.now(),
+    this.regionIndex = 0,
+    Map<String, int>? codex,
+    List<String>? unseenOres,
+    Map<int, double>? caretakers,
+  }) : codex = codex ?? {},
+       unseenOres = unseenOres ?? [],
+       caretakers = caretakers ?? {},
+       lastSavedAt = lastSavedAt ?? DateTime.now(),
        events = events ?? [],
        workerGrades = workerGrades ?? [],
        workerXp = workerXp ?? [] {
@@ -50,6 +57,18 @@ class GameState {
   List<int> workerGrades;
   List<double> workerXp;
 
+  /// 지금 운영 중인 지역 (Regions.all 순서).
+  int regionIndex;
+
+  /// 도감: 광석 id → 찾은 개수.
+  Map<String, int> codex;
+
+  /// 도감에서 아직 확인하지 않은 새 광석.
+  List<String> unseenOres;
+
+  /// 관리인에게 맡긴 지역 → 초당 보내 주는 골드.
+  Map<int, double> caretakers;
+
   Map<String, dynamic> toJson() => {
     'gold': gold,
     'totalEarned': totalEarned,
@@ -62,6 +81,10 @@ class GameState {
     'nextEventId': nextEventId,
     'workerGrades': workerGrades,
     'workerXp': workerXp,
+    'regionIndex': regionIndex,
+    'codex': codex,
+    'unseenOres': unseenOres,
+    'caretakers': {for (final e in caretakers.entries) '${e.key}': e.value},
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -92,6 +115,22 @@ class GameState {
         for (final x in (json['workerXp'] as List<dynamic>? ?? const []))
           (x as num).toDouble(),
       ],
+      regionIndex: json['regionIndex'] as int? ?? 0,
+      codex: {
+        for (final e
+            in (json['codex'] as Map<String, dynamic>? ?? const {}).entries)
+          e.key: e.value as int,
+      },
+      unseenOres: [
+        for (final id in (json['unseenOres'] as List<dynamic>? ?? const []))
+          id as String,
+      ],
+      caretakers: {
+        for (final e
+            in (json['caretakers'] as Map<String, dynamic>? ?? const {})
+                .entries)
+          int.parse(e.key): (e.value as num).toDouble(),
+      },
     );
   }
 }

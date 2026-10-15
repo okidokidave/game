@@ -6,6 +6,7 @@ import '../game/game_controller.dart';
 import '../game/mine_event.dart';
 import '../scene/mine_scene.dart';
 import '../scene/sprites.dart';
+import 'codex_sheet.dart';
 import 'number_format.dart';
 import 'widgets/boost_bar.dart';
 import 'widgets/gold_header.dart';
@@ -516,6 +517,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               IconButton(
+                tooltip: '도감',
+                visualDensity: VisualDensity.compact,
+                icon: Badge(
+                  isLabelVisible: _game.unseenOreCount > 0,
+                  label: const Text('N'),
+                  child: const Icon(Icons.menu_book, color: Colors.white70),
+                ),
+                onPressed: () => CodexSheet.show(context, _game),
+              ),
+              IconButton(
                 tooltip: '인부 관리',
                 visualDensity: VisualDensity.compact,
                 icon: Badge(
@@ -566,6 +577,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         _buildUpgrades(),
+      ],
+    );
+  }
+
+  // ── 지역 개척 ───────────────────────────────────────
+  /// 막장에 닿으면 광산 확장 칸이 "지역 개척"으로 바뀐다.
+  Widget _pioneerTile() {
+    final next = _game.nextRegion;
+    return UpgradeTile(
+      icon: Icons.explore,
+      title: next == null ? '막장' : '지역 개척',
+      description: next == null ? '마지막 지역이에요' : '→ ${next.name}',
+      cost: _game.pioneerCost,
+      enabled: _game.canPioneer,
+      maxed: next == null,
+      onPressed: _confirmPioneer,
+    );
+  }
+
+  void _confirmPioneer() {
+    final next = _game.nextRegion;
+    if (next == null) return;
+    final caretaker =
+        (_game.steadyGoldPerSecond - _game.caretakerIncome) *
+        GameConfig.caretakerShare;
+    _decide(
+      title: '🗺 ${next.name} 개척',
+      message:
+          '${next.summary}\n\n'
+          '${next.traits.map((t) => '• $t').join('\n')}\n'
+          '• 막장: B${next.bottomFloor}\n\n'
+          '새 지역은 B1에서 인부 한 명, 곡괭이로 다시 시작해요.\n'
+          '골드와 도감은 그대로 가져가요.\n'
+          '${_game.mineName}은(는) 관리인이 맡아 '
+          '초당 ${formatRate(caretaker)} 골드를 계속 보내 줘요.',
+      choices: [
+        ('나중에', false, () {}),
+        (
+          '개척하기 (${formatGold(_game.pioneerCost)} 골드)',
+          true,
+          _game.canPioneer
+              ? () {
+                  if (_game.pioneer()) {
+                    _showMessage('🗺 ${_game.region.name}에 도착했어요!');
+                  }
+                }
+              : null,
+        ),
       ],
     );
   }
@@ -637,15 +696,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           Expanded(
-            child: UpgradeTile(
-              icon: Icons.terrain,
-              title: '광산 확장',
-              description:
-                  'B${_game.mineLevel + 1}층 · 생산 ×${nextMultiplier.toStringAsFixed(1)}',
-              cost: _game.mineUpgradeCost,
-              enabled: _game.canUpgradeMine,
-              onPressed: _game.upgradeMine,
-            ),
+            child: _game.isAtBottom
+                ? _pioneerTile()
+                : UpgradeTile(
+                    icon: Icons.terrain,
+                    title: '광산 확장',
+                    description:
+                        'B${_game.mineLevel + 1}층 · 생산 ×${nextMultiplier.toStringAsFixed(1)}',
+                    cost: _game.mineUpgradeCost,
+                    enabled: _game.canUpgradeMine,
+                    onPressed: _game.upgradeMine,
+                  ),
           ),
           Expanded(
             child: UpgradeTile(

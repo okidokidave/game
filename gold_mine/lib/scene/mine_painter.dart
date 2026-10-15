@@ -31,6 +31,8 @@ class MinePainter extends CustomPainter {
     required this.tool,
     required this.workerGrade,
     required this.promotionReady,
+    required this.themeOf,
+    this.bottomFloor,
     required this.title,
     required this.lockedLabel,
     required this.popups,
@@ -58,6 +60,12 @@ class MinePainter extends CustomPainter {
   /// 인부 등급 (안전모 색 줄 번호), 승급 준비가 됐는지.
   final int Function(int floor, int worker) workerGrade;
   final bool Function(int floor, int worker) promotionReady;
+
+  /// 층마다 쓰는 암석 그림 (지역마다 다르다).
+  final int Function(int floor) themeOf;
+
+  /// 막장까지 내려갔으면 막장 층 번호(0부터), 아니면 null.
+  final int? bottomFloor;
   final String title;
   final String lockedLabel;
   final List<GoldPopup> popups;
@@ -152,7 +160,7 @@ class MinePainter extends CustomPainter {
   // ── 땅속 층 ─────────────────────────────────────────
   void _paintFloor(Canvas c, int floor, double t) {
     final top = MineLayout.floorTop(floor);
-    final theme = MineLayout.theme(floor);
+    final theme = themeOf(floor);
     final s = sprites;
 
     if (s != null) {
@@ -287,15 +295,35 @@ class MinePainter extends CustomPainter {
       }
     }
 
+    final isBottom = floor == bottomFloor;
     _text(
       c,
-      'B${floor + 1}',
+      isBottom ? 'B${floor + 1} 막장' : 'B${floor + 1}',
       22,
       top + MineLayout.tunnelTop + 4,
       5,
-      Colors.white70,
+      isBottom ? const Color(0xFFFFD35A) : Colors.white70,
       bold: true,
+      shadow: isBottom,
     );
+    if (isBottom) _rareGlints(c, top, t);
+  }
+
+  /// 막장 암벽에서 희귀 광석이 여러 색으로 반짝인다.
+  void _rareGlints(Canvas c, double top, double t) {
+    const spots = [(3.0, 9.0), (9.0, 24.0), (13.0, 15.0), (5.0, 30.0)];
+    const colors = [
+      Color(0xFFE53935),
+      Color(0xFF4FC3F7),
+      Color(0xFFBA68C8),
+      Color(0xFFFFD23F),
+    ];
+    for (var k = 0; k < spots.length; k++) {
+      if (((t * 2).floor() + k) % 4 == 0) continue;
+      final (sx, sy) = spots[k];
+      _rect(c, sx, top + sy, 2, 2, colors[k]);
+      _rect(c, sx, top + sy, 1, 1, Colors.white);
+    }
   }
 
   /// 인부 머리 위 말풍선 (돌발상황, 좋은 일).
@@ -510,7 +538,7 @@ class MinePainter extends CustomPainter {
   void _paintLockedFloor(Canvas c) {
     final top = MineLayout.floorTop(floors);
     final s = sprites;
-    final theme = MineLayout.theme(floors);
+    final theme = themeOf(floors);
     if (s != null) {
       for (var y = top; y < top + MineLayout.lockedHeight; y += 16) {
         for (var x = 0.0; x < MineLayout.sceneWidth; x += 16) {
@@ -535,7 +563,7 @@ class MinePainter extends CustomPainter {
     if (bottom <= top) return;
     final s = sprites;
     if (s != null) {
-      final theme = MineLayout.theme(floors + 1);
+      final theme = themeOf(floors + 1);
       for (var y = top; y < bottom; y += 16) {
         for (var x = 0.0; x < MineLayout.sceneWidth; x += 16) {
           s.dirt.draw(c, theme, x, y);
