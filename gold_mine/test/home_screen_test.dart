@@ -4,11 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gold_mine/ads/ad_service.dart';
 import 'package:gold_mine/game/game_config.dart';
 import 'package:gold_mine/game/game_controller.dart';
+import 'package:gold_mine/game/mine_event.dart';
 import 'package:gold_mine/game/save_repository.dart';
 import 'package:gold_mine/main.dart';
 import 'package:gold_mine/scene/mine_layout.dart';
 import 'package:gold_mine/scene/mine_scene.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'mine_event_test.dart' show ScriptedRandom, rollFor;
 
 /// 광고를 항상 끝까지 본 것으로 처리하는 가짜 광고.
 class FakeAdService implements AdService {
@@ -80,6 +83,38 @@ void main() {
     expect(game.isBoostActive, isTrue);
     expect(find.textContaining('분 연장'), findsOneWidget);
 
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('반장이 알림을 눌러 다이아몬드를 받는다', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final random = ScriptedRandom();
+    final game = GameController(SaveRepository(prefs), random: random);
+    game.grantBonusGold(GameConfig.eventsStartAfterEarned);
+
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+    await tester.pumpWidget(GoldMineApp(controller: game, ads: NoAdService()));
+    game.stop();
+
+    random.doubles.add(0);
+    random.ints.addAll([rollFor(MineEventType.diamond), 0]);
+    game.updateEvents(1);
+    final diamond = game.foremanEvents.single;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.textContaining('다이아 발견'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('💎 다이아몬드 발견!'), findsOneWidget);
+
+    final before = game.gold;
+    await tester.tap(find.widgetWithText(FilledButton, '받기'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(game.gold, closeTo(before + diamond.reward, 1e-9));
+    expect(game.foremanEvents, isEmpty);
     await tester.binding.setSurfaceSize(null);
   });
 

@@ -1,3 +1,5 @@
+import 'mine_event.dart';
+
 /// 저장되는 게임 데이터. 화면이나 계산 로직 없이 값만 가진다.
 class GameState {
   GameState({
@@ -8,7 +10,10 @@ class GameState {
     this.pickaxeLevel = 1,
     DateTime? lastSavedAt,
     this.boostEndsAt,
-  }) : lastSavedAt = lastSavedAt ?? DateTime.now();
+    List<MineEvent>? events,
+    this.nextEventId = 1,
+  }) : lastSavedAt = lastSavedAt ?? DateTime.now(),
+       events = events ?? [];
 
   double gold;
 
@@ -25,6 +30,10 @@ class GameState {
   /// 광고 부스트가 끝나는 시각. 부스트가 없으면 null.
   DateTime? boostEndsAt;
 
+  /// 진행 중인 돌발상황과 좋은 일.
+  List<MineEvent> events;
+  int nextEventId;
+
   Map<String, dynamic> toJson() => {
     'gold': gold,
     'totalEarned': totalEarned,
@@ -33,6 +42,8 @@ class GameState {
     'pickaxeLevel': pickaxeLevel,
     'lastSavedAt': lastSavedAt.millisecondsSinceEpoch,
     'boostEndsAt': boostEndsAt?.millisecondsSinceEpoch,
+    'events': [for (final e in events) e.toJson()],
+    'nextEventId': nextEventId,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -50,6 +61,11 @@ class GameState {
       boostEndsAt: boostEndsAt == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(boostEndsAt),
+      events: [
+        for (final e in (json['events'] as List<dynamic>? ?? const []))
+          ?MineEvent.fromJson(e as Map<String, dynamic>),
+      ],
+      nextEventId: json['nextEventId'] as int? ?? 1,
     );
   }
 }

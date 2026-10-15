@@ -45,6 +45,45 @@ class GameConfig {
   /// 부스트를 최대 몇 분까지 쌓아 둘 수 있는지.
   static const Duration maxBoostTime = Duration(minutes: 30);
 
+  // ── 돌발상황 / 좋은 일 ──────────────────────────────
+  /// 평균 몇 초에 한 번 상황이 생기는지 (게임을 켜 둔 동안만).
+  static const double eventMeanInterval = 150;
+
+  /// 반장이 처리해야 하는 상황은 동시에 최대 몇 개까지.
+  static const int maxForemanEvents = 2;
+
+  /// 이만큼 벌기 전까지는 상황이 생기지 않는다 (처음 배우는 동안).
+  static const double eventsStartAfterEarned = 100;
+
+  /// 상황이 나올 비율 (합이 100일 필요는 없다).
+  static const int fatigueWeight = 30;
+  static const int injuryWeight = 15;
+  static const int diamondWeight = 25;
+  static const int goldVeinWeight = 30;
+
+  /// 지친 인부의 작업 속도, 방치하면 다치기까지 걸리는 시간.
+  static const double fatigueSpeed = 0.5;
+  static const Duration fatigueToInjury = Duration(minutes: 3);
+
+  /// 휴식 시간, 휴식 뒤 활력 시간과 속도.
+  static const Duration restDuration = Duration(seconds: 20);
+  static const Duration energizedDuration = Duration(minutes: 2);
+  static const double energizedSpeed = 1.5;
+
+  /// 부상: 저절로 낫는 시간, 치료비 (초당 생산량 × 이 초).
+  static const Duration injuryHealTime = Duration(minutes: 10);
+  static const double treatCostSeconds = 60;
+  static const double minTreatCost = 20;
+
+  /// 다이아몬드: 보상 (초당 생산량 × 이 초), 사라지기까지 시간.
+  static const double diamondRewardSeconds = 120;
+  static const double minDiamondReward = 50;
+  static const Duration diamondExpireTime = Duration(minutes: 2);
+
+  /// 금맥: 층 생산량 배수와 지속 시간.
+  static const double goldVeinMultiplier = 3;
+  static const Duration goldVeinDuration = Duration(minutes: 1);
+
   /// 자동 저장 주기.
   static const Duration autoSaveInterval = Duration(seconds: 10);
 
@@ -63,6 +102,13 @@ class GameConfig {
       pow(mineMultiplierGrowth, mineLevel - 1).toDouble();
 
   static int maxWorkers(int mineLevel) => mineLevel * workersPerMineLevel;
+
+  /// 인부는 위층부터 층마다 [workersPerMineLevel]명씩 배치된다.
+  static int workersOnFloor(int floor, int totalWorkers) =>
+      (totalWorkers - floor * workersPerMineLevel).clamp(
+        0,
+        workersPerMineLevel,
+      );
 
   static double goldPerSecond(int workers, int mineLevel) =>
       workers * goldPerWorkerPerSecond * mineMultiplier(mineLevel);

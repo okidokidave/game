@@ -37,6 +37,10 @@ GOLD_L = (255, 245, 170, 255)
 SACK = (166, 124, 82, 255)
 SACK_D = (122, 86, 56, 255)
 EYE = (26, 26, 26, 255)
+GEM = (120, 220, 255, 255)
+GEM_D = (60, 150, 220, 255)
+GEM_L = (210, 245, 255, 255)
+BANDAGE = (250, 250, 245, 255)
 CLEAR = (0, 0, 0, 0)
 
 # 층별 암석 색 (깊어질수록 바뀐다). (밝음, 보통, 어두움, 광석, 광석 그림자, 광석 하이라이트)
@@ -186,6 +190,16 @@ def miner(legs=0, bob=0, pose='walk', carry=False):
         c.line(sx, sy, sx + 4, sy + 1, SHIRT_D)
         c.px(sx + 5, sy + 1, SKIN)
         pickaxe(c, sx + 5, sy + 1, sx + 11, sy + 2, 'down')
+    elif pose == 'diamond':
+        # 다이아몬드를 앞으로 번쩍 들어 보인다
+        c.line(sx, sy, sx + 4, sy - 3, SHIRT_D)
+        c.px(sx + 5, sy - 3, SKIN)
+        gx, gy = sx + 5, sy - 8
+        c.rect(gx + 1, gy, 3, 1, GEM_L)
+        c.rect(gx, gy + 1, 5, 2, GEM)
+        c.rect(gx + 1, gy + 3, 3, 1, GEM_D)
+        c.px(gx + 2, gy + 4, GEM_D)
+        c.px(gx + 1, gy + 1, (255, 255, 255, 255))
 
     c.outline()
     return c.img
@@ -200,7 +214,61 @@ def miner_sheet():
     for pose in ('windup', 'mid', 'hit'):  # 8-10: 곡괭이질
         frames.append(miner(pose=pose))
     frames.append(miner())  # 11: 서 있기
+    frames.append(miner_sit())  # 12: 앉아서 쉬기
+    frames.append(miner_lie())  # 13: 다쳐서 누움
+    frames.append(miner(pose='diamond'))  # 14: 다이아몬드 들기
     return strip(frames)
+
+
+def miner_sit():
+    """벽에 기대 앉아 쉬는 모습. 곡괭이는 옆에 내려놓았다."""
+    c = Canvas(MINER_W, MINER_H)
+    ox, oy = 5, 6
+    pickaxe(c, ox + 15, oy + 14, ox + 13, oy + 7, 'up')
+    # 다리를 앞으로 뻗음
+    c.rect(ox + 3, oy + 11, 7, 2, PANTS)
+    c.rect(ox + 3, oy + 13, 7, 1, PANTS_D)
+    c.rect(ox + 10, oy + 11, 2, 3, BOOT)
+    # 몸통 (조금 기울어짐)
+    c.rect(ox + 1, oy + 6, 6, 5, SHIRT)
+    c.rect(ox + 1, oy + 9, 6, 2, SHIRT_D)
+    c.rect(ox + 4, oy + 8, 2, 2, SHIRT_D)  # 무릎 위에 올린 팔
+    c.px(ox + 6, oy + 9, SKIN)
+    # 머리 (눈 감음)
+    c.rect(ox + 2, oy + 1, 5, 5, SKIN)
+    c.rect(ox + 2, oy + 5, 5, 1, SKIN_D)
+    c.rect(ox + 4, oy + 3, 2, 1, SKIN_D)
+    c.rect(ox + 2, oy - 2, 5, 3, HELMET)
+    c.rect(ox + 1, oy + 1, 8, 1, HELMET_D)
+    c.rect(ox + 6, oy - 1, 2, 1, LAMP)
+    c.outline()
+    return c.img
+
+
+def miner_lie():
+    """다쳐서 바닥에 누운 모습 (머리에 붕대)."""
+    stand = Canvas(MINER_W, MINER_H)
+    ox, oy = 7, 2
+    stand.rect(ox + 3, oy + 13, 2, 5, PANTS_D)
+    stand.rect(ox + 5, oy + 13, 2, 5, PANTS)
+    stand.rect(ox + 3, 18, 4, 2, BOOT)
+    stand.rect(ox + 1, oy + 8, 6, 5, SHIRT)
+    stand.rect(ox + 1, oy + 11, 6, 2, SHIRT_D)
+    stand.rect(ox + 2, oy + 3, 5, 5, SKIN)
+    stand.rect(ox + 3, oy + 5, 3, 1, SKIN_D)  # 찡그린 눈
+    stand.rect(ox + 2, oy + 1, 5, 2, BANDAGE)  # 붕대
+    stand.px(ox + 6, oy + 2, (220, 60, 60, 255))
+    lying = stand.img.rotate(90, expand=True)
+    box = lying.getbbox()
+    body = lying.crop(box)
+    c = Canvas(MINER_W, MINER_H)
+    x = (MINER_W - body.size[0]) // 2
+    c.img.paste(body, (x, MINER_H - 2 - body.size[1]), body)
+    # 옆에 떨어진 안전모
+    c.rect(1, MINER_H - 5, 4, 2, HELMET)
+    c.rect(0, MINER_H - 3, 6, 1, HELMET_D)
+    c.outline()
+    return c.img
 
 
 def strip(frames):

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../ads/ad_service.dart';
 import '../game/game_config.dart';
 import '../game/game_controller.dart';
+import '../game/mine_event.dart';
 import '../scene/mine_scene.dart';
 import '../scene/sprites.dart';
 import 'number_format.dart';
@@ -37,12 +38,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _game.onEventNotice = _onEventNotice;
     _resumeGame();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _game.onEventNotice = null;
     _game.stop();
     super.dispose();
   }
@@ -69,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final earned = _game.collectOfflineEarnings(DateTime.now());
     _game.start();
     final minEarned =
-        _game.baseGoldPerSecond *
+        _game.steadyGoldPerSecond *
         _minAwayForDialog.inSeconds *
         GameConfig.offlineEfficiency;
     if (earned > 0 && earned >= minEarned) {
@@ -126,6 +129,162 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         '${GameConfig.boostMultiplier.toStringAsFixed(0)}배가 됩니다!',
       );
     }
+  }
+
+  // ── 작업 반장의 결정 ────────────────────────────────
+  void _onEventNotice(MineEvent event, String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final stillOpen = _game.eventById(event.id);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+        action: stillOpen != null && stillOpen.type.needsForeman
+            ? SnackBarAction(
+                label: '확인',
+                onPressed: () {
+                  final e = _game.eventById(event.id);
+                  if (e != null) _showEventDialog(e);
+                },
+              )
+            : null,
+      ),
+    );
+  }
+
+  void _showEventDialog(MineEvent event) {
+    final floor = 'B${event.floor + 1}';
+    switch (event.type) {
+      case MineEventType.fatigue:
+        _decide(
+          title: '💦 지친 인부',
+          message:
+              '반장님, $floor 인부가 많이 지쳤어요.\n'
+              '지금은 절반 속도로 일하고 있어요.\n'
+              '${GameConfig.fatigueToInjury.inMinutes}분 넘게 무리하면 다칠 수 있어요.',
+          choices: [
+            ('계속 일 시키기', false, () {}),
+            (
+              '휴식 주기 (${GameConfig.restDuration.inSeconds}초)',
+              true,
+              () {
+                if (_game.restWorker(event.id)) {
+                  _showMessage(
+                    '쉬고 나면 ${GameConfig.energizedDuration.inMinutes}분간 '
+                    '${GameConfig.energizedSpeed}배로 일해요!',
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      case MineEventType.injury:
+        final healIn = event.remaining(DateTime.now()).inMinutes + 1;
+        _decide(
+          title: '🩹 다친 인부',
+          message:
+              '반장님, $floor 인부가 다쳐서 일을 못 하고 있어요.\n'
+              '그냥 두면 약 $healIn분 뒤에 회복해요.',
+          choices: [
+            ('기다리기', false, () {}),
+            if (_ads.rewardedReady.value)
+              (
+                '광고 보고 치료',
+                false,
+                () async {
+                  if (await _ads.showRewarded() &&
+                      _game.treatInjury(event.id, free: true)) {
+                    _showMessage('$floor 인부가 다시 일하러 갔어요!');
+                  }
+                },
+              ),
+            (
+              '치료하기 (${formatGold(_game.treatCost)} 골드)',
+              true,
+              _game.canTreat
+                  ? () {
+                      if (_game.treatInjury(event.id)) {
+                        _showMessage('$floor 인부가 다시 일하러 갔어요!');
+                      }
+                    }
+                  : null,
+            ),
+          ],
+        );
+      case MineEventType.diamond:
+        _decide(
+          title: '💎 다이아몬드 발견!',
+          message:
+              '반장님! $floor 인부가 다이아몬드를 찾았어요!\n'
+              '${formatGold(event.reward)} 골드에 팔 수 있어요.',
+          choices: [
+            if (_ads.rewardedReady.value)
+              (
+                '광고 보고 2배',
+                false,
+                () async {
+                  if (await _ads.showRewarded()) {
+                    final got = _game.collectDiamond(event.id, multiplier: 2);
+                    if (got > 0) _showMessage('+${formatGold(got)} 골드!');
+                  }
+                },
+              ),
+            (
+              '받기',
+              true,
+              () {
+                final got = _game.collectDiamond(event.id);
+                if (got > 0) _showMessage('+${formatGold(got)} 골드!');
+              },
+            ),
+          ],
+        );
+      case MineEventType.rest:
+      case MineEventType.energized:
+      case MineEventType.goldVein:
+        break;
+    }
+  }
+
+  /// 반장에게 선택지를 보여 준다. (글자, 강조 여부, 누르면 할 일)
+  void _decide({
+    required String title,
+    required String message,
+    required List<(String, bool, void Function()?)> choices,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actionsOverflowDirection: VerticalDirection.up,
+        actions: [
+          for (final (label, primary, action) in choices)
+            if (primary)
+              FilledButton(
+                onPressed: action == null
+                    ? null
+                    : () {
+                        Navigator.of(dialogContext).pop();
+                        action();
+                      },
+                child: Text(label),
+              )
+            else
+              TextButton(
+                onPressed: action == null
+                    ? null
+                    : () {
+                        Navigator.of(dialogContext).pop();
+                        action();
+                      },
+                child: Text(label),
+              ),
+        ],
+      ),
+    );
   }
 
   void _showSettings() {
@@ -232,7 +391,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         Expanded(
           child: ClipRect(
-            child: MineScene(game: _game, sprites: widget.sprites),
+            child: MineScene(
+              game: _game,
+              sprites: widget.sprites,
+              onEventTap: _showEventDialog,
+            ),
           ),
         ),
         _buildUpgrades(),

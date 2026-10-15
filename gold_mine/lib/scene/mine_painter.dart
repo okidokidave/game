@@ -25,6 +25,9 @@ class MinePainter extends CustomPainter {
     required this.realTime,
     required this.floors,
     required this.workers,
+    required this.workerTime,
+    required this.workerLook,
+    required this.hasGoldVein,
     required this.title,
     required this.lockedLabel,
     required this.popups,
@@ -40,6 +43,11 @@ class MinePainter extends CustomPainter {
 
   final int floors;
   final int workers;
+
+  /// 인부마다 따로 흐르는 일하는 시간 (지치면 느리게, 쉬면 멈춤).
+  final double Function(int floor, int worker) workerTime;
+  final WorkerLook Function(int floor, int worker) workerLook;
+  final bool Function(int floor) hasGoldVein;
   final String title;
   final String lockedLabel;
   final List<GoldPopup> popups;
@@ -221,18 +229,22 @@ class MinePainter extends CustomPainter {
         top + MineLayout.floorLine - 12,
       );
 
+      if (hasGoldVein(floor)) _goldVein(c, top, t);
+
       for (var i = 0; i < count; i++) {
-        final pose = MinerCycle.pose(t, floor, i);
+        final look = workerLook(floor, i);
+        final sprite = MinerCycle.sprite(look, workerTime(floor, i), floor, i);
         s.miner.draw(
           c,
-          pose.frame,
-          pose.x,
+          sprite.frame,
+          sprite.x,
           top + MineLayout.floorLine - MineLayout.minerHeight + 1,
-          flip: pose.facingLeft,
+          flip: sprite.flip,
         );
-        if (pose.action == MinerAction.mine && pose.frame == 10) {
-          _debris(c, pose.x, top + MineLayout.floorLine - 8, t, floor, i);
+        if (sprite.action == MinerAction.mine && sprite.frame == 10) {
+          _debris(c, sprite.x, top + MineLayout.floorLine - 8, t, floor, i);
         }
+        _workerMark(c, look, floor, sprite.x, t);
       }
     }
 
@@ -243,6 +255,85 @@ class MinePainter extends CustomPainter {
       top + MineLayout.tunnelTop + 4,
       5,
       Colors.white70,
+      bold: true,
+    );
+  }
+
+  /// 인부 머리 위 말풍선 (돌발상황, 좋은 일).
+  void _workerMark(Canvas c, WorkerLook look, int floor, double x, double t) {
+    final (icon, border) = switch (look) {
+      WorkerLook.tired => ('💦', const Color(0xFFE5533D)),
+      WorkerLook.injured => ('🩹', const Color(0xFFE5533D)),
+      WorkerLook.diamond => ('💎', const Color(0xFF5BC8F5)),
+      WorkerLook.resting => ('💤', const Color(0xFF9AA4B0)),
+      WorkerLook.energized => ('⚡', const Color(0xFFFFC83D)),
+      WorkerLook.normal => ('', const Color(0x00000000)),
+    };
+    if (icon.isEmpty) return;
+    final center = MinerCycle.bubbleCenter(floor, x, look);
+    // 반장을 부르는 말풍선은 살짝 통통 튄다.
+    final needsForeman =
+        look == WorkerLook.tired ||
+        look == WorkerLook.injured ||
+        look == WorkerLook.diamond;
+    final bob = needsForeman ? (sin(t * 6) > 0 ? -1.0 : 0.0) : 0.0;
+    final rect = Rect.fromCenter(
+      center: center.translate(0, bob),
+      width: 11,
+      height: 9,
+    );
+    _rect(
+      c,
+      rect.left - 1,
+      rect.top - 1,
+      rect.width + 2,
+      rect.height + 2,
+      border,
+    );
+    _rect(c, rect.left, rect.top, rect.width, rect.height, Colors.white);
+    _rect(c, center.dx - 1, rect.bottom + 1, 2, 1, border); // 말풍선 꼬리
+    _rect(c, center.dx - 0.5, rect.bottom + 2, 1, 1, border);
+    _text(c, icon, center.dx, rect.top + 0.6, 5.5, Colors.black, center: true);
+    if (look == WorkerLook.diamond) _sparkle(c, x + 18, center.dy + 10, t);
+  }
+
+  /// 반짝이는 십자 빛.
+  void _sparkle(Canvas c, double x, double y, double t) {
+    final on = (t * 4).floor() % 2 == 0;
+    const color = Color(0xFFE6FAFF);
+    _rect(c, x, y, 1, 1, color);
+    if (on) {
+      _rect(c, x - 2, y, 5, 1, color.withValues(alpha: 0.8));
+      _rect(c, x, y - 2, 1, 5, color.withValues(alpha: 0.8));
+    }
+  }
+
+  /// 금맥: 암벽과 굴 천장에서 금빛이 반짝인다.
+  void _goldVein(Canvas c, double top, double t) {
+    const spots = [
+      (4.0, 8.0),
+      (10.0, 20.0),
+      (6.0, 28.0),
+      (14.0, 12.0),
+      (30.0, 6.0),
+      (58.0, 5.0),
+      (86.0, 7.0),
+      (2.0, 16.0),
+    ];
+    for (var k = 0; k < spots.length; k++) {
+      final (sx, sy) = spots[k];
+      if (((t * 3).floor() + k) % 3 == 0) continue;
+      _rect(c, sx, top + sy, 2, 2, const Color(0xFFFFE36E));
+      _rect(c, sx, top + sy, 1, 1, Colors.white);
+    }
+    _text(
+      c,
+      '✨ ×3',
+      60,
+      top + MineLayout.tunnelTop + 4,
+      5,
+      const Color(0xFFFFE36E),
+      shadow: true,
       bold: true,
     );
   }

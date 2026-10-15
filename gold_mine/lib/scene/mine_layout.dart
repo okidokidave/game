@@ -1,4 +1,7 @@
 import 'dart:math';
+import 'dart:ui' show Offset;
+
+import '../game/game_config.dart';
 
 /// 광산 단면도의 배치와 움직임 계산.
 ///
@@ -36,7 +39,7 @@ class MineLayout {
   static const double mineX = 11; // 암벽 앞 (곡괭이 끝이 바위에 닿는 위치)
   static const double dropX = 62; // 상자 앞
 
-  static const int workersPerFloor = 3;
+  static const int workersPerFloor = GameConfig.workersPerMineLevel;
 
   static double floorTop(int floor) => surfaceHeight + floor * floorHeight;
 
@@ -48,10 +51,25 @@ class MineLayout {
 
   /// [floor]층에서 일하는 인부 수.
   static int workersOnFloor(int floor, int totalWorkers) =>
-      (totalWorkers - floor * workersPerFloor).clamp(0, workersPerFloor);
+      GameConfig.workersOnFloor(floor, totalWorkers);
 }
 
 enum MinerAction { walkToRock, mine, carry, drop }
+
+/// 돌발상황에 따라 달라지는 인부의 모습.
+enum WorkerLook { normal, tired, resting, injured, diamond, energized }
+
+/// 그릴 칸 번호와 위치.
+class WorkerSprite {
+  const WorkerSprite(this.frame, this.x, this.flip, [this.action]);
+
+  final int frame;
+  final double x;
+  final bool flip;
+
+  /// 일하는 중이면 하는 일, 멈춰 있으면 null.
+  final MinerAction? action;
+}
 
 /// 인부 한 명의 순간 모습.
 class MinerPose {
@@ -109,6 +127,39 @@ class MinerCycle {
   }
 
   static int _walkFrame(double t) => (t * 8).floor() % 4;
+
+  static const double restX = 46; // 버팀목 옆에 앉아 쉼
+  static const double injuredX = 26; // 바닥에 누움
+
+  /// 인부 모습에 맞는 그림 칸과 위치. [time]은 그 인부의 일하는 시간.
+  static WorkerSprite sprite(WorkerLook look, double time, int floor, int i) {
+    final dx = xOffset(i);
+    switch (look) {
+      case WorkerLook.resting:
+        return WorkerSprite(12, restX + dx, false);
+      case WorkerLook.injured:
+        return WorkerSprite(13, injuredX + dx, false);
+      case WorkerLook.diamond:
+        return WorkerSprite(14, MineLayout.mineX + 8 + dx, false);
+      case WorkerLook.normal:
+      case WorkerLook.tired:
+      case WorkerLook.energized:
+        final p = pose(time, floor, i);
+        return WorkerSprite(p.frame, p.x, p.facingLeft, p.action);
+    }
+  }
+
+  /// 인부 머리 위 말풍선의 가운데 (도트 좌표).
+  /// 누워 있는 인부([look]이 injured)는 말풍선을 낮게 띄운다.
+  static Offset bubbleCenter(int floor, double spriteX, WorkerLook look) =>
+      Offset(
+        spriteX + MineLayout.minerWidth / 2,
+        MineLayout.floorTop(floor) +
+            MineLayout.floorLine -
+            MineLayout.minerHeight -
+            5 +
+            (look == WorkerLook.injured ? 9 : 0),
+      );
 
   /// 시간 [from]~[to] 사이에 이 인부가 상자에 광석을 내려놓았는지.
   static bool droppedBetween(double from, double to, int floor, int index) {
