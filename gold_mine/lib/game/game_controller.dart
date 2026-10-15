@@ -388,9 +388,25 @@ class GameController extends ChangeNotifier {
   /// 다음 등급까지 필요한 경험치. 최고 등급이면 null.
   double? xpNeeded(int slot) => gradeOf(slot).xpToPromote;
 
+  /// 경험치가 다 찼고, 승급할 자리도 있는지.
   bool isPromotionReady(int slot) {
     final need = xpNeeded(slot);
-    return need != null && xpOf(slot) >= need;
+    return need != null && xpOf(slot) >= need && !isBlockedByForeman(slot);
+  }
+
+  /// 베테랑이 반장이 되려는데 그 층에 이미 반장이 있으면 true.
+  bool isBlockedByForeman(int slot) =>
+      gradeIndexOf(slot) + 1 == GameConfig.foremanGrade &&
+      foremanOnFloor(slot ~/ GameConfig.workersPerMineLevel) != null;
+
+  /// [floor]층 반장의 인부 번호 (없으면 null).
+  int? foremanOnFloor(int floor) {
+    final first = floor * GameConfig.workersPerMineLevel;
+    final count = GameConfig.workersOnFloor(floor, _state.workers);
+    for (var slot = first; slot < first + count; slot++) {
+      if (gradeIndexOf(slot) == GameConfig.foremanGrade) return slot;
+    }
+    return null;
   }
 
   int get promotionReadyCount => [
@@ -426,11 +442,15 @@ class GameController extends ChangeNotifier {
       if (need == null || xpOf(slot) >= need) continue;
       final floor = slot ~/ GameConfig.workersPerMineLevel;
       final worker = slot % GameConfig.workersPerMineLevel;
+      // 같은 층 반장이 이끌어 주면 경험치가 빨리 쌓인다.
+      final lead = foremanOnFloor(floor) != null
+          ? GameConfig.foremanXpBoost
+          : 1.0;
       _state.workerXp[slot] = min(
         need,
-        xpOf(slot) + seconds * workerSpeed(floor, worker),
+        xpOf(slot) + seconds * workerSpeed(floor, worker) * lead,
       );
-      if (notify && xpOf(slot) >= need) {
+      if (notify && isPromotionReady(slot)) {
         onMessage?.call(
           '소장님, ${workerLabel(slot)} ${gradeOf(slot).name} 인부가 '
           '승급할 준비가 됐어요! ⬆',

@@ -330,7 +330,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   '👷 인부 관리',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text('일한 만큼 경험치가 쌓여요. 가득 차면 승급시키세요.'),
+                subtitle: Text(
+                  '일한 만큼 경험치가 쌓여요. 가득 차면 승급시키세요.\n'
+                  '반장은 층마다 한 명! 같은 층 인부들의 경험치가 1.5배로 쌓여요.',
+                ),
               ),
               for (var slot = 0; slot < _game.workers; slot++)
                 _workerTile(slot),
@@ -370,7 +373,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   children: [
                     Expanded(
                       child: Text(
-                        ready
+                        _game.isBlockedByForeman(slot) && xp >= need
+                            ? 'B${slot ~/ GameConfig.workersPerMineLevel + 1}층 '
+                                  '반장 자리가 차 있어요'
+                            : ready
                             ? '승급 준비 완료!'
                             : '경험치 ${(xp / 60).floor()}/${(need / 60).round()}분',
                         style: const TextStyle(fontSize: 12),

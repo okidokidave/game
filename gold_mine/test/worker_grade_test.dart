@@ -88,10 +88,55 @@ void main() {
       game.grantBonusGold(game.promotionCost(0));
       expect(game.promote(0), isTrue);
     }
-    expect(game.gradeOf(0).name, '장인');
+    expect(game.gradeOf(0).name, '반장');
     expect(game.xpNeeded(0), isNull);
     game.tick(1e6);
     expect(game.isPromotionReady(0), isFalse);
+  });
+
+  /// [slot] 인부를 [grade] 등급까지 올린다 (다른 인부도 경험치는 같이 받음).
+  void raise(int slot, int grade) {
+    while (game.gradeIndexOf(slot) < grade) {
+      game.tick(game.xpNeeded(slot)!);
+      game.grantBonusGold(1e9);
+      expect(game.promote(slot), isTrue);
+    }
+  }
+
+  test('반장은 층마다 한 명만 둘 수 있다', () {
+    game.grantBonusGold(1e9);
+    while (game.workers < 6) {
+      game.upgradeMine();
+      game.hireWorker();
+    }
+    final foreman = GameConfig.foremanGrade;
+    raise(0, foreman); // B1-1 반장
+    expect(game.foremanOnFloor(0), 0);
+
+    raise(1, foreman - 1); // B1-2 베테랑
+    game.tick(game.xpNeeded(1)!);
+    expect(game.isBlockedByForeman(1), isTrue);
+    expect(game.isPromotionReady(1), isFalse);
+    expect(game.promote(1), isFalse);
+
+    raise(3, foreman); // B2에는 따로 반장을 둘 수 있다
+    expect(game.foremanOnFloor(1), 3);
+  });
+
+  test('반장이 있는 층의 인부들은 경험치가 빨리 쌓인다', () {
+    game.grantBonusGold(1e9);
+    raise(0, GameConfig.foremanGrade);
+    // 반장을 세운 뒤에 새로 고용한 인부들 (경험치 0부터)
+    game.grantBonusGold(1e12);
+    game.upgradeMine();
+    while (game.workers < 4) {
+      expect(game.hireWorker(), isTrue);
+    }
+    final b1 = game.xpOf(1);
+    final b2 = game.xpOf(3);
+    game.tick(10);
+    expect(game.xpOf(1) - b1, closeTo(10 * GameConfig.foremanXpBoost, 1e-9));
+    expect(game.xpOf(3) - b2, closeTo(10, 1e-9));
   });
 
   test('지친 인부는 경험치가 천천히, 다친 인부는 안 쌓인다', () {

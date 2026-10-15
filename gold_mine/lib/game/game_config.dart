@@ -93,8 +93,14 @@ class GameConfig {
       promoteCostSeconds: 900,
       minPromoteCost: 2000,
     ),
-    WorkerGrade('장인', 3),
+    WorkerGrade('반장', 3),
   ];
+
+  /// 마지막 등급(반장)의 번호. 반장은 층마다 한 명만 둘 수 있다.
+  static int get foremanGrade => workerGrades.length - 1;
+
+  /// 반장이 있는 층의 다른 인부들은 경험치가 이 배수로 쌓인다.
+  static const double foremanXpBoost = 1.5;
 
   // ── 채굴 장비 단계 ──────────────────────────────────
   // 목표: 드릴 약 10분, 다이너마이트 약 30분, 굴착 기계 약 75분.
