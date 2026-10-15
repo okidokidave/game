@@ -1,0 +1,162 @@
+# 인플루언서 시뮬레이터 APK를 GitHub 서버에서 빌드한다. (PC 없이 개발하기)
+#
+# - influencer_sim/ 폴더가 바뀌어 push되면 자동으로 실행된다.
+# - 가상 안드로이드 폰에서 앱이 열리는지 확인한 뒤, APK를 아래 고정 주소에 올린다. 휴대폰에서 열면 바로 내려받을 수 있다.
+#   https://github.com/okidokidave/game/releases/download/influencer-build/influencer-sim.apk
+# - 저장소 Secrets에 출시용 키(KEYSTORE_BASE64 등)가 있으면 그 키로, 없으면 테스트 키로 서명한다.
+name: 인플루언서 시뮬레이터 APK 빌드
+
+on:
+  push:
+    paths:
+      - 'influencer_sim/**'
+      - '.github/workflows/influencer-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: influencer-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      signed_with: ${{ steps.signing.outputs.signed_with }}
+    defaults:
+      run:
+        working-directory: influencer_sim
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: 패키지 설치
+        run: flutter pub get
+
+      - name: 코드 검사
+        run: flutter analyze
+
+      - name: 테스트
+        run: flutter test
+
+      - name: 출시용 서명 키 준비 (Secrets에 등록된 경우에만)
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "출시용 키가 없어서 테스트 키로 서명합니다."
+            echo "signed_with=테스트 키 (스토어 등록 불가)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=$RUNNER_TEMP/upload.jks
+          EOF
+          echo "signed_with=출시용 키" >> "$GITHUB_OUTPUT"
+
+      - name: APK 빌드
+        run: |
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk influencer-sim.apk
+
+      - name: 빌드 결과 보관 (90일)
+        uses: actions/upload-artifact@v4
+        with:
+          name: influencer-apk
+          path: influencer_sim/influencer-sim.apk
+
+  # 가상 안드로이드 폰에서 실제로 앱이 열리는지 확인한다.
+  smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: influencer-apk
+
+      - name: 에뮬레이터 가속(KVM) 켜기
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: 가상 폰에서 실행
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: bash influencer_sim/tool/smoke_test.sh influencer-sim.apk
+
+      - name: 녹화 영상을 GIF로 변환
+        if: always()
+        run: |
+          if [ -f smoke/demo.mp4 ]; then
+            sudo apt-get install -y -qq ffmpeg > /dev/null
+            ffmpeg -loglevel error -y -i smoke/demo.mp4 \
+              -vf "fps=10,scale=360:-1:flags=neighbor,split[a][b];[a]palettegen[p];[b][p]paletteuse" \
+              smoke/preview.gif || true
+            rm -f smoke/demo.mp4
+          fi
+
+      - name: 실행 결과 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: influencer-smoke-test
+          path: smoke/
+
+  # 가상 폰에서 열리는 것이 확인된 APK만 다운로드 주소에 올린다.
+  publish:
+    needs: [build, smoke-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: influencer-apk
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: influencer-smoke-test
+
+      - name: 다운로드 페이지에 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNED_WITH: ${{ needs.build.outputs.signed_with }}
+        run: |
+          gh release delete influencer-build --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          files="influencer-sim.apk screenshot.png"
+          [ -f preview.gif ] && files="$files preview.gif"
+          gh release create influencer-build $files \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "인플루언서 시뮬레이터 테스트 빌드 #${{ github.run_number }}" \
+            --notes "브랜치: ${GITHUB_REF_NAME}
+          커밋: ${GITHUB_SHA::7}
+          서명: ${SIGNED_WITH}
+          가상 폰 실행 확인: 통과 (screenshot.png, 움직이는 모습: preview.gif)
+
+          휴대폰에서 influencer-sim.apk를 눌러 내려받고 설치하세요."

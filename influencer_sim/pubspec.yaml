@@ -1,0 +1,23 @@
+name: influencer_sim
+description: "인플루언서 시뮬레이터 - 스마트폰 하나로 시작하는 도트 방송 시뮬레이션"
+publish_to: 'none'
+
+# 앱 버전. +뒤 숫자(versionCode)는 스토어에 업데이트를 올릴 때마다 1 이상 올려야 한다.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.5.6
+  google_mobile_ads: ^9.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

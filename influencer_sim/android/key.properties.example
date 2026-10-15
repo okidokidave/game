@@ -1,0 +1,6 @@
+# 이 파일을 key.properties 로 복사한 뒤 실제 값으로 바꾸세요.
+# key.properties 와 .jks 파일은 절대 Git에 올리지 마세요 (.gitignore에 이미 등록됨).
+storePassword=키스토어_비밀번호
+keyPassword=키_비밀번호
+keyAlias=upload
+storeFile=C:/Users/내이름/keys/influencer_sim-upload.jks
