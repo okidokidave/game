@@ -55,6 +55,8 @@ class Region {
     required this.ores,
     this.productionMultiplier = 1,
     this.dynamiteAccidents = false,
+    this.floods = false,
+    this.haunted = false,
   });
 
   final String name;
@@ -79,6 +81,12 @@ class Region {
   /// 유황 가스: 다이너마이트를 쓰면 폭발 사고(부상)가 잦아진다.
   final bool dynamiteAccidents;
 
+  /// 지하수: 가끔 층이 물에 잠긴다 (양수기 또는 물 퍼내기).
+  final bool floods;
+
+  /// 귀신: 가끔 층에 귀신이 나온다 (무당을 불러 굿).
+  final bool haunted;
+
   int themeOf(int floor) =>
       floorThemes[floor < floorThemes.length ? floor : floorThemes.length - 1];
 }
@@ -91,6 +99,7 @@ abstract final class RockTheme {
   static const int crystal = 3;
   static const int lava = 4;
   static const int sulfur = 5;
+  static const int abandoned = 6;
 }
 
 abstract final class Regions {
@@ -139,6 +148,7 @@ abstract final class Regions {
         '광석이 풍부해 생산량 ×1.5',
         '⚠ 유황 가스! 다이너마이트를 쓰면 폭발 사고가 자주 나요',
         '굴착 기계는 불꽃이 적어 안전해요',
+        '💧 지하수가 새어 들어 갱도가 잠기기도 해요 (양수기로 빼요)',
       ],
       floorThemes: [
         RockTheme.sulfur,
@@ -150,6 +160,7 @@ abstract final class Regions {
       ],
       productionMultiplier: 1.5,
       dynamiteAccidents: true,
+      floods: true,
       ores: [
         Ore(
           'sulfur_crystal',
@@ -171,6 +182,52 @@ abstract final class Regions {
           OreRarity.epic,
           0xFFE53935,
           '안에서 불길이 일렁이는 듯한 붉은 보석.',
+        ),
+      ],
+    ),
+    Region(
+      name: '버려진 폐광',
+      bottomFloor: 7,
+      summary: '수십 년 전 사고로 문을 닫은 광산. 밤마다 이상한 소리가 난다.',
+      traits: [
+        '옛 광부들이 남긴 광맥이 깊어 생산량 ×2.2',
+        '👻 귀신이 나타나면 인부들이 겁에 질려 일을 못 해요',
+        '🪭 무당을 불러 굿을 하면 귀신이 떠나고 축복이 내려요',
+        '💧 오래된 갱도라 물도 자주 차올라요',
+      ],
+      floorThemes: [
+        RockTheme.abandoned,
+        RockTheme.abandoned,
+        RockTheme.deepStone,
+        RockTheme.abandoned,
+        RockTheme.crystal,
+        RockTheme.abandoned,
+        RockTheme.lava,
+      ],
+      productionMultiplier: 2.2,
+      floods: true,
+      haunted: true,
+      ores: [
+        Ore(
+          'tarnished_coin',
+          '녹슨 옛 금화',
+          OreRarity.common,
+          0xFFC9A44C,
+          '옛 광부들이 숨겨 둔 금화. 녹을 닦으면 아직 빛난다.',
+        ),
+        Ore(
+          'ghost_quartz',
+          '유령 수정',
+          OreRarity.rare,
+          0xFFB3E5FC,
+          '안이 뿌옇게 비치는 수정. 가만히 보면 무언가 움직인다.',
+        ),
+        Ore(
+          'spirit_jade',
+          '영혼 비취',
+          OreRarity.epic,
+          0xFF66BB6A,
+          '무당들이 신물로 쓰던 푸른 옥. 쥐면 마음이 차분해진다.',
         ),
       ],
     ),

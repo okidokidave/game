@@ -95,6 +95,9 @@ class Sprites {
   /// 굴착 기계 (두 칸이 번갈아 드릴이 돈다).
   SpriteSheet get machine => _sheets['machine']!;
 
+  /// 0~1: 귀신, 2~5: 굿 하는 무당.
+  SpriteSheet get spirit => _sheets['spirit']!;
+
   /// 파일 이름 → (칸 너비, 칸 높이)
   static const Map<String, (double, double)> frameSizes = {
     'miner': (24, 22),
@@ -108,6 +111,7 @@ class Sprites {
     'wheel': (10, 10),
     'cloud': (22, 8),
     'machine': (32, 22),
+    'spirit': (16, 22),
   };
 
   static Future<Sprites> load([AssetBundle? bundle]) async {

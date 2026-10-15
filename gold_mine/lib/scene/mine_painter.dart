@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../game/game_config.dart';
+import '../game/mine_event.dart';
 import 'mine_layout.dart';
 import 'sprites.dart';
 
@@ -28,7 +29,7 @@ class MinePainter extends CustomPainter {
     required this.workers,
     required this.workerTime,
     required this.workerLook,
-    required this.hasGoldVein,
+    required this.floorEvent,
     required this.tool,
     required this.workerGrade,
     required this.promotionReady,
@@ -56,7 +57,9 @@ class MinePainter extends CustomPainter {
   /// 인부마다 따로 흐르는 일하는 시간 (지치면 느리게, 쉬면 멈춤).
   final double Function(int floor, int worker) workerTime;
   final WorkerLook Function(int floor, int worker) workerLook;
-  final bool Function(int floor) hasGoldVein;
+
+  /// 층 전체에 걸린 상황과 진행도 (0~1, 끝 시간이 없으면 0). 없으면 null.
+  final (MineEventType, double)? Function(int floor) floorEvent;
 
   /// 지금 쓰는 채굴 장비 (Tool.pickaxe ~ Tool.machine).
   final int tool;
@@ -259,7 +262,21 @@ class MinePainter extends CustomPainter {
         top + MineLayout.floorLine - 12,
       );
 
-      if (hasGoldVein(floor)) _goldVein(c, top, t);
+      final event = floorEvent(floor);
+      if (event?.$1 == MineEventType.goldVein) _goldVein(c, top, t);
+      if (event?.$1 == MineEventType.blessing) _blessing(c, top, t);
+      if (event?.$1 == MineEventType.ghost ||
+          event?.$1 == MineEventType.exorcism) {
+        // 귀신이 나온 층은 어둑하고 푸르스름해진다.
+        _rect(
+          c,
+          0,
+          top + MineLayout.tunnelTop,
+          MineLayout.tunnelRight,
+          MineLayout.floorLine - MineLayout.tunnelTop,
+          const Color(0x55202A60),
+        );
+      }
       if (tool == Tool.machine && count > 0) {
         s.machine.draw(
           c,
@@ -340,6 +357,8 @@ class MinePainter extends CustomPainter {
       }
     }
 
+    if (s != null) _floorHazard(c, s, floor, top, t);
+
     final isBottom = floor == bottomFloor;
     _text(
       c,
@@ -352,6 +371,122 @@ class MinePainter extends CustomPainter {
       shadow: isBottom,
     );
     if (isBottom) _rareGlints(c, top, t);
+  }
+
+  /// 침수, 귀신, 굿: 인부들 앞에 그린다.
+  void _floorHazard(Canvas c, Sprites s, int floor, double top, double t) {
+    final event = floorEvent(floor);
+    if (event == null) return;
+    final (type, progress) = event;
+    final floorY = top + MineLayout.floorLine;
+    switch (type) {
+      case MineEventType.flood:
+        _water(c, top, floorY, 9, t);
+        _callBubble(c, '🌊', 54, top + MineLayout.tunnelTop + 6, t);
+      case MineEventType.bailing:
+        _water(c, top, floorY, 9 * (1 - progress), t);
+        // 양동이에서 튀는 물방울
+        for (var k = 0; k < 4; k++) {
+          final phase = (t * 1.6 + k * 0.25) % 1;
+          final x = MinerCycle.bailX + 8 + k * 14 + phase * 6;
+          final y = floorY - 14 - sin(phase * pi) * 8;
+          _rect(c, x, y, 1, 1, const Color(0xFFB3E5FC));
+        }
+      case MineEventType.ghost:
+        final x = 20 + (sin(t * 0.7 + floor) * 0.5 + 0.5) * 30;
+        final y = top + 9 + sin(t * 2.3) * 2;
+        s.spirit.draw(c, (t * 3).floor() % 2, x, y);
+        _callBubble(c, '😱', MinerCycle.scaredX + 12, top + 6, t);
+      case MineEventType.exorcism:
+        // 무당이 방울을 흔들며 춤추고, 귀신은 위로 사라진다.
+        s.spirit.draw(c, 2 + (t * 5).floor() % 4, 40, floorY - 22);
+        final fade = (1 - progress).clamp(0.0, 1.0);
+        c.saveLayer(
+          null,
+          Paint()..color = Color.fromRGBO(255, 255, 255, fade * 0.9),
+        );
+        s.spirit.draw(c, (t * 3).floor() % 2, 18, top + 6 - progress * 14);
+        c.restore();
+        _text(
+          c,
+          '🥁 굿 하는 중',
+          60,
+          top + MineLayout.tunnelTop + 3,
+          5,
+          const Color(0xFFFFCDD2),
+          shadow: true,
+          bold: true,
+        );
+      case MineEventType.goldVein:
+      case MineEventType.blessing:
+      case MineEventType.fatigue:
+      case MineEventType.injury:
+      case MineEventType.rest:
+      case MineEventType.energized:
+      case MineEventType.diamond:
+        break;
+    }
+  }
+
+  /// 갱도 바닥에 찰랑이는 물. [depth]는 물 높이(도트).
+  void _water(Canvas c, double top, double floorY, double depth, double t) {
+    if (depth <= 0.2) return;
+    const water = Color(0x994FA3D9);
+    const foam = Color(0xCCB3E5FC);
+    for (var x = 0.0; x < MineLayout.tunnelRight; x += 4) {
+      final wave = sin(t * 3 + x * 0.3) * 0.8;
+      final surface = floorY - depth + wave;
+      _rect(c, x, surface, 4, floorY - surface + 2, water);
+      _rect(c, x, surface, 4, 1, foam);
+    }
+  }
+
+  /// 소장을 부르는 큰 말풍선 (층 전체 상황).
+  void _callBubble(Canvas c, String icon, double x, double y, double t) {
+    final bob = sin(t * 6) > 0 ? -1.0 : 0.0;
+    final rect = Rect.fromCenter(
+      center: Offset(x, y + bob),
+      width: 13,
+      height: 10,
+    );
+    const border = Color(0xFFE5533D);
+    _rect(
+      c,
+      rect.left - 1,
+      rect.top - 1,
+      rect.width + 2,
+      rect.height + 2,
+      border,
+    );
+    _rect(c, rect.left, rect.top, rect.width, rect.height, Colors.white);
+    _text(c, icon, x, rect.top + 0.8, 6.5, Colors.black, center: true);
+  }
+
+  /// 신령님의 축복: 오색 빛가루가 내려온다.
+  void _blessing(Canvas c, double top, double t) {
+    const colors = [
+      Color(0xFFE53935),
+      Color(0xFFFFD23F),
+      Color(0xFF42A5F5),
+      Color(0xFF66BB6A),
+      Color(0xFFFFFFFF),
+    ];
+    for (var k = 0; k < 10; k++) {
+      final fall = (t * 0.4 + k * 0.137) % 1;
+      final x = 6 + (k * 23 % 88).toDouble() + sin(t * 2 + k) * 2;
+      final y = top + MineLayout.tunnelTop + fall * 26;
+      _rect(c, x, y, 1, 1, colors[k % colors.length]);
+    }
+    _text(
+      c,
+      '🪭 ×${GameConfig.blessingMultiplier.round()}',
+      60,
+      top + MineLayout.tunnelTop + 4,
+      5,
+      const Color(0xFFFFCDD2),
+      shadow: true,
+      bold: true,
+    );
   }
 
   /// 막장 암벽에서 희귀 광석이 여러 색으로 반짝인다.
@@ -455,6 +590,8 @@ class MinePainter extends CustomPainter {
             WorkerLook.diamond => ('💎', const Color(0xFF5BC8F5)),
             WorkerLook.resting => ('💤', const Color(0xFF9AA4B0)),
             WorkerLook.energized => ('⚡', const Color(0xFFFFC83D)),
+            WorkerLook.bailing => ('🪣', const Color(0xFF4FA3D9)),
+            WorkerLook.scared ||
             WorkerLook.normal => ('', const Color(0x00000000)),
           };
     if (icon.isEmpty) return;

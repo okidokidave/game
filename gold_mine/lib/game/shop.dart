@@ -10,6 +10,9 @@ enum ShopTarget {
 
   /// 한동안 모든 인부의 체력이 줄지 않는다.
   buff,
+
+  /// 사이보그 인부 업그레이드 부품 (인부 관리에서 쓴다).
+  cyborgPart,
 }
 
 class ShopItem {
@@ -99,12 +102,23 @@ abstract final class Shop {
     buffMinutes: 10,
   );
 
+  static const cyborgPart = ShopItem(
+    id: 'cyborg_part',
+    emoji: '🔩',
+    name: '사이보그 부품',
+    description: '사이보그 인부 업그레이드용 (인부 관리에서 사용)',
+    target: ShopTarget.cyborgPart,
+    costSeconds: 240,
+    minCost: 400,
+  );
+
   static const List<ShopItem> items = [
     energyDrink,
     lunchBox,
     coffee,
     stew,
     vitamin,
+    cyborgPart,
   ];
 
   static ShopItem? byId(String id) {

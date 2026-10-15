@@ -176,11 +176,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     final current = _game.eventById(event.id);
     _sound.play(switch (current?.type) {
-      MineEventType.fatigue || MineEventType.injury => Sfx.alert,
-      MineEventType.diamond || MineEventType.goldVein => Sfx.sparkle,
+      MineEventType.fatigue ||
+      MineEventType.injury ||
+      MineEventType.flood ||
+      MineEventType.ghost => Sfx.alert,
+      MineEventType.diamond ||
+      MineEventType.goldVein ||
+      MineEventType.blessing => Sfx.sparkle,
       _ => Sfx.click,
     });
-    if (current?.type == MineEventType.injury) _sound.vibrate(Buzz.medium);
+    if (current?.type == MineEventType.injury ||
+        current?.type == MineEventType.ghost) {
+      _sound.vibrate(Buzz.medium);
+    }
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     final stillOpen = _game.eventById(event.id);
@@ -273,9 +281,97 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ],
         );
+      case MineEventType.flood:
+        _decide(
+          title: '💧 갱도 침수!',
+          message:
+              '소장님, $floor에 지하수가 차올랐어요!\n'
+              '물을 빼기 전까지 인부들이 '
+              '${(GameConfig.floodSpeed * 100).round()}% 속도로만 일해요.\n\n'
+              '• 양수기: 돈이 들지만 바로 물이 빠져요\n'
+              '• 직접 퍼내기: 공짜지만 '
+              '${GameConfig.bailDuration.inMinutes}분 동안 그 층은 채굴을 멈춰요',
+          choices: [
+            (
+              '직접 퍼내기',
+              false,
+              () {
+                if (_game.bailWater(event.id)) {
+                  _showMessage('🪣 $floor 인부들이 양동이로 물을 퍼내요!');
+                }
+              },
+            ),
+            if (_ads.rewardedReady.value)
+              (
+                '광고 보고 양수기',
+                false,
+                () async {
+                  if (await _ads.showRewarded() &&
+                      _game.pumpWater(event.id, free: true)) {
+                    _sound.play(Sfx.buy);
+                    _showMessage('💨 양수기가 $floor 물을 다 뺐어요!');
+                  }
+                },
+              ),
+            (
+              '양수기 (${formatGold(_game.pumpCost)} 골드)',
+              true,
+              _game.canPump
+                  ? () {
+                      if (_game.pumpWater(event.id)) {
+                        _sound.play(Sfx.buy);
+                        _showMessage('💨 양수기가 $floor 물을 다 뺐어요!');
+                      }
+                    }
+                  : null,
+            ),
+          ],
+        );
+      case MineEventType.ghost:
+        final leaveIn = event.remaining(DateTime.now()).inMinutes + 1;
+        _decide(
+          title: '👻 귀신이 나타났어요!',
+          message:
+              '소장님! $floor에 귀신이 나타나서 인부들이 겁에 질려 '
+              '일을 못 하고 있어요.\n'
+              '그냥 두면 약 $leaveIn분 뒤에 떠나요.\n\n'
+              '무당을 부르면 굿을 해서 귀신을 달래 보내고, '
+              '신령님의 축복으로 ${GameConfig.blessingDuration.inMinutes}분간 '
+              '생산이 ${GameConfig.blessingMultiplier.round()}배가 돼요!',
+          choices: [
+            ('기다리기', false, () {}),
+            if (_ads.rewardedReady.value)
+              (
+                '광고 보고 무당 부르기',
+                false,
+                () async {
+                  if (await _ads.showRewarded() &&
+                      _game.callShaman(event.id, free: true)) {
+                    _sound.play(Sfx.fanfare);
+                    _showMessage('🪭 무당이 와서 $floor에서 굿을 시작해요!');
+                  }
+                },
+              ),
+            (
+              '무당 부르기 (${formatGold(_game.shamanCost)} 골드)',
+              true,
+              _game.canCallShaman
+                  ? () {
+                      if (_game.callShaman(event.id)) {
+                        _sound.play(Sfx.fanfare);
+                        _showMessage('🪭 무당이 와서 $floor에서 굿을 시작해요!');
+                      }
+                    }
+                  : null,
+            ),
+          ],
+        );
       case MineEventType.rest:
       case MineEventType.energized:
       case MineEventType.goldVein:
+      case MineEventType.bailing:
+      case MineEventType.exorcism:
+      case MineEventType.blessing:
         break;
     }
   }
@@ -435,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   '반장은 층마다 한 명! 같은 층 인부들의 경험치가 1.5배로 쌓여요.',
                 ),
               ),
-              if (_game.cyborgs > 0) _cyborgTile(),
+              if (_game.hasCyborg) _cyborgTile(),
               for (var slot = 0; slot < _game.workers; slot++)
                 _workerTile(slot),
             ],
@@ -446,17 +542,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _cyborgTile() {
+    final parts = _game.itemCount(Shop.cyborgPart);
+    final need = _game.cyborgPartsNeeded;
     return ListTile(
       leading: const CircleAvatar(
         backgroundColor: Color(0xFF80DEEA),
         foregroundColor: Colors.black87,
         child: Text('🤖'),
       ),
-      title: Text('사이보그 인부 ${_game.cyborgs}명'),
-      subtitle: Text(
-        '한 명이 일반 인부 ${GameConfig.cyborgMultiplier}명 몫 · 지치지 않아요\n'
-        '초당 ${formatGold(_game.cyborgGoldPerSecond)} 골드 · 이사 가도 따라와요',
-        style: const TextStyle(fontSize: 12),
+      title: Text(
+        '사이보그 인부  ${_game.cyborgLevel}단계  '
+        '×${GameConfig.cyborgPower(_game.cyborgLevel).toStringAsFixed(0)}',
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '지치지 않아요 · 초당 ${formatGold(_game.cyborgGoldPerSecond)} 골드 · '
+            '이사 가도 따라와요',
+            style: const TextStyle(fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          if (_game.isCyborgMaxLevel)
+            const Text('최고 단계예요!', style: TextStyle(fontSize: 12))
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '🔩 부품 $parts / $need개 → '
+                    '×${GameConfig.cyborgPower(_game.cyborgLevel + 1).toStringAsFixed(0)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                if (_game.canUpgradeCyborg)
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: () {
+                      if (_game.upgradeCyborg()) {
+                        _sound.play(Sfx.fanfare);
+                        _showMessage(
+                          '🤖 사이보그 인부가 ${_game.cyborgLevel}단계로 '
+                          '업그레이드됐어요!',
+                        );
+                      }
+                    },
+                    child: const Text('업그레이드'),
+                  )
+                else
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: _openShop,
+                    child: const Text('매점 가기'),
+                  ),
+              ],
+            ),
+        ],
       ),
     );
   }

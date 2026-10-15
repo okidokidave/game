@@ -22,16 +22,24 @@ class ScriptedRandom implements Random {
   bool nextBool() => false;
 }
 
-/// 상황 종류를 고르는 주사위 값 (GameConfig 비율 순서: 피로, 부상, 다이아, 금맥).
-int rollFor(MineEventType type) => switch (type) {
-  MineEventType.fatigue => 0,
-  MineEventType.injury => GameConfig.fatigueWeight,
-  MineEventType.diamond => GameConfig.fatigueWeight + GameConfig.injuryWeight,
-  _ =>
-    GameConfig.fatigueWeight +
-        GameConfig.injuryWeight +
-        GameConfig.diamondWeight,
-};
+/// 상황 종류를 고르는 주사위 값
+/// (GameConfig 비율 순서: 피로, 부상, 다이아, 금맥, 침수, 귀신).
+/// 침수·귀신은 그 지역에서만 나오고, 침수가 없는 지역의 귀신은 계산하지 않는다.
+int rollFor(MineEventType type) {
+  const base =
+      GameConfig.fatigueWeight +
+      GameConfig.injuryWeight +
+      GameConfig.diamondWeight;
+  return switch (type) {
+    MineEventType.fatigue => 0,
+    MineEventType.injury => GameConfig.fatigueWeight,
+    MineEventType.diamond => GameConfig.fatigueWeight + GameConfig.injuryWeight,
+    MineEventType.flood => base + GameConfig.goldVeinWeight,
+    MineEventType.ghost =>
+      base + GameConfig.goldVeinWeight + GameConfig.floodWeight,
+    _ => base,
+  };
+}
 
 void main() {
   late DateTime now;

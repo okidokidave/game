@@ -78,7 +78,10 @@ class ShopSheet extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 8),
-          for (final item in Shop.items) _itemTile(context, item),
+          for (final item in Shop.items)
+            // 부품은 사이보그 인부가 생긴 뒤에만 판다.
+            if (item.target != ShopTarget.cyborgPart || game.hasCyborg)
+              _itemTile(context, item),
         ],
       ),
     );
@@ -88,7 +91,9 @@ class ShopSheet extends StatelessWidget {
     final owned = game.itemCount(item);
     final cost = game.itemCost(item);
     final canUseHere =
-        owned > 0 && (item.target != ShopTarget.worker || forSlot != null);
+        owned > 0 &&
+        item.target != ShopTarget.cyborgPart &&
+        (item.target != ShopTarget.worker || forSlot != null);
     return Card(
       color: const Color(0xFF3A2C20),
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -168,6 +173,7 @@ class ShopSheet extends StatelessWidget {
           ShopTarget.everyone => '${item.emoji} 모든 인부가 기운을 차렸어요!',
           ShopTarget.buff =>
             '${item.emoji} ${item.buffMinutes}분 동안 아무도 지치지 않아요!',
+          ShopTarget.cyborgPart => '',
         }),
       ),
     );

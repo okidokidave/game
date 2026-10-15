@@ -142,8 +142,10 @@ void main() {
   test('막장에 닿지 않았거나 마지막 지역이면 개척할 수 없다', () {
     game.grantBonusGold(1e15);
     expect(game.canPioneer, isFalse);
-    digToBottom();
-    game.pioneer();
+    for (var i = 1; i < Regions.all.length; i++) {
+      digToBottom();
+      expect(game.pioneer(), isTrue);
+    }
     digToBottom();
     expect(game.nextRegion, isNull);
     expect(game.pioneer(), isFalse);

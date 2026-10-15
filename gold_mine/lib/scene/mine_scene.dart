@@ -95,7 +95,21 @@ class _MineSceneState extends State<MineScene>
         return WorkerLook.energized;
       case MineEventType.fatigue:
       case MineEventType.goldVein:
+      case MineEventType.flood:
+      case MineEventType.bailing:
+      case MineEventType.ghost:
+      case MineEventType.exorcism:
+      case MineEventType.blessing:
       case null:
+        break;
+    }
+    switch (_game.floorEvent(floor)?.type) {
+      case MineEventType.ghost:
+      case MineEventType.exorcism:
+        return WorkerLook.scared;
+      case MineEventType.bailing:
+        return WorkerLook.bailing;
+      default:
         break;
     }
     final slot = GameController.slotOf(floor, worker);
@@ -218,9 +232,29 @@ class _MineSceneState extends State<MineScene>
     );
   }
 
+  (MineEventType, double)? _floorEvent(int floor) {
+    final e = _game.floorEvent(floor);
+    if (e == null) return null;
+    final end = e.endsAt;
+    if (end == null) return (e.type, 0);
+    final total = end.difference(e.startedAt).inMilliseconds;
+    final left = e.remaining(DateTime.now()).inMilliseconds;
+    return (e.type, total <= 0 ? 1 : (1 - left / total).clamp(0.0, 1.0));
+  }
+
   /// 누른 곳 가까이에 소장을 부르는 인부가 있으면 그 상황.
+  /// 침수·귀신처럼 층 전체 상황은 그 층 갱도 어디를 눌러도 된다.
   MineEvent? _eventAt(Offset pos) {
     for (final e in _game.managerEvents) {
+      if (e.type.isFloorWide) {
+        final top = MineLayout.floorTop(e.floor);
+        if (pos.dx < MineLayout.tunnelRight &&
+            pos.dy >= top &&
+            pos.dy <= top + MineLayout.floorLine + 2) {
+          return e;
+        }
+        continue;
+      }
       final look = _look(e.floor, e.worker);
       final sprite = MinerCycle.sprite(
         look,
@@ -319,7 +353,7 @@ class _MineSceneState extends State<MineScene>
                     workers: _game.workers,
                     workerTime: _workerTime,
                     workerLook: _look,
-                    hasGoldVein: (f) => _game.floorEvent(f) != null,
+                    floorEvent: _floorEvent,
                     tool: _game.equipmentTier,
                     workerGrade: (f, i) =>
                         _game.gradeIndexOf(GameController.slotOf(f, i)),
@@ -386,7 +420,10 @@ class _EventBadges extends StatelessWidget {
   Widget build(BuildContext context) {
     final shown = [
       for (final e in events)
-        if (e.type.needsManager || e.type == MineEventType.goldVein) e,
+        if (e.type.needsManager ||
+            e.type.isFloorWide ||
+            e.type == MineEventType.goldVein)
+          e,
     ];
     if (shown.isEmpty && promotionReady == 0 && exhausted == 0) {
       return const SizedBox.shrink();
@@ -423,6 +460,23 @@ class _EventBadges extends StatelessWidget {
         const Color(0xFF2A7FA8),
       ),
       MineEventType.goldVein => ('✨', '$floor 금맥 ×3', const Color(0xFF9C7A12)),
+      MineEventType.flood => ('💧', '$floor 침수!', const Color(0xFF2A6FA8)),
+      MineEventType.bailing => (
+        '🪣',
+        '$floor 물 퍼내는 중',
+        const Color(0xFF3D6E8F),
+      ),
+      MineEventType.ghost => ('👻', '$floor 귀신 출몰!', const Color(0xFF5E4A8C)),
+      MineEventType.exorcism => (
+        '🥁',
+        '$floor 굿 하는 중',
+        const Color(0xFF8C3A4A),
+      ),
+      MineEventType.blessing => (
+        '🪭',
+        '$floor 축복 ×${GameConfig.blessingMultiplier.round()}',
+        const Color(0xFF9C4A7A),
+      ),
       _ => ('', '', Colors.transparent),
     };
     final left = e.remaining(now);

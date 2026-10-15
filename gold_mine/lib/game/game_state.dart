@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'mine_event.dart';
 
 /// 저장되는 게임 데이터. 화면이나 계산 로직 없이 값만 가진다.
@@ -23,6 +25,7 @@ class GameState {
     Map<String, int>? inventory,
     this.staminaBuffUntil,
     this.cyborgs = 0,
+    this.cyborgLevel = 1,
     this.attendanceCount = 0,
     this.lastAttendanceDay,
   }) : workerStamina = workerStamina ?? [],
@@ -95,8 +98,11 @@ class GameState {
   /// 비타민 효과가 끝나는 시각 (그때까지 아무도 지치지 않는다).
   DateTime? staminaBuffUntil;
 
-  /// 출석 보상으로 받은 사이보그 인부 수 (지역을 옮겨도 따라온다).
+  /// 출석 보상으로 받은 사이보그 인부 수 (0 또는 1, 지역을 옮겨도 따라온다).
   int cyborgs;
+
+  /// 사이보그 인부 업그레이드 단계 (1부터).
+  int cyborgLevel;
 
   /// 지금까지 출석한 날 수, 마지막으로 출석한 날 ("2026-10-15").
   int attendanceCount;
@@ -118,6 +124,7 @@ class GameState {
     'codex': codex,
     'unseenOres': unseenOres,
     'cyborgs': cyborgs,
+    'cyborgLevel': cyborgLevel,
     'attendanceCount': attendanceCount,
     'lastAttendanceDay': lastAttendanceDay,
     'workerStamina': workerStamina,
@@ -156,7 +163,8 @@ class GameState {
           (x as num).toDouble(),
       ],
       regionIndex: json['regionIndex'] as int? ?? 0,
-      cyborgs: json['cyborgs'] as int? ?? 0,
+      cyborgs: min(json['cyborgs'] as int? ?? 0, 1),
+      cyborgLevel: max(json['cyborgLevel'] as int? ?? 1, 1),
       attendanceCount: json['attendanceCount'] as int? ?? 0,
       lastAttendanceDay: json['lastAttendanceDay'] as String?,
       workerStamina: [

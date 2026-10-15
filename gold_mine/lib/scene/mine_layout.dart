@@ -73,6 +73,12 @@ enum WorkerLook {
 
   /// 체력이 바닥나 쓰러짐.
   collapsed,
+
+  /// 귀신을 보고 겁에 질려 웅크림.
+  scared,
+
+  /// 물에 잠긴 갱도에서 양동이로 물을 퍼냄.
+  bailing,
 }
 
 /// 그릴 칸 번호와 위치.
@@ -214,6 +220,8 @@ class MinerCycle {
 
   static const double restX = 46; // 버팀목 옆에 앉아 쉼
   static const double injuredX = 26; // 바닥에 누움
+  static const double scaredX = 66; // 귀신을 피해 몰려 있음
+  static const double bailX = 24; // 물 퍼내는 자리
 
   /// 인부 모습에 맞는 그림 칸과 위치. [time]은 그 인부의 일하는 시간.
   static WorkerSprite sprite(
@@ -232,6 +240,13 @@ class MinerCycle {
         return WorkerSprite(13, injuredX + dx, false);
       case WorkerLook.diamond:
         return WorkerSprite(14, MineLayout.mineX + 8 + dx, false);
+      case WorkerLook.scared:
+        // 귀신 반대쪽(엘리베이터 쪽) 구석에 몰려 웅크린다.
+        return WorkerSprite(12, scaredX - i * 9.0 + dx * 0.5, false);
+      case WorkerLook.bailing:
+        // 허리를 숙였다 폈다 하며 물을 퍼낸다.
+        final up = ((time * 2 + i * 0.37) % 1) < 0.5;
+        return WorkerSprite(up ? 4 : 11, bailX + i * 14.0, i.isOdd);
       case WorkerLook.normal:
       case WorkerLook.tired:
       case WorkerLook.energized:

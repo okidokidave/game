@@ -199,6 +199,34 @@ class GameConfig {
   static const int diamondWeight = 25;
   static const int goldVeinWeight = 30;
 
+  /// 지역 장애물 (그 지역에서만 나온다).
+  static const int floodWeight = 20;
+  static const int ghostWeight = 20;
+
+  // ── 침수 ────────────────────────────────────────────
+  /// 물에 잠긴 층 인부들의 작업 속도 (물을 빼기 전까지 계속).
+  static const double floodSpeed = 0.3;
+
+  /// 양수기 대여비 (초당 생산량 × 이 초). 바로 물이 빠진다.
+  static const double pumpCostSeconds = 90;
+  static const double minPumpCost = 100;
+
+  /// 인부들이 직접 퍼내면 걸리는 시간 (그동안 그 층은 채굴을 못 한다).
+  static const Duration bailDuration = Duration(minutes: 3);
+
+  // ── 귀신 ────────────────────────────────────────────
+  /// 귀신이 나온 층 인부들은 겁에 질려 일을 못 한다. 그냥 두면 이만큼 뒤 떠난다.
+  static const Duration ghostDuration = Duration(minutes: 8);
+
+  /// 무당 부르는 값 (초당 생산량 × 이 초).
+  static const double shamanCostSeconds = 150;
+  static const double minShamanCost = 300;
+
+  /// 굿 하는 시간, 굿이 끝난 뒤 신령님의 축복 (층 생산량 배수와 시간).
+  static const Duration exorcismDuration = Duration(seconds: 20);
+  static const double blessingMultiplier = 2;
+  static const Duration blessingDuration = Duration(minutes: 3);
+
   /// 지친 인부(체력이 [tiredStamina] 아래)의 작업 속도.
   static const double fatigueSpeed = 0.5;
 
@@ -258,10 +286,24 @@ class GameConfig {
   static const int sulfurInjuryMultiplier = 4;
 
   // ── 사이보그 인부 / 출석 ─────────────────────────────
-  /// 사이보그 인부는 견습 인부보다 이만큼 더 캔다. 지치지도 다치지도 않는다.
+  /// 사이보그 인부(1단계)는 견습 인부보다 이만큼 더 캔다. 지치지도 다치지도 않는다.
   static const double cyborgMultiplier = 10;
 
-  /// 출석 보상 7일 (7일째 사이보그 인부). 다 받으면 1일째부터 다시.
+  /// 업그레이드 한 단계마다 1단계 생산량의 이만큼씩 더 캔다 (+50%).
+  static const double cyborgLevelBonus = 0.5;
+  static const int maxCyborgLevel = 10;
+
+  /// [level]단계 사이보그가 견습 인부 몇 명 몫을 캐는지.
+  static double cyborgPower(int level) =>
+      cyborgMultiplier * (1 + cyborgLevelBonus * (level - 1));
+
+  /// [level]단계에서 다음 단계로 올리는 데 드는 부품 수.
+  static int cyborgPartsFor(int level) => level;
+
+  /// 사이보그를 이미 받았으면 7일째에는 부품을 대신 준다.
+  static const int cyborgPartsReward = 3;
+
+  /// 출석 보상 7일 (7일째 사이보그 인부, 딱 한 번). 다 받으면 1일째부터 다시.
   static const List<AttendanceReward> attendanceRewards = [
     AttendanceReward.gold('💰', '골드 꾸러미', 300, 200),
     AttendanceReward.item('⚡', '에너지 드링크', 'energy_drink', 3),

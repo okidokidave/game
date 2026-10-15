@@ -66,12 +66,12 @@ class GameController extends ChangeNotifier {
     return _perWorkerGold * (grades + cyborgPower) + caretakerIncome;
   }
 
-  /// 사이보그 인부 전원이 1초에 캐는 골드.
-  double get cyborgGoldPerSecond =>
-      _perWorkerGold * GameConfig.cyborgMultiplier * _state.cyborgs;
+  /// 사이보그 인부가 1초에 캐는 골드.
+  double get cyborgGoldPerSecond => _perWorkerGold * cyborgPower;
 
-  /// 사이보그 인부들의 생산량 (견습 인부 몇 명분인지).
-  double get cyborgPower => _state.cyborgs * GameConfig.cyborgMultiplier;
+  /// 사이보그 인부의 생산량 (견습 인부 몇 명분인지). 없으면 0.
+  double get cyborgPower =>
+      hasCyborg ? GameConfig.cyborgPower(_state.cyborgLevel) : 0;
 
   /// 관리인에게 맡긴 광산들이 보내 주는 초당 골드.
   double get caretakerIncome =>
@@ -295,26 +295,88 @@ class GameController extends ChangeNotifier {
 
   /// 인부 한 명의 작업 속도 (0 = 쉼, 1 = 보통). 애니메이션 속도로도 쓴다.
   double workerSpeed(int floor, int worker) {
+    final floorType = floorEvent(floor)?.type;
+    if (floorType != null && floorType.stopsFloor) return 0;
+    final wading = floorType == MineEventType.flood ? GameConfig.floodSpeed : 1;
     switch (workerEvent(floor, worker)?.type) {
       case MineEventType.injury:
       case MineEventType.rest:
       case MineEventType.diamond:
         return 0;
       case MineEventType.energized:
-        return GameConfig.energizedSpeed;
+        return GameConfig.energizedSpeed * wading;
       case MineEventType.fatigue:
       case MineEventType.goldVein:
+      case MineEventType.flood:
+      case MineEventType.bailing:
+      case MineEventType.ghost:
+      case MineEventType.exorcism:
+      case MineEventType.blessing:
       case null:
         break;
     }
     final slot = slotOf(floor, worker);
     if (isCollapsed(slot)) return 0;
-    if (isTired(slot)) return GameConfig.fatigueSpeed;
-    return 1;
+    if (isTired(slot)) return GameConfig.fatigueSpeed * wading;
+    return 1.0 * wading;
   }
 
-  double floorMultiplier(int floor) =>
-      floorEvent(floor) != null ? GameConfig.goldVeinMultiplier : 1;
+  /// 층 전체 생산량 배수 (금맥, 축복).
+  double floorMultiplier(int floor) => switch (floorEvent(floor)?.type) {
+    MineEventType.goldVein => GameConfig.goldVeinMultiplier,
+    MineEventType.blessing => GameConfig.blessingMultiplier,
+    _ => 1,
+  };
+
+  // ── 지역 장애물: 침수 / 귀신 ────────────────────────
+  /// 양수기 대여비.
+  double get pumpCost => max(
+    GameConfig.minPumpCost,
+    (steadyGoldPerSecond - caretakerIncome) * GameConfig.pumpCostSeconds,
+  );
+  bool get canPump => gold >= pumpCost;
+
+  /// 양수기로 물을 바로 뺀다. [free]면 (광고 시청 등) 돈을 받지 않는다.
+  bool pumpWater(int eventId, {bool free = false}) {
+    final e = eventById(eventId);
+    if (e == null || e.type != MineEventType.flood) return false;
+    if (!free) {
+      if (!canPump) return false;
+      _state.gold -= pumpCost;
+    }
+    _state.events.remove(e);
+    notifyListeners();
+    return true;
+  }
+
+  /// 인부들이 직접 물을 퍼낸다 (공짜지만 그동안 그 층은 채굴을 멈춘다).
+  bool bailWater(int eventId) {
+    final e = eventById(eventId);
+    if (e == null || e.type != MineEventType.flood) return false;
+    _replace(e, MineEventType.bailing, GameConfig.bailDuration);
+    notifyListeners();
+    return true;
+  }
+
+  /// 무당을 부르는 값.
+  double get shamanCost => max(
+    GameConfig.minShamanCost,
+    (steadyGoldPerSecond - caretakerIncome) * GameConfig.shamanCostSeconds,
+  );
+  bool get canCallShaman => gold >= shamanCost;
+
+  /// 무당을 불러 굿을 한다. 굿이 끝나면 귀신이 떠나고 축복이 내린다.
+  bool callShaman(int eventId, {bool free = false}) {
+    final e = eventById(eventId);
+    if (e == null || e.type != MineEventType.ghost) return false;
+    if (!free) {
+      if (!canCallShaman) return false;
+      _state.gold -= shamanCost;
+    }
+    _replace(e, MineEventType.exorcism, GameConfig.exorcismDuration);
+    notifyListeners();
+    return true;
+  }
 
   double get treatCost => max(
     GameConfig.minTreatCost,
@@ -392,9 +454,29 @@ class GameController extends ChangeNotifier {
         case MineEventType.diamond:
           _state.events.remove(e);
           _notice(e, '앗, B${e.floor + 1} 다이아몬드를 놓쳤어요...');
+        case MineEventType.bailing:
+          _state.events.remove(e);
+          _notice(e, '💧 B${e.floor + 1} 물을 다 퍼냈어요! 다시 채굴해요.');
+        case MineEventType.ghost:
+          _state.events.remove(e);
+          _notice(e, '👻 B${e.floor + 1} 귀신이 제 발로 떠났어요. 휴...');
+        case MineEventType.exorcism:
+          final blessing = _replace(
+            e,
+            MineEventType.blessing,
+            GameConfig.blessingDuration,
+          );
+          _notice(
+            blessing,
+            '🪭 굿이 끝났어요! B${e.floor + 1}에 신령님의 축복이 내려 '
+            '${GameConfig.blessingDuration.inMinutes}분간 생산 '
+            '${GameConfig.blessingMultiplier.round()}배!',
+          );
         case MineEventType.fatigue:
         case MineEventType.energized:
         case MineEventType.goldVein:
+        case MineEventType.flood:
+        case MineEventType.blessing:
           _state.events.remove(e);
       }
     }
@@ -405,7 +487,7 @@ class GameController extends ChangeNotifier {
     if (managerEvents.length >= GameConfig.maxManagerEvents) return false;
 
     final type = _pickEventType();
-    if (type == MineEventType.goldVein) {
+    if (type.isFloorWide) {
       final floors = [
         for (var f = 0; f < _state.mineLevel; f++)
           if (floorEvent(f) == null &&
@@ -414,8 +496,24 @@ class GameController extends ChangeNotifier {
       ];
       if (floors.isEmpty) return false;
       final floor = floors[_random.nextInt(floors.length)];
-      final e = _add(type, floor, -1, now, GameConfig.goldVeinDuration);
-      _notice(e, '소장님! B${floor + 1}에서 금맥이 드러났어요! 1분간 생산 3배!');
+      final name = 'B${floor + 1}';
+      switch (type) {
+        case MineEventType.flood:
+          _notice(
+            _add(type, floor, -1, now, null),
+            '💧 소장님! $name에 지하수가 차올라요! 인부들이 물속에서 허우적대요.',
+          );
+        case MineEventType.ghost:
+          _notice(
+            _add(type, floor, -1, now, GameConfig.ghostDuration),
+            '👻 소장님! $name에 귀신이 나타났어요! 인부들이 겁에 질렸어요!',
+          );
+        default:
+          _notice(
+            _add(type, floor, -1, now, GameConfig.goldVeinDuration),
+            '소장님! $name에서 금맥이 드러났어요! 1분간 생산 3배!',
+          );
+      }
       return true;
     }
 
@@ -453,9 +551,7 @@ class GameController extends ChangeNotifier {
           ),
           '소장님! $name가 다이아몬드를 찾았어요!',
         );
-      case MineEventType.rest:
-      case MineEventType.energized:
-      case MineEventType.goldVein:
+      default:
         return false;
     }
     return true;
@@ -475,6 +571,8 @@ class GameController extends ChangeNotifier {
       ),
       (MineEventType.diamond, GameConfig.diamondWeight),
       (MineEventType.goldVein, GameConfig.goldVeinWeight),
+      if (region.floods) (MineEventType.flood, GameConfig.floodWeight),
+      if (region.haunted) (MineEventType.ghost, GameConfig.ghostWeight),
     ];
     final total = weighted.fold(0, (sum, w) => sum + w.$2);
     var roll = _random.nextInt(total);
@@ -578,6 +676,28 @@ class GameController extends ChangeNotifier {
 
   // ── 출석 / 사이보그 ─────────────────────────────────
   int get cyborgs => _state.cyborgs;
+  bool get hasCyborg => _state.cyborgs > 0;
+  int get cyborgLevel => _state.cyborgLevel;
+  bool get isCyborgMaxLevel => cyborgLevel >= GameConfig.maxCyborgLevel;
+
+  /// 다음 단계로 올리는 데 드는 부품 수.
+  int get cyborgPartsNeeded => GameConfig.cyborgPartsFor(cyborgLevel);
+
+  bool get canUpgradeCyborg =>
+      hasCyborg &&
+      !isCyborgMaxLevel &&
+      itemCount(Shop.cyborgPart) >= cyborgPartsNeeded;
+
+  /// 매점에서 산 부품으로 사이보그 인부를 업그레이드한다.
+  bool upgradeCyborg() {
+    if (!canUpgradeCyborg) return false;
+    _state.inventory[Shop.cyborgPart.id] =
+        itemCount(Shop.cyborgPart) - cyborgPartsNeeded;
+    _state.cyborgLevel++;
+    notifyListeners();
+    return true;
+  }
+
   int get attendanceCount => _state.attendanceCount;
 
   static String _dayKey(DateTime t) =>
@@ -591,8 +711,22 @@ class GameController extends ChangeNotifier {
   int get attendanceSlot =>
       _state.attendanceCount % GameConfig.attendanceRewards.length;
 
-  AttendanceReward get todaysReward =>
-      GameConfig.attendanceRewards[attendanceSlot];
+  /// 오늘 받을 보상. 사이보그는 딱 한 번만, 그 뒤 7일째에는 부품을 준다.
+  AttendanceReward get todaysReward => rewardAt(attendanceSlot);
+
+  /// 출석판 [slot]번 칸의 보상.
+  AttendanceReward rewardAt(int slot) {
+    final r = GameConfig.attendanceRewards[slot];
+    if (r.isCyborg && hasCyborg) {
+      return const AttendanceReward.item(
+        '🔩',
+        '사이보그 부품',
+        'cyborg_part',
+        GameConfig.cyborgPartsReward,
+      );
+    }
+    return r;
+  }
 
   double rewardGold(AttendanceReward r) =>
       max(r.minGold, (steadyGoldPerSecond - caretakerIncome) * r.goldSeconds);
@@ -602,7 +736,7 @@ class GameController extends ChangeNotifier {
     if (!canCheckIn) return null;
     final reward = todaysReward;
     if (reward.isCyborg) {
-      _state.cyborgs++;
+      _state.cyborgs = 1;
     } else if (reward.itemId != null) {
       _state.inventory[reward.itemId!] =
           (_state.inventory[reward.itemId!] ?? 0) + reward.count;
@@ -624,7 +758,9 @@ class GameController extends ChangeNotifier {
     (steadyGoldPerSecond - caretakerIncome) * item.costSeconds,
   );
 
-  bool canBuy(ShopItem item) => gold >= itemCost(item);
+  bool canBuy(ShopItem item) =>
+      gold >= itemCost(item) &&
+      (item.target != ShopTarget.cyborgPart || hasCyborg);
 
   bool buyItem(ShopItem item) {
     if (!canBuy(item)) return false;
@@ -646,7 +782,9 @@ class GameController extends ChangeNotifier {
 
   /// 모두에게 쓰는 물건이나 비타민을 쓴다.
   bool useItem(ShopItem item) {
-    if (item.target == ShopTarget.worker || itemCount(item) <= 0) {
+    if (item.target == ShopTarget.worker ||
+        item.target == ShopTarget.cyborgPart ||
+        itemCount(item) <= 0) {
       return false;
     }
     _state.inventory[item.id] = itemCount(item) - 1;

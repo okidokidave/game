@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../audio/sound_service.dart';
 import '../game/game_config.dart';
 import '../game/game_controller.dart';
+import '../game/shop.dart';
 import 'number_format.dart';
 
 /// 7일 출석 보상판. 7일째에는 사이보그 인부가 온다.
@@ -51,9 +52,12 @@ class AttendanceDialog extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '매일 들르면 보상을 드려요.\n'
-                  '7일째에는 지치지 않는 🤖 사이보그 인부 (생산량 '
-                  '${GameConfig.cyborgMultiplier}배)!',
+                  game.hasCyborg
+                      ? '매일 들르면 보상을 드려요.\n'
+                            '7일째에는 사이보그 업그레이드 🔩 부품!'
+                      : '매일 들르면 보상을 드려요.\n'
+                            '7일째에는 지치지 않는 🤖 사이보그 인부 (생산량 '
+                            '${GameConfig.cyborgMultiplier.round()}배, 딱 한 번)!',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 13),
                 ),
@@ -66,18 +70,19 @@ class AttendanceDialog extends StatelessWidget {
                     for (var i = 0; i < rewards.length; i++)
                       _DayCell(
                         day: i + 1,
-                        emoji: rewards[i].emoji,
-                        amount: _amount(rewards[i]),
+                        emoji: game.rewardAt(i).emoji,
+                        amount: _amount(game.rewardAt(i)),
                         claimed: i < done,
                         today: game.canCheckIn && i == game.attendanceSlot,
-                        big: rewards[i].isCyborg,
+                        big: i == rewards.length - 1,
                       ),
                   ],
                 ),
-                if (game.cyborgs > 0) ...[
+                if (game.hasCyborg) ...[
                   const SizedBox(height: 10),
                   Text(
-                    '현재 사이보그 인부 ${game.cyborgs}명',
+                    '🤖 사이보그 인부 ${game.cyborgLevel}단계 · '
+                    '🔩 부품 ${game.itemCount(Shop.cyborgPart)}개',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF80DEEA),
@@ -111,7 +116,8 @@ class AttendanceDialog extends StatelessWidget {
     sound?.play(r.isCyborg ? Sfx.fanfare : Sfx.coin);
     final text = r.isCyborg
         ? '🤖 사이보그 인부가 광산에 합류했어요! 일반 인부의 '
-              '${GameConfig.cyborgMultiplier}배로 캐요.'
+              '${GameConfig.cyborgMultiplier.round()}배로 캐요. '
+              '매점 부품으로 업그레이드할 수 있어요.'
         : r.itemId != null
         ? '${r.emoji} ${r.name} ${r.count}개를 받았어요! (매점 가방에 쏙)'
         : '💰 ${formatGold(gold)} 골드를 받았어요!';

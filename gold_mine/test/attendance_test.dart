@@ -56,15 +56,43 @@ void main() {
     expect(game.itemCount(Shop.energyDrink), drinks + reward.count);
   });
 
-  test('7일째에 사이보그 인부가 오고, 보상판은 처음부터 다시 돈다', () {
+  test('7일째에 사이보그 인부가 오고, 두 번째부터는 부품을 준다', () {
     attend(6);
     expect(game.cyborgs, 0);
     expect(game.todaysReward.isCyborg, isTrue);
     attend(1);
     expect(game.cyborgs, 1);
     expect(game.attendanceSlot, 0);
+    attend(6);
+    expect(game.todaysReward.isCyborg, isFalse);
+    expect(game.todaysReward.itemId, Shop.cyborgPart.id);
+    attend(1);
+    expect(game.cyborgs, 1);
+    expect(game.itemCount(Shop.cyborgPart), GameConfig.cyborgPartsReward);
+  });
+
+  test('매점 부품으로 사이보그를 업그레이드한다', () {
+    final one = game.steadyGoldPerSecond;
+    expect(game.canBuy(Shop.cyborgPart), isFalse); // 사이보그가 없으면 못 산다
     attend(7);
-    expect(game.cyborgs, 2);
+    game.grantBonusGold(1e12);
+    expect(game.canUpgradeCyborg, isFalse);
+    expect(game.buyItem(Shop.cyborgPart), isTrue);
+    expect(game.cyborgPartsNeeded, 1);
+    expect(game.upgradeCyborg(), isTrue);
+    expect(game.cyborgLevel, 2);
+    expect(game.itemCount(Shop.cyborgPart), 0);
+    expect(
+      game.cyborgGoldPerSecond,
+      closeTo(one * GameConfig.cyborgPower(2), 1e-9),
+    );
+    expect(GameConfig.cyborgPower(2), 15);
+    // 다음 단계는 부품 2개
+    game.buyItem(Shop.cyborgPart);
+    expect(game.upgradeCyborg(), isFalse);
+    game.buyItem(Shop.cyborgPart);
+    expect(game.upgradeCyborg(), isTrue);
+    expect(game.cyborgLevel, 3);
   });
 
   test('사이보그 인부는 일반 인부의 10배를 캐고 지치지 않는다', () {
@@ -98,9 +126,13 @@ void main() {
   test('출석 기록과 사이보그는 저장된다', () {
     attend(7);
     game.checkIn();
+    game.grantBonusGold(1e12);
+    game.buyItem(Shop.cyborgPart);
+    game.upgradeCyborg();
     game.save();
     final loaded = GameController(SaveRepository(prefs), clock: () => now);
     expect(loaded.cyborgs, 1);
+    expect(loaded.cyborgLevel, 2);
     expect(loaded.attendanceCount, 8);
     expect(loaded.canCheckIn, isFalse);
   });

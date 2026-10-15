@@ -20,6 +20,21 @@ enum MineEventType {
 
   /// 층 전체에 금맥이 드러나 생산량이 늘어난다.
   goldVein,
+
+  /// 지하수가 차올라 층이 물에 잠겼다. 물을 빼기 전까지 느리게 일한다.
+  flood,
+
+  /// 인부들이 직접 물을 퍼내는 중 (채굴은 멈춤).
+  bailing,
+
+  /// 귀신이 나타나 층 인부들이 겁에 질려 일을 못 한다.
+  ghost,
+
+  /// 무당이 굿을 하는 중 (채굴은 멈춤). 끝나면 축복이 내린다.
+  exorcism,
+
+  /// 굿이 끝난 뒤 신령님의 축복으로 층 생산량이 늘어난다.
+  blessing,
 }
 
 extension MineEventTypeInfo on MineEventType {
@@ -27,15 +42,32 @@ extension MineEventTypeInfo on MineEventType {
   bool get needsManager =>
       this == MineEventType.fatigue ||
       this == MineEventType.injury ||
-      this == MineEventType.diamond;
+      this == MineEventType.diamond ||
+      this == MineEventType.flood ||
+      this == MineEventType.ghost;
 
   /// 층 전체에 걸리는 상황인지 (아니면 인부 한 명).
-  bool get isFloorWide => this == MineEventType.goldVein;
+  bool get isFloorWide => switch (this) {
+    MineEventType.goldVein ||
+    MineEventType.flood ||
+    MineEventType.bailing ||
+    MineEventType.ghost ||
+    MineEventType.exorcism ||
+    MineEventType.blessing => true,
+    _ => false,
+  };
+
+  /// 층 인부들이 일을 멈추는 상황 (귀신, 굿, 물 퍼내기).
+  bool get stopsFloor =>
+      this == MineEventType.ghost ||
+      this == MineEventType.exorcism ||
+      this == MineEventType.bailing;
 
   bool get isGood =>
       this == MineEventType.diamond ||
       this == MineEventType.goldVein ||
-      this == MineEventType.energized;
+      this == MineEventType.energized ||
+      this == MineEventType.blessing;
 }
 
 class MineEvent {

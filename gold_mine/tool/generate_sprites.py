@@ -60,6 +60,8 @@ THEMES = [
      (255, 140, 40, 255), (210, 70, 20, 255), (255, 230, 120, 255)),  # 용암
     ((176, 160, 84), (142, 126, 58), (104, 92, 40),
      (250, 236, 80, 255), (205, 180, 30, 255), (255, 252, 190, 255)),  # 유황
+    ((104, 112, 104), (78, 86, 80), (52, 58, 56),
+     (196, 204, 214, 255), (132, 142, 156, 255), (240, 246, 255, 255)),  # 폐광
 ]
 
 
@@ -674,6 +676,100 @@ def cloud():
     return c.img
 
 
+# ── 귀신과 무당 ─────────────────────────────────────────
+SPIRIT_W, SPIRIT_H = 16, 22
+GHOST = (236, 242, 255, 215)
+GHOST_D = (170, 186, 225, 200)
+ROBE = (206, 44, 52, 255)
+ROBE_D = (150, 28, 40, 255)
+SLEEVE = (52, 96, 200, 255)
+SLEEVE_D = (36, 66, 150, 255)
+HAT = (30, 26, 34, 255)
+
+
+def ghost(frame):
+    """하얀 귀신: 둥근 머리, 흔들리는 꼬리, 퀭한 눈."""
+    c = Canvas(SPIRIT_W, SPIRIT_H)
+    y0 = 3 + (frame % 2)
+    c.rect(5, y0, 6, 1, GHOST)
+    c.rect(4, y0 + 1, 8, 1, GHOST)
+    c.rect(3, y0 + 2, 10, 9, GHOST)
+    # 꼬리 (프레임마다 물결이 바뀐다)
+    for i, x in enumerate(range(3, 13)):
+        h = 2 + ((i + frame) % 3)
+        c.rect(x, y0 + 11, 1, h, GHOST if (i + frame) % 3 else GHOST_D)
+    c.rect(3, y0 + 9, 10, 2, GHOST_D)
+    # 눈과 입
+    c.rect(5, y0 + 4, 2, 2, EYE)
+    c.rect(9, y0 + 4, 2, 2, EYE)
+    c.rect(7, y0 + 7, 2, 2 + frame % 2, EYE)
+    # 팔 (앞으로 축 늘어뜨림)
+    c.rect(1, y0 + 5 + frame % 2, 2, 2, GHOST_D)
+    c.rect(13, y0 + 5 + (frame + 1) % 2, 2, 2, GHOST_D)
+    c.outline((120, 140, 200, 160))
+    return c.img
+
+
+def shaman(frame):
+    """무당: 검은 전립, 붉은 무복에 파란 소매, 한 손엔 부채, 한 손엔 방울."""
+    c = Canvas(SPIRIT_W, SPIRIT_H)
+    jump = 1 if frame == 3 else 0
+    y = 2 - jump
+    # 전립 (챙 넓은 모자)과 붉은 술
+    c.rect(4, y + 2, 8, 1, HAT)
+    c.rect(6, y, 4, 2, HAT)
+    c.px(8, y - 1, ROBE)
+    c.px(9, y - 1, GOLD)
+    # 얼굴
+    c.rect(6, y + 3, 4, 4, SKIN)
+    c.px(7, y + 4, EYE)
+    c.px(9, y + 4, EYE)
+    c.px(8, y + 6, ROBE_D)
+    # 무복 (아래로 퍼지는 치마)
+    c.rect(6, y + 7, 4, 4, ROBE)
+    c.rect(5, y + 11, 6, 3, ROBE)
+    c.rect(4, y + 14, 8, 4, ROBE)
+    c.rect(4, y + 17, 8, 1, ROBE_D)
+    c.rect(7, y + 8, 2, 1, GOLD)  # 띠
+    # 발
+    c.rect(5, y + 18, 2, 1, BOOT)
+    c.rect(9, y + 18, 2, 1, BOOT)
+    # 팔: 프레임마다 위아래로 흔든다
+    up_left = frame in (0, 3)
+    up_right = frame in (1, 3)
+    if up_left:
+        c.rect(4, y + 5, 2, 3, SLEEVE)
+        c.rect(3, y + 3, 2, 2, SLEEVE_D)
+        fan_x, fan_y = 0, y
+    else:
+        c.rect(4, y + 8, 2, 4, SLEEVE)
+        c.rect(3, y + 11, 2, 1, SLEEVE_D)
+        fan_x, fan_y = 0, y + 10
+    # 부채 (빨강·노랑·파랑)
+    c.rect(fan_x, fan_y, 4, 1, ROBE)
+    c.rect(fan_x, fan_y + 1, 4, 1, GOLD)
+    c.rect(fan_x + 1, fan_y + 2, 3, 1, SLEEVE)
+    if up_right:
+        c.rect(10, y + 5, 2, 3, SLEEVE)
+        c.rect(11, y + 3, 2, 2, SLEEVE_D)
+        bx, by = 13, y + 2
+    else:
+        c.rect(10, y + 8, 2, 4, SLEEVE)
+        c.rect(11, y + 11, 2, 1, SLEEVE_D)
+        bx, by = 13, y + 11
+    # 방울
+    c.rect(bx, by, 2, 2, GOLD)
+    c.px(bx, by + 2, GOLD_D)
+    c.px(bx + 1, by, GOLD_L)
+    c.outline(OUTLINE)
+    return c.img
+
+
+def spirit_sheet():
+    """0~1: 귀신, 2~5: 굿 하는 무당."""
+    return strip([ghost(0), ghost(1)] + [shaman(f) for f in range(4)])
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     sheets = {
@@ -688,6 +784,7 @@ def main():
         'wheel.png': wheel_sheet(),
         'cloud.png': cloud(),
         'machine.png': machine_sheet(),
+        'spirit.png': spirit_sheet(),
     }
     for name, img in sheets.items():
         img.save(os.path.join(OUT, name))
