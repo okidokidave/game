@@ -8,6 +8,7 @@ import '../game/mine_event.dart';
 import '../game/shop.dart';
 import '../scene/mine_scene.dart';
 import '../scene/sprites.dart';
+import 'attendance_dialog.dart';
 import 'codex_sheet.dart';
 import 'shop_sheet.dart';
 import 'number_format.dart';
@@ -22,6 +23,7 @@ class HomeScreen extends StatefulWidget {
     required this.ads,
     this.sprites,
     this.sound,
+    this.dailyPopup = true,
   });
 
   final GameController controller;
@@ -30,6 +32,9 @@ class HomeScreen extends StatefulWidget {
 
   /// 효과음·배경음악. 없으면 (테스트 등) 조용히 진행한다.
   final SoundService? sound;
+
+  /// 오늘 출석 보상을 아직 안 받았으면 자동으로 보상판을 띄울지.
+  final bool dailyPopup;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -51,6 +56,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _game.onEventNotice = _onEventNotice;
     _game.onMessage = _onMessage;
     _game.onCue = _onCue;
+    // 오프라인 팝업보다 먼저 띄워서 그 아래에 깔리게 한다 (닫으면 보인다).
+    _maybeShowAttendance();
     _resumeGame();
   }
 
@@ -70,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         _sound.resumeMusic();
+        _maybeShowAttendance();
         _resumeGame();
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
@@ -80,6 +88,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case AppLifecycleState.hidden:
         break;
     }
+  }
+
+  bool _attendanceOpen = false;
+
+  void _maybeShowAttendance() {
+    if (!widget.dailyPopup || !_game.canCheckIn || _attendanceOpen) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openAttendance());
+  }
+
+  Future<void> _openAttendance() async {
+    if (!mounted || _attendanceOpen) return;
+    _attendanceOpen = true;
+    await AttendanceDialog.show(context, _game, sound: _sound);
+    _attendanceOpen = false;
   }
 
   void _resumeGame() {
@@ -413,11 +435,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   '반장은 층마다 한 명! 같은 층 인부들의 경험치가 1.5배로 쌓여요.',
                 ),
               ),
+              if (_game.cyborgs > 0) _cyborgTile(),
               for (var slot = 0; slot < _game.workers; slot++)
                 _workerTile(slot),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _cyborgTile() {
+    return ListTile(
+      leading: const CircleAvatar(
+        backgroundColor: Color(0xFF80DEEA),
+        foregroundColor: Colors.black87,
+        child: Text('🤖'),
+      ),
+      title: Text('사이보그 인부 ${_game.cyborgs}명'),
+      subtitle: Text(
+        '한 명이 일반 인부 ${GameConfig.cyborgMultiplier}명 몫 · 지치지 않아요\n'
+        '초당 ${formatGold(_game.cyborgGoldPerSecond)} 골드 · 이사 가도 따라와요',
+        style: const TextStyle(fontSize: 12),
       ),
     );
   }
@@ -648,6 +687,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: const Icon(Icons.menu_book, color: Colors.white70),
                 ),
                 onPressed: () => CodexSheet.show(context, _game),
+              ),
+              IconButton(
+                tooltip: '출석 보상',
+                visualDensity: VisualDensity.compact,
+                icon: Badge(
+                  isLabelVisible: _game.canCheckIn,
+                  label: const Text('!'),
+                  child: const Icon(Icons.card_giftcard, color: Colors.white70),
+                ),
+                onPressed: _openAttendance,
               ),
               IconButton(
                 tooltip: '매점',

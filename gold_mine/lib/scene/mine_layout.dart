@@ -54,6 +54,10 @@ class MineLayout {
   /// [floor]층에서 일하는 인부 수.
   static int workersOnFloor(int floor, int totalWorkers) =>
       GameConfig.workersOnFloor(floor, totalWorkers);
+
+  /// [floor]층에서 일하는 사이보그 수 (위층부터 한 명씩 돌아가며 배치).
+  static int cyborgsOnFloor(int floor, int cyborgs, int floors) =>
+      floors == 0 ? 0 : cyborgs ~/ floors + (floor < cyborgs % floors ? 1 : 0);
 }
 
 enum MinerAction { walkToRock, mine, carry, drop }
@@ -139,7 +143,9 @@ class MinerCycle {
   static double phaseOffset(int floor, int index) =>
       (index / MineLayout.workersPerFloor + floor * 0.17) * duration;
 
-  static double xOffset(int index) => const [0.0, 4.0, -3.0][index % 3];
+  /// 3번 이후는 사이보그 인부 자리.
+  static double xOffset(int index) =>
+      const [0.0, 4.0, -3.0, 7.0, -6.0, 2.0][index % 6];
 
   /// 굴착 기계가 놓이는 자리와, 기계를 조종하는 인부의 자리.
   static const double machineX = 6;

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../game/game_config.dart';
 import 'mine_layout.dart';
 import 'sprites.dart';
 
@@ -33,6 +34,8 @@ class MinePainter extends CustomPainter {
     required this.promotionReady,
     required this.themeOf,
     required this.workerStamina,
+    this.cyborgs = 0,
+    this.cyborgTime,
     this.bottomFloor,
     required this.title,
     required this.lockedLabel,
@@ -61,6 +64,10 @@ class MinePainter extends CustomPainter {
   /// 인부 등급 (안전모 색 줄 번호), 승급 준비가 됐는지.
   final int Function(int floor, int worker) workerGrade;
   final bool Function(int floor, int worker) promotionReady;
+
+  /// 사이보그 인부 수와, 층·번호별 일하는 시간.
+  final int cyborgs;
+  final double Function(int floor, int k)? cyborgTime;
 
   /// 인부 체력 비율 (0~1). 낮아지면 머리 위에 막대가 보인다.
   final double Function(int floor, int worker) workerStamina;
@@ -298,6 +305,38 @@ class MinePainter extends CustomPainter {
           t,
           ready: promotionReady(floor, i),
         );
+      }
+      final robots = MineLayout.workersPerFloor == 0
+          ? 0
+          : MineLayout.cyborgsOnFloor(floor, cyborgs, floors);
+      for (var k = 0; k < robots; k++) {
+        final sprite = MinerCycle.sprite(
+          WorkerLook.normal,
+          cyborgTime?.call(floor, k) ?? t,
+          floor,
+          MineLayout.workersPerFloor + k,
+          tool,
+        );
+        s.miner.draw(
+          c,
+          sprite.frame,
+          sprite.x,
+          top + MineLayout.floorLine - MineLayout.minerHeight + 1,
+          flip: sprite.flip,
+          row: GameConfig.workerGrades.length,
+        );
+        // 머리 위 빨간 신호등이 깜빡인다.
+        if ((t * 3 + k).floor() % 2 == 0) {
+          final head = MinerCycle.bubbleCenter(
+            floor,
+            sprite.x,
+            WorkerLook.normal,
+          );
+          _rect(c, head.dx - 0.5, head.dy + 3, 1, 1, const Color(0xFFFF5252));
+        }
+        if (sprite.action == MinerAction.mine) {
+          _toolEffect(c, sprite, top, t, floor, MineLayout.workersPerFloor + k);
+        }
       }
     }
 

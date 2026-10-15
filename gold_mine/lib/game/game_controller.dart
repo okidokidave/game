@@ -63,8 +63,15 @@ class GameController extends ChangeNotifier {
     for (var slot = 0; slot < _state.workers; slot++) {
       grades += gradeOf(slot).multiplier;
     }
-    return _perWorkerGold * grades + caretakerIncome;
+    return _perWorkerGold * (grades + cyborgPower) + caretakerIncome;
   }
+
+  /// 사이보그 인부 전원이 1초에 캐는 골드.
+  double get cyborgGoldPerSecond =>
+      _perWorkerGold * GameConfig.cyborgMultiplier * _state.cyborgs;
+
+  /// 사이보그 인부들의 생산량 (견습 인부 몇 명분인지).
+  double get cyborgPower => _state.cyborgs * GameConfig.cyborgMultiplier;
 
   /// 관리인에게 맡긴 광산들이 보내 주는 초당 골드.
   double get caretakerIncome =>
@@ -90,7 +97,7 @@ class GameController extends ChangeNotifier {
       }
       total += floorTotal * floorMultiplier(f);
     }
-    return total * perWorker + caretakerIncome;
+    return (total + cyborgPower) * perWorker + caretakerIncome;
   }
 
   /// 광고 부스트는 지금 광산에만 걸리고, 관리인 수입에는 걸리지 않는다.
@@ -135,8 +142,10 @@ class GameController extends ChangeNotifier {
   bool pioneer() {
     if (!canPioneer) return false;
     _state.gold -= pioneerCost;
+    // 사이보그는 새 지역으로 따라오므로 관리인 몫에서 뺀다.
     _state.caretakers[_state.regionIndex] =
-        (steadyGoldPerSecond - caretakerIncome) * GameConfig.caretakerShare;
+        (steadyGoldPerSecond - caretakerIncome - cyborgGoldPerSecond) *
+        GameConfig.caretakerShare;
     _state
       ..regionIndex += 1
       ..mineLevel = 1
@@ -565,6 +574,45 @@ class GameController extends ChangeNotifier {
         onCue?.call(GameCue.workerTired);
       }
     }
+  }
+
+  // ── 출석 / 사이보그 ─────────────────────────────────
+  int get cyborgs => _state.cyborgs;
+  int get attendanceCount => _state.attendanceCount;
+
+  static String _dayKey(DateTime t) =>
+      '${t.year}-${t.month.toString().padLeft(2, '0')}-'
+      '${t.day.toString().padLeft(2, '0')}';
+
+  /// 오늘 아직 출석 보상을 받지 않았는지.
+  bool get canCheckIn => _state.lastAttendanceDay != _dayKey(_clock());
+
+  /// 이번 주기에서 오늘 받을 보상 칸 (0~6).
+  int get attendanceSlot =>
+      _state.attendanceCount % GameConfig.attendanceRewards.length;
+
+  AttendanceReward get todaysReward =>
+      GameConfig.attendanceRewards[attendanceSlot];
+
+  double rewardGold(AttendanceReward r) =>
+      max(r.minGold, (steadyGoldPerSecond - caretakerIncome) * r.goldSeconds);
+
+  /// 오늘 출석하고 보상을 받는다. 받은 보상을 돌려준다 (이미 받았으면 null).
+  AttendanceReward? checkIn() {
+    if (!canCheckIn) return null;
+    final reward = todaysReward;
+    if (reward.isCyborg) {
+      _state.cyborgs++;
+    } else if (reward.itemId != null) {
+      _state.inventory[reward.itemId!] =
+          (_state.inventory[reward.itemId!] ?? 0) + reward.count;
+    } else {
+      _earn(rewardGold(reward));
+    }
+    _state.attendanceCount++;
+    _state.lastAttendanceDay = _dayKey(_clock());
+    notifyListeners();
+    return reward;
   }
 
   // ── 매점 ────────────────────────────────────────────

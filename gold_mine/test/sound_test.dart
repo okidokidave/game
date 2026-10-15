@@ -27,6 +27,7 @@ void main() {
     await tester.pumpWidget(
       GoldMineApp(
         showTitle: false,
+        dailyPopup: false,
         controller: game,
         ads: NoAdService(),
         sound: sound,

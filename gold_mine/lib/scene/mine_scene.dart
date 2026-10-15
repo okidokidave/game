@@ -112,6 +112,7 @@ class _MineSceneState extends State<MineScene>
 
     final boost = _game.isBoostActive ? GameConfig.boostMultiplier : 1.0;
     _advanceWorkers(dt * boost);
+    _advanceCyborgs(dt * boost);
     _popups.removeWhere((p) => _realTime - p.bornAt > GoldPopup.lifetime);
     _animTime.value += dt * boost;
   }
@@ -157,6 +158,35 @@ class _MineSceneState extends State<MineScene>
         b.action == MinerAction.mine &&
         a.phase < MinerCycle.dynamiteBlast &&
         b.phase >= MinerCycle.dynamiteBlast;
+  }
+
+  /// 사이보그 인부들: 지치지 않고 늘 같은 속도로 일한다.
+  void _advanceCyborgs(double dt) {
+    final floors = _game.mineLevel;
+    final cyborgs = _game.cyborgs;
+    if (cyborgs == 0) return;
+    final perDrop = _game.cyborgGoldPerSecond / cyborgs * MinerCycle.duration;
+    for (var f = 0; f < floors; f++) {
+      final here = MineLayout.cyborgsOnFloor(f, cyborgs, floors);
+      for (var k = 0; k < here; k++) {
+        final key = f * 100 + 50 + k;
+        final index = MineLayout.workersPerFloor + k;
+        final from = _workerTimes[key] ?? 0;
+        final to = from + dt;
+        _workerTimes[key] = to;
+        if (MinerCycle.droppedBetween(from, to, f, index)) {
+          widget.sound?.play(Sfx.coin);
+          _popups.add(
+            GoldPopup(
+              '+${formatGold(perDrop * _game.floorMultiplier(f))}',
+              MineLayout.crateX + 7,
+              MineLayout.floorTop(f) + MineLayout.floorLine - 26,
+              _realTime,
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _handleTap(TapUpDetails details, double scale) {
@@ -296,6 +326,8 @@ class _MineSceneState extends State<MineScene>
                     promotionReady: (f, i) =>
                         _game.isPromotionReady(GameController.slotOf(f, i)),
                     themeOf: _game.region.themeOf,
+                    cyborgs: _game.cyborgs,
+                    cyborgTime: (f, k) => _workerTimes[f * 100 + 50 + k] ?? 0,
                     workerStamina: (f, i) =>
                         _game.staminaOf(GameController.slotOf(f, i)) /
                         GameConfig.maxStamina,

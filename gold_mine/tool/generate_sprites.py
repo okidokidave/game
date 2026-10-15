@@ -272,7 +272,41 @@ def graded_miner_sheet():
                 elif px[x, y] == HELMET_D:
                     px[x, y] = dark
         sheet.paste(img, (0, row * h))
+    # 마지막 줄: 사이보그 인부 (은빛 금속 몸, 빨간 눈, 강철 헬멧)
+    sheet = _with_row(sheet, _cyborg(base), h)
     return sheet
+
+
+CYBORG_COLORS = {
+    HELMET: (120, 130, 145, 255),
+    HELMET_D: (80, 88, 100, 255),
+    LAMP: (255, 70, 70, 255),
+    SKIN: (190, 205, 220, 255),
+    SKIN_D: (140, 155, 175, 255),
+    EYE: (255, 40, 40, 255),
+    SHIRT: (70, 78, 92, 255),
+    SHIRT_D: (50, 56, 68, 255),
+    PANTS: (95, 105, 120, 255),
+    PANTS_D: (70, 78, 92, 255),
+    BOOT: (40, 44, 52, 255),
+}
+
+
+def _cyborg(base):
+    img = base.copy()
+    px = img.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            if px[x, y] in CYBORG_COLORS:
+                px[x, y] = CYBORG_COLORS[px[x, y]]
+    return img
+
+
+def _with_row(sheet, row_img, h):
+    out = Image.new('RGBA', (sheet.width, sheet.height + h), CLEAR)
+    out.paste(sheet, (0, 0))
+    out.paste(row_img, (0, sheet.height))
+    return out
 
 
 def miner_plant():

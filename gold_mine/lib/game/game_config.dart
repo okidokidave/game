@@ -23,6 +23,45 @@ class WorkerGrade {
   final double minPromoteCost;
 }
 
+/// 출석 보상 한 칸.
+class AttendanceReward {
+  const AttendanceReward.gold(
+    this.emoji,
+    this.name,
+    this.goldSeconds,
+    this.minGold,
+  ) : itemId = null,
+      count = 0,
+      isCyborg = false;
+
+  const AttendanceReward.item(this.emoji, this.name, this.itemId, this.count)
+    : goldSeconds = 0,
+      minGold = 0,
+      isCyborg = false;
+
+  const AttendanceReward.cyborg()
+    : emoji = '🤖',
+      name = '사이보그 인부',
+      itemId = null,
+      count = 1,
+      goldSeconds = 0,
+      minGold = 0,
+      isCyborg = true;
+
+  final String emoji;
+  final String name;
+
+  /// 골드 보상: 초당 생산량 × 이 초 (최소 [minGold]).
+  final double goldSeconds;
+  final double minGold;
+
+  /// 물건 보상: 매점 물건 id와 개수.
+  final String? itemId;
+  final int count;
+
+  final bool isCyborg;
+}
+
 /// 채굴 장비 단계. 장비 레벨이 [startLevel]에 닿으면 이 장비로 바뀐다.
 class EquipmentTier {
   const EquipmentTier(
@@ -217,6 +256,21 @@ class GameConfig {
 
   /// 유황 지역에서 다이너마이트를 쓸 때 부상 상황이 나올 비율 배수.
   static const int sulfurInjuryMultiplier = 4;
+
+  // ── 사이보그 인부 / 출석 ─────────────────────────────
+  /// 사이보그 인부는 견습 인부보다 이만큼 더 캔다. 지치지도 다치지도 않는다.
+  static const double cyborgMultiplier = 10;
+
+  /// 출석 보상 7일 (7일째 사이보그 인부). 다 받으면 1일째부터 다시.
+  static const List<AttendanceReward> attendanceRewards = [
+    AttendanceReward.gold('💰', '골드 꾸러미', 300, 200),
+    AttendanceReward.item('⚡', '에너지 드링크', 'energy_drink', 3),
+    AttendanceReward.item('☕', '믹스 커피', 'coffee', 2),
+    AttendanceReward.gold('💰', '골드 상자', 900, 1000),
+    AttendanceReward.item('🍱', '든든한 도시락', 'lunch_box', 3),
+    AttendanceReward.item('💊', '종합 비타민', 'vitamin', 2),
+    AttendanceReward.cyborg(),
+  ];
 
   /// 자동 저장 주기.
   static const Duration autoSaveInterval = Duration(seconds: 10);

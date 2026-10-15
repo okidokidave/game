@@ -42,7 +42,12 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
     await tester.pumpWidget(
-      GoldMineApp(showTitle: false, controller: game, ads: NoAdService()),
+      GoldMineApp(
+        showTitle: false,
+        dailyPopup: false,
+        controller: game,
+        ads: NoAdService(),
+      ),
     );
     // 실시간 진행을 멈추고 터치만으로 확인한다.
     game.stop();
@@ -74,7 +79,12 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
     await tester.pumpWidget(
-      GoldMineApp(showTitle: false, controller: game, ads: ads),
+      GoldMineApp(
+        showTitle: false,
+        dailyPopup: false,
+        controller: game,
+        ads: ads,
+      ),
     );
     game.stop();
 
@@ -99,7 +109,12 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
     await tester.pumpWidget(
-      GoldMineApp(showTitle: false, controller: game, ads: NoAdService()),
+      GoldMineApp(
+        showTitle: false,
+        dailyPopup: false,
+        controller: game,
+        ads: NoAdService(),
+      ),
     );
     game.stop();
 
@@ -131,7 +146,12 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
     await tester.pumpWidget(
-      GoldMineApp(showTitle: false, controller: game, ads: NoAdService()),
+      GoldMineApp(
+        showTitle: false,
+        dailyPopup: false,
+        controller: game,
+        ads: NoAdService(),
+      ),
     );
     game.stop();
 
@@ -157,7 +177,12 @@ void main() {
     // 아주 작은 폰(320x640)에서 상태 표시줄을 뺀 크기.
     await tester.binding.setSurfaceSize(const Size(320, 616));
     await tester.pumpWidget(
-      GoldMineApp(showTitle: false, controller: game, ads: FakeAdService()),
+      GoldMineApp(
+        showTitle: false,
+        dailyPopup: false,
+        controller: game,
+        ads: FakeAdService(),
+      ),
     );
     game.stop();
     await tester.pump();
@@ -180,7 +205,12 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(360, 740));
     await tester.pumpWidget(
-      GoldMineApp(showTitle: false, controller: game, ads: FakeAdService()),
+      GoldMineApp(
+        showTitle: false,
+        dailyPopup: false,
+        controller: game,
+        ads: FakeAdService(),
+      ),
     );
     game.stop();
     await tester.pump();

@@ -234,7 +234,12 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
     await tester.pumpWidget(
-      GoldMineApp(showTitle: false, controller: game, ads: NoAdService()),
+      GoldMineApp(
+        showTitle: false,
+        dailyPopup: false,
+        controller: game,
+        ads: NoAdService(),
+      ),
     );
     game.stop();
 

@@ -42,6 +42,7 @@ class GoldMineApp extends StatelessWidget {
     this.sprites,
     this.sound,
     this.showTitle = true,
+    this.dailyPopup = true,
   });
 
   final GameController controller;
@@ -51,6 +52,9 @@ class GoldMineApp extends StatelessWidget {
 
   /// 메인 화면부터 보여 줄지 (테스트에서는 바로 게임 화면으로).
   final bool showTitle;
+
+  /// 출석 보상판 자동 팝업 (테스트에서는 끈다).
+  final bool dailyPopup;
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +98,7 @@ class _RootState extends State<_Root> {
               ads: app.ads,
               sprites: app.sprites,
               sound: app.sound,
+              dailyPopup: app.dailyPopup,
             )
           : TitleScreen(
               key: const ValueKey('title'),
