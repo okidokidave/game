@@ -41,7 +41,9 @@ void main() {
     final game = await newGame();
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
-    await tester.pumpWidget(GoldMineApp(controller: game, ads: NoAdService()));
+    await tester.pumpWidget(
+      GoldMineApp(showTitle: false, controller: game, ads: NoAdService()),
+    );
     // 실시간 진행을 멈추고 터치만으로 확인한다.
     game.stop();
 
@@ -71,7 +73,9 @@ void main() {
     final ads = FakeAdService();
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
-    await tester.pumpWidget(GoldMineApp(controller: game, ads: ads));
+    await tester.pumpWidget(
+      GoldMineApp(showTitle: false, controller: game, ads: ads),
+    );
     game.stop();
 
     expect(find.text('배너'), findsOneWidget);
@@ -94,7 +98,9 @@ void main() {
     game.grantBonusGold(GameConfig.eventsStartAfterEarned);
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
-    await tester.pumpWidget(GoldMineApp(controller: game, ads: NoAdService()));
+    await tester.pumpWidget(
+      GoldMineApp(showTitle: false, controller: game, ads: NoAdService()),
+    );
     game.stop();
 
     random.doubles.add(0);
@@ -124,7 +130,9 @@ void main() {
     game.upgradeMine();
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
-    await tester.pumpWidget(GoldMineApp(controller: game, ads: NoAdService()));
+    await tester.pumpWidget(
+      GoldMineApp(showTitle: false, controller: game, ads: NoAdService()),
+    );
     game.stop();
 
     // 화면이 계속 움직여서 pumpAndSettle 대신 시작 프레임과 애니메이션 시간을 따로 진행한다.
@@ -149,7 +157,7 @@ void main() {
     // 아주 작은 폰(320x640)에서 상태 표시줄을 뺀 크기.
     await tester.binding.setSurfaceSize(const Size(320, 616));
     await tester.pumpWidget(
-      GoldMineApp(controller: game, ads: FakeAdService()),
+      GoldMineApp(showTitle: false, controller: game, ads: FakeAdService()),
     );
     game.stop();
     await tester.pump();
@@ -172,7 +180,7 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(360, 740));
     await tester.pumpWidget(
-      GoldMineApp(controller: game, ads: FakeAdService()),
+      GoldMineApp(showTitle: false, controller: game, ads: FakeAdService()),
     );
     game.stop();
     await tester.pump();

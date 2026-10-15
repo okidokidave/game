@@ -204,7 +204,9 @@ void main() {
     game.grantBonusGold(1e6);
 
     await tester.binding.setSurfaceSize(const Size(400, 800));
-    await tester.pumpWidget(GoldMineApp(controller: game, ads: NoAdService()));
+    await tester.pumpWidget(
+      GoldMineApp(showTitle: false, controller: game, ads: NoAdService()),
+    );
     game.stop();
 
     await tester.tap(find.byTooltip('인부 관리'));

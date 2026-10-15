@@ -8,6 +8,7 @@ import 'game/game_controller.dart';
 import 'game/save_repository.dart';
 import 'scene/sprites.dart';
 import 'ui/home_screen.dart';
+import 'ui/title_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,12 +41,16 @@ class GoldMineApp extends StatelessWidget {
     required this.ads,
     this.sprites,
     this.sound,
+    this.showTitle = true,
   });
 
   final GameController controller;
   final AdService ads;
   final Sprites? sprites;
   final SoundService? sound;
+
+  /// 메인 화면부터 보여 줄지 (테스트에서는 바로 게임 화면으로).
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +64,44 @@ class GoldMineApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFF1E1610),
       ),
-      home: HomeScreen(
-        controller: controller,
-        ads: ads,
-        sprites: sprites,
-        sound: sound,
-      ),
+      home: _Root(app: this),
+    );
+  }
+}
+
+/// 메인 화면 → (출발 버튼) → 게임 화면으로 부드럽게 넘어간다.
+class _Root extends StatefulWidget {
+  const _Root({required this.app});
+
+  final GoldMineApp app;
+
+  @override
+  State<_Root> createState() => _RootState();
+}
+
+class _RootState extends State<_Root> {
+  late bool _playing = !widget.app.showTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = widget.app;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      child: _playing
+          ? HomeScreen(
+              key: const ValueKey('home'),
+              controller: app.controller,
+              ads: app.ads,
+              sprites: app.sprites,
+              sound: app.sound,
+            )
+          : TitleScreen(
+              key: const ValueKey('title'),
+              game: app.controller,
+              sprites: app.sprites,
+              sound: app.sound,
+              onStart: () => setState(() => _playing = true),
+            ),
     );
   }
 }

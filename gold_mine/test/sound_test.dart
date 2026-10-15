@@ -25,7 +25,12 @@ void main() {
   Future<void> open(WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 800));
     await tester.pumpWidget(
-      GoldMineApp(controller: game, ads: NoAdService(), sound: sound),
+      GoldMineApp(
+        showTitle: false,
+        controller: game,
+        ads: NoAdService(),
+        sound: sound,
+      ),
     );
     game.stop();
     await tester.pump();
