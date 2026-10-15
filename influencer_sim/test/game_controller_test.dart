@@ -145,4 +145,40 @@ void main() {
     expect(loaded.trends.single.posts.first.replies, isNotEmpty);
     expect(loaded.toJson(), g.s.toJson());
   });
+
+  test('성장 단계마다 다른 사건이 나온다', () async {
+    final g = await make();
+    g.newGame('도트왕', const Look(hair: 0, shirt: 0));
+    Set<String> ids(int followers) {
+      g.s.followers = followers;
+      return gameEvents.where((e) => e.when(g.s)).map((e) => e.id).toSet();
+    }
+
+    expect(ids(50), contains('big_visit'));
+    expect(ids(200), containsAll(['big_visit', 'big_collab']));
+    expect(ids(50000), containsAll(['goods']));
+    expect(ids(50000), isNot(contains('big_visit')));
+    expect(ids(150000), contains('fanmeeting'));
+    expect(ids(600000), containsAll(['fanmeeting', 'tv_show', 'award']));
+  });
+
+  test('팬미팅은 한 판에 한 번만', () async {
+    final g = await make();
+    g.newGame('도트왕', const Look(hair: 0, shirt: 0));
+    g.s.followers = 200000;
+    final ev = gameEvents.firstWhere((e) => e.id == 'fanmeeting');
+    expect(ev.when(g.s), isTrue);
+    final out = g.resolveEvent(ev, 0);
+    expect(out.trend!.tag, '도트왕_팬미팅');
+    expect(g.s.mental, 95);
+    expect(ev.when(g.s), isFalse);
+  });
+
+  test('대형 스트리머 깜짝 등장은 구독자가 크게 는다', () async {
+    final g = await make();
+    g.newGame('도트왕', const Look(hair: 0, shirt: 0));
+    g.s.followers = 400;
+    g.resolveEvent(gameEvents.firstWhere((e) => e.id == 'big_visit'), 0);
+    expect(g.s.followers, 540);
+  });
 }

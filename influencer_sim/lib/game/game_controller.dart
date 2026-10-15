@@ -422,7 +422,9 @@ class GameController extends ChangeNotifier {
       log(n, 'note');
     }
     final over = overKey() != null;
-    final news = over ? null : rollEvent('news', s.flags.contains('hiddenAd') || s.flags.contains('lieDating') ? 0.2 : 0.06);
+    // 폭로될 일이 있거나 유명해질수록 아침 소식이 자주 온다
+    final newsChance = s.flags.contains('hiddenAd') || s.flags.contains('lieDating') ? 0.2 : (s.followers >= 30000 ? 0.12 : 0.06);
+    final news = over ? null : rollEvent('news', newsChance);
     save();
     notifyListeners();
     return DayReport(news: news);

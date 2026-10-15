@@ -932,6 +932,263 @@ final gameEvents = <GameEvent>[
       ),
     ],
   ),
+  // ───── 성장 단계별 사건 (한 판에 한 번씩) ─────
+
+  // 초반: 대형 인플루언서가 방송에 깜짝 등장
+  GameEvent(
+    id: 'big_visit',
+    where: 'live',
+    title: '대형 스트리머 등장',
+    weight: 4,
+    when: (s) => s.followers >= 10 && s.followers < 1500 && !s.flags.contains('bigVisitDone'),
+    text: (s) => '채팅창이 갑자기 술렁인다. 구독자 80만의 게임 스트리머 "갓겜민수"가 방송에 들어왔다! "오 여기 재밌네ㅋㅋ"',
+    choices: [
+      EventChoice(
+        label: '반갑게 인사하고 평소처럼 진행한다',
+        result: '"어서 오세요! 편하게 보고 가세요~" 침착하게 방송을 이어가자 민수가 한참을 머물다 갔다. 민수 시청자들이 따라 들어왔다.',
+        fx: (s) => const Fx(followers: 0.35, image: 3, flag: 'bigVisitDone'),
+        sns: const SnsTopic(
+          tag: '{name}_갓겜민수',
+          headline: '갓겜민수, 신입 스트리머 {name} 방송에 깜짝 등장',
+          tone: 0.6,
+          hate: ['민수 덕에 뜨려는 거 보이네', '민수 시청자들 금방 빠짐'],
+          shield: ['평소처럼 하는 거 보고 반함', '{name} 원래 재밌었음 ㅇㅇ', '민수가 괜히 들어간 게 아니네'],
+          neutral: ['민수 요즘 신입 방송 돌아다닌대'],
+        ),
+      ),
+      EventChoice(
+        label: '너무 긴장해서 민수 얘기만 한다',
+        result: '"헐 민수님이다… 저 팬이에요…" 방송 내내 민수 얘기만 하다 끝났다. 그래도 화제는 됐다.',
+        fx: (s) => const Fx(followers: 0.15, image: -2, flag: 'bigVisitDone'),
+        sns: const SnsTopic(
+          tag: '{name}_성덕',
+          headline: "{name}, 갓겜민수 등장에 방송 내내 '민수 얘기'",
+          tone: -0.1,
+          hate: ['방송이 아니라 팬미팅이네 ㅋㅋ', '자기 방송인데 왜 민수만 찾음'],
+          shield: ['신입이면 저럴 수 있지', '성덕 된 거 축하해요 ㅋㅋ', '귀엽기만 하던데'],
+          neutral: ['민수 반응 웃겼음'],
+        ),
+      ),
+      EventChoice(
+        label: '"합방해 주세요!" 바로 들이댄다',
+        result: '"민수님 저랑 합방 한 번만요!!" 민수는 웃으며 "생각해 볼게요ㅋㅋ"라고 남겼다. 패기냐 무례냐로 말이 많다.',
+        fx: (s) => const Fx(followers: 0.25, heat: 4, image: -1, flag: 'bigVisitDone'),
+        sns: const SnsTopic(
+          tag: '{name}_들이대기',
+          headline: '{name}, 갓겜민수에게 즉석 합방 요청… "패기 vs 무례"',
+          tone: 0.0,
+          hate: ['선배한테 저렇게 들이대는 건 좀', '관종력 대단하네'],
+          shield: ['패기 좋다 ㅋㅋㅋ', '민수도 웃던데 뭐가 문제', '이런 신입이 뜸'],
+          neutral: ['민수 답장 올까?'],
+        ),
+      ),
+    ],
+  ),
+
+  // 초반: 대형 인플루언서와의 합방 초대
+  GameEvent(
+    id: 'big_collab',
+    where: 'live',
+    title: '대형 유튜버 합방 초대',
+    weight: 3,
+    when: (s) => s.followers >= 100 && s.followers < 5000 && !s.flags.contains('bigCollabDone'),
+    text: (s) => "구독자 120만 먹방 유튜버 \"대식가 하나\"에게서 DM이 왔다. \"이번 주 '신인 발굴 합방'에 같이 나와 주실래요?\"",
+    choices: [
+      EventChoice(
+        label: '밤새 준비해서 나간다',
+        result: '리액션, 토크 주제, 먹방 순서까지 다 준비해 갔다. 합방이 끝나자 하나가 "다음에 또 해요!"라고 했다.',
+        fx: (s) => const Fx(followers: 0.3, energy: -20, mental: -3, image: 4, flag: 'bigCollabDone'),
+        sns: const SnsTopic(
+          tag: '하나X{name}',
+          headline: '대식가 하나 신인 발굴 합방, {name} 존재감 폭발',
+          tone: 0.6,
+          hate: ['하나 옆이라 더 초라해 보임', '준비한 티 너무 남'],
+          shield: ['{name} 리액션 미쳤다', '하나가 왜 뽑았는지 알겠다', '합방 보고 구독함'],
+          neutral: ['다음 신인은 누구?'],
+        ),
+      ),
+      EventChoice(
+        label: '준비 없이 그냥 나간다',
+        result: '막상 카메라 앞에 서니 할 말이 생각나지 않았다. 하나가 열심히 말을 걸어 줬지만 분위기가 어색했다.',
+        fx: (s) => const Fx(followers: 0.1, image: -4, flag: 'bigCollabDone'),
+        sns: const SnsTopic(
+          tag: '{name}_합방민폐',
+          headline: "하나 합방 나온 {name}, '준비 부족' 지적",
+          tone: -0.3,
+          hate: ['하나 방송에 민폐', '저러면 다음 기회 없음', '말도 거의 안 하던데'],
+          shield: ['처음이라 긴장했겠지', '하나가 잘 챙겨주더라', '그래도 귀여웠음'],
+          neutral: ['편집본은 괜찮게 나왔대'],
+        ),
+      ),
+      EventChoice(
+        label: '아직은 때가 아니라며 정중히 거절한다',
+        result: '"실력을 더 쌓고 꼭 다시 연락드릴게요!" 하나는 응원 이모티콘을 보내왔다.',
+        fx: (s) => const Fx(mental: 3, flag: 'bigCollabDone'),
+      ),
+    ],
+  ),
+
+  // 중반: 굿즈 출시
+  GameEvent(
+    id: 'goods',
+    where: 'news',
+    title: '굿즈 제작 제안',
+    weight: 3,
+    when: (s) => s.followers >= 30000 && !s.flags.contains('goodsDone'),
+    text: (s) => '굿즈 제작 업체에서 연락이 왔다. "{name}님 캐릭터가 들어간 굿즈 내 보실래요?"',
+    choices: [
+      EventChoice(
+        label: '비싸도 좋은 재질로 만든다',
+        result: '샘플을 세 번이나 다시 받아 가며 만들었다. 첫 판매분이 하루 만에 다 팔렸다.',
+        fx: (s) => Fx(money: scaleMoney(s, 400000), image: 6, flag: 'goodsDone'),
+        sns: const SnsTopic(
+          tag: '{name}_굿즈',
+          headline: '{name} 첫 굿즈 완판… "퀄리티 미쳤다"',
+          tone: 0.6,
+          hate: ['굿즈 장사 시작이네', '가격 좀 세다'],
+          shield: ['실물 보니까 돈값 함', '포장까지 신경 썼더라', '두 개 삼 ㅋㅋ'],
+          neutral: ['재판매 언제 함?'],
+        ),
+      ),
+      EventChoice(
+        label: '원가를 확 줄여 많이 남긴다',
+        result: '돈은 많이 남았다. 그런데 "세탁 한 번에 프린트가 다 벗겨졌다"는 후기가 올라오기 시작했다.',
+        fx: (s) => Fx(money: scaleMoney(s, 900000), image: -8, heat: 8, flag: 'goodsDone'),
+        sns: const SnsTopic(
+          tag: '{name}_굿즈품질',
+          headline: '{name} 굿즈 품질 논란… "세탁 한 번에 프린트 다 벗겨져"',
+          tone: -0.4,
+          hate: ['이 가격에 이 퀄?', '팬들 호구로 보나', '환불 해줘라'],
+          shield: ['업체 잘못 아님?', '{name}이 직접 만든 것도 아닌데', '첫 굿즈니까 봐주자'],
+          neutral: ['굿즈 후기 사진 레전드'],
+        ),
+      ),
+      EventChoice(
+        label: '아직은 이르다며 거절한다',
+        result: '"굿즈는 더 준비되면 할게요." 업체는 아쉬워하며 돌아갔다.',
+        fx: (s) => const Fx(flag: 'goodsDone'),
+      ),
+    ],
+  ),
+
+  // 대형 인플루언서: 팬미팅
+  GameEvent(
+    id: 'fanmeeting',
+    where: 'news',
+    title: '팬미팅 요청 쇄도',
+    weight: 5,
+    when: (s) => s.followers >= 100000 && !s.flags.contains('fanmeetDone'),
+    text: (s) => '팬카페에 "{name} 팬미팅 해 주세요!!" 글이 수백 개 올라왔다. 공연장 대관 제안까지 들어왔다.',
+    choices: [
+      EventChoice(
+        label: '큰 공연장을 빌려 성대하게 연다',
+        result: '2천 석이 1분 만에 매진됐다. 무대 위에서 팬들의 함성을 들으며 눈물을 참지 못했다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 800000), followers: 0.08, image: 10, mental: 15, energy: -20, flag: 'fanmeetDone'),
+        sns: const SnsTopic(
+          tag: '{name}_팬미팅',
+          headline: '{name} 첫 팬미팅 매진… 팬들과 눈물의 2시간',
+          tone: 0.7,
+          hate: ['팬미팅까지 할 급인가?', '티켓팅 실패해서 화남', '연예인 병 걸림'],
+          shield: ['직접 한 명 한 명 인사해 줌 ㅠㅠ', '{name} 실물 영접 성공', '평생 잊지 못할 하루'],
+          neutral: ['다음 팬미팅은 지방도 해주세요'],
+        ),
+      ),
+      EventChoice(
+        label: '추첨으로 무료 소규모 팬미팅을 연다',
+        result: '추첨으로 뽑은 팬 100명과 작은 카페에서 만났다. 간식도 직접 준비했다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 150000), followers: 0.04, image: 14, mental: 10, flag: 'fanmeetDone'),
+        sns: const SnsTopic(
+          tag: '{name}_무료팬미팅',
+          headline: '{name}, 추첨으로 팬 100명 초대한 무료 팬미팅',
+          tone: 0.8,
+          hate: ['추첨 떨어져서 슬픔', '100명은 너무 적다'],
+          shield: ['무료라니 천사냐', '팬 사랑 진짜다', '간식까지 직접 준비했대'],
+          neutral: ['당첨자 후기 올라옴'],
+        ),
+      ),
+      EventChoice(
+        label: '티켓값 15만 원 VIP 팬미팅을 연다',
+        result: '수익은 엄청났다. 하지만 티켓값을 두고 팬카페가 둘로 갈라졌다.',
+        fx: (s) => Fx(money: scaleMoney(s, 2000000), image: -10, heat: 15, followers: -0.02, flag: 'fanmeetDone'),
+        sns: const SnsTopic(
+          tag: '{name}_티켓값',
+          headline: '{name} 팬미팅 VIP석 15만 원… 가격 논란',
+          tone: -0.5,
+          hate: ['팬들 지갑이 ATM이냐', '15만 원이면 콘서트 감', '돈독 올랐네'],
+          shield: ['가고 싶은 사람만 가면 됨', '대관비 생각하면 그럴 수도', '다녀온 팬들은 만족하던데'],
+          neutral: ['VIP 혜택이 뭔지가 중요할 듯'],
+        ),
+      ),
+    ],
+  ),
+
+  // 대형 인플루언서: 예능 출연
+  GameEvent(
+    id: 'tv_show',
+    where: 'news',
+    title: '예능 출연 제안',
+    weight: 3,
+    when: (s) => s.followers >= 300000 && !s.flags.contains('tvDone'),
+    text: (s) => '방송국에서 연락이 왔다. 인기 예능 "놀러 와 방구석"에 게스트로 나와 달라고 한다.',
+    choices: [
+      EventChoice(
+        label: '출연해서 몸 사리지 않고 웃긴다',
+        result: '방송이 나간 다음 날, 동네 마트에서 "어? 그 예능 나온 분!" 소리를 들었다.',
+        fx: (s) => const Fx(followers: 0.1, image: 6, energy: -20, flag: 'tvDone'),
+        sns: const SnsTopic(
+          tag: '{name}_예능',
+          headline: "{name}, 지상파 예능 첫 출연에 '예능 신생아' 등극",
+          tone: 0.5,
+          hate: ['TV에서는 별로던데', '방송 버릇 못 고침'],
+          shield: ['{name} 예능감 미쳤다', '고정 시켜줘라', '엄마가 {name} 알아봄 ㅋㅋ'],
+          neutral: ['편집 많이 됐다던데'],
+        ),
+      ),
+      EventChoice(
+        label: '거절하고 내 방송에 집중한다',
+        result: '"저는 제 방이 제일 편해요." 시청자들은 의리 있다며 좋아했다.',
+        fx: (s) => const Fx(mental: 5, image: 2, flag: 'tvDone'),
+      ),
+    ],
+  ),
+
+  // 대형 인플루언서: 시상식
+  GameEvent(
+    id: 'award',
+    where: 'news',
+    title: '크리에이터 어워즈',
+    weight: 4,
+    when: (s) => s.followers >= 500000 && !s.flags.contains('awardDone'),
+    text: (s) => '"올해의 크리에이터 어워즈" 신인상 후보에 올랐다! 시상식 초대장이 도착했다.',
+    choices: [
+      EventChoice(
+        label: '참석해서 팬들에게 공을 돌린다',
+        result: '신인상을 받았다. "방구석에서 스마트폰 하나로 시작했어요. 다 여러분 덕분이에요."',
+        fx: (s) => const Fx(image: 10, followers: 0.05, mental: 10, flag: 'awardDone'),
+        sns: const SnsTopic(
+          tag: '{name}_신인상',
+          headline: '{name}, 크리에이터 어워즈 신인상 "팬들 덕분"',
+          tone: 0.6,
+          hate: ['상 줄 만한가?', '시상식 공정성 의문'],
+          shield: ['수상 소감에 울었다', '받을 만한 사람이 받았다', '방구석 시절부터 봤는데 감격'],
+          neutral: ['드레스코드 화제'],
+        ),
+      ),
+      EventChoice(
+        label: '수상 소감에서 다른 후보를 저격한다',
+        result: '"솔직히 다른 후보들은 좀…" 객석이 얼어붙었다. 영상은 순식간에 퍼졌다.',
+        fx: (s) => const Fx(followers: 0.04, heat: 20, image: -10, flag: 'awardDone'),
+        sns: const SnsTopic(
+          tag: '{name}_수상소감',
+          headline: '{name} 수상 소감 중 다른 후보 저격… 시상식 발칵',
+          tone: -0.5,
+          hate: ['상 받고 저게 뭐냐', '인성 다 드러남', '시상식 분위기 망침'],
+          shield: ['할 말 한 거지', '사이다였다 ㅋㅋ', '그 후보도 문제 있었음'],
+          neutral: ['짤 벌써 돈다'],
+        ),
+      ),
+    ],
+  ),
 ];
 
 // ───── 결말 ─────
