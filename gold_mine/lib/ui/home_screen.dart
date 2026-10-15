@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../ads/ad_service.dart';
+import '../audio/sound_service.dart';
 import '../game/game_config.dart';
 import '../game/game_controller.dart';
 import '../game/mine_event.dart';
@@ -18,17 +19,23 @@ class HomeScreen extends StatefulWidget {
     required this.controller,
     required this.ads,
     this.sprites,
+    this.sound,
   });
 
   final GameController controller;
   final AdService ads;
   final Sprites? sprites;
 
+  /// 효과음·배경음악. 없으면 (테스트 등) 조용히 진행한다.
+  final SoundService? sound;
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  late final SoundService _sound = widget.sound ?? SilentSoundService();
+
   /// 이보다 짧게 자리를 비웠으면 (광고 시청 등) 환영 팝업을 띄우지 않는다.
   static const _minAwayForDialog = Duration(minutes: 1);
 
@@ -41,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _game.onEventNotice = _onEventNotice;
     _game.onMessage = _onMessage;
+    _game.onCue = _onCue;
     _resumeGame();
   }
 
@@ -49,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _game.onEventNotice = null;
     _game.onMessage = null;
+    _game.onCue = null;
     _game.stop();
     super.dispose();
   }
@@ -58,9 +67,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
+        _sound.resumeMusic();
         _resumeGame();
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
+        _sound.pauseMusic();
         _game.stop();
         _game.save();
       case AppLifecycleState.inactive:
@@ -121,12 +132,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _watchAdForBonus(double earned) async {
     if (!await _ads.showRewarded()) return;
     _game.grantBonusGold(earned);
+    _sound.play(Sfx.coin);
     _showMessage('보너스 ${formatGold(earned)} 골드를 받았어요!');
   }
 
   Future<void> _watchAdForBoost() async {
     if (!await _ads.showRewarded()) return;
     if (_game.activateBoost()) {
+      _sound.play(Sfx.sparkle);
       _showMessage(
         '${GameConfig.boostDuration.inMinutes}분간 채굴 속도가 '
         '${GameConfig.boostMultiplier.toStringAsFixed(0)}배가 됩니다!',
@@ -137,6 +150,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // ── 현장 소장의 결정 ────────────────────────────────
   void _onEventNotice(MineEvent event, String message) {
     if (!mounted) return;
+    final current = _game.eventById(event.id);
+    _sound.play(switch (current?.type) {
+      MineEventType.fatigue || MineEventType.injury => Sfx.alert,
+      MineEventType.diamond || MineEventType.goldVein => Sfx.sparkle,
+      _ => Sfx.click,
+    });
+    if (current?.type == MineEventType.injury) _sound.vibrate(Buzz.medium);
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     final stillOpen = _game.eventById(event.id);
@@ -230,7 +250,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 () async {
                   if (await _ads.showRewarded()) {
                     final got = _game.collectDiamond(event.id, multiplier: 2);
-                    if (got > 0) _showMessage('+${formatGold(got)} 골드!');
+                    if (got > 0) {
+                      _sound.play(Sfx.coin);
+                      _showMessage('+${formatGold(got)} 골드!');
+                    }
                   }
                 },
               ),
@@ -239,7 +262,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               true,
               () {
                 final got = _game.collectDiamond(event.id);
-                if (got > 0) _showMessage('+${formatGold(got)} 골드!');
+                if (got > 0) {
+                  _sound.play(Sfx.coin);
+                  _showMessage('+${formatGold(got)} 골드!');
+                }
               },
             ),
           ],
@@ -298,6 +324,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Color(0xFFF07832),
     Color(0xFFAA69EB),
   ];
+
+  void _onCue(GameCue cue) {
+    switch (cue) {
+      case GameCue.newOre:
+      case GameCue.setComplete:
+        _sound.play(Sfx.rare);
+        _sound.vibrate(Buzz.medium);
+      case GameCue.oreFound:
+        _sound.play(Sfx.sparkle);
+      case GameCue.promotionReady:
+        _sound.play(Sfx.click);
+    }
+  }
 
   void _onMessage(String message) {
     if (!mounted) return;
@@ -426,6 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _promote(int slot) {
     if (!_game.promote(slot)) return;
+    _sound.play(Sfx.fanfare);
     _showMessage(
       '${GameController.workerLabel(slot)} 인부가 '
       '${_game.gradeOf(slot).name}(으)로 승급했어요! 🎉',
@@ -439,6 +479,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListenableBuilder(
+              listenable: _sound,
+              builder: (context, _) => Column(
+                children: [
+                  SwitchListTile(
+                    secondary: const Icon(Icons.volume_up),
+                    title: const Text('효과음 · 진동'),
+                    value: _sound.sfxOn,
+                    onChanged: (on) {
+                      _sound.setSfxOn(on);
+                      if (on) _sound.play(Sfx.click);
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.music_note),
+                    title: const Text('배경음악'),
+                    value: _sound.musicOn,
+                    onChanged: _sound.setMusicOn,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.restart_alt),
               title: const Text('처음부터 다시 시작'),
@@ -553,6 +616,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: MineScene(
                     game: _game,
                     sprites: widget.sprites,
+                    sound: _sound,
                     onEventTap: _showEventDialog,
                     onWorkerTap: _showPromotionDialog,
                     onShowWorkers: _showWorkers,
@@ -620,6 +684,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _game.canPioneer
               ? () {
                   if (_game.pioneer()) {
+                    _sound.play(Sfx.pioneer);
+                    _sound.vibrate(Buzz.heavy);
                     _showMessage('🗺 ${_game.region.name}에 도착했어요!');
                   }
                 }
@@ -627,6 +693,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ],
     );
+  }
+
+  /// 구매 버튼: 성공하면 "띠링".
+  void _buy(bool Function() action) {
+    if (action()) _sound.play(Sfx.buy);
   }
 
   static const _equipmentIcons = [
@@ -645,7 +716,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// 장비를 강화하고, 새 장비로 바뀌었으면 크게 알린다.
   void _upgradeEquipment() {
     final before = _game.equipmentTier;
-    if (!_game.upgradePickaxe() || _game.equipmentTier == before) return;
+    if (!_game.upgradePickaxe()) return;
+    if (_game.equipmentTier == before) {
+      _sound.play(Sfx.buy);
+      return;
+    }
+    _sound.play(Sfx.fanfare);
     final tier = _game.equipment;
     showDialog<void>(
       context: context,
@@ -692,7 +768,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               cost: _game.workerCost,
               enabled: _game.canHireWorker,
               maxed: _game.isWorkerFull,
-              onPressed: _game.hireWorker,
+              onPressed: () => _buy(_game.hireWorker),
             ),
           ),
           Expanded(
@@ -705,7 +781,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         'B${_game.mineLevel + 1}층 · 생산 ×${nextMultiplier.toStringAsFixed(1)}',
                     cost: _game.mineUpgradeCost,
                     enabled: _game.canUpgradeMine,
-                    onPressed: _game.upgradeMine,
+                    onPressed: () => _buy(_game.upgradeMine),
                   ),
           ),
           Expanded(

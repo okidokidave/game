@@ -21,7 +21,7 @@ adb pull /sdcard/demo.mp4 "$OUT/demo.mp4" || true
 adb logcat -d > "$OUT/logcat.txt"
 
 echo "===== 오류 로그 ====="
-grep -E "FATAL|AndroidRuntime|E flutter|Unhandled Exception|DEBUG   :|libc    :|$PACKAGE" "$OUT/logcat.txt" | head -150 || true
+grep -E "FATAL|AndroidRuntime|E flutter|Unhandled Exception|DEBUG   :|libc    :|AudioPlayers|소리|효과음|$PACKAGE" "$OUT/logcat.txt" | head -150 || true
 
 if adb shell pidof "$PACKAGE" > /dev/null; then
   echo "앱이 실행 중입니다."

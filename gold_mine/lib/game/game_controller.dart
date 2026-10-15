@@ -9,6 +9,9 @@ import 'mine_event.dart';
 import 'regions.dart';
 import 'save_repository.dart';
 
+/// 화면에서 소리·효과를 붙일 수 있게 알려 주는 게임 속 순간들.
+enum GameCue { promotionReady, oreFound, newOre, setComplete }
+
 /// 게임 규칙을 실행하고, 값이 바뀌면 화면에 알린다.
 class GameController extends ChangeNotifier {
   /// [clock]과 [random]은 테스트에서 시간과 운을 정해 두고 확인할 때만 넘긴다.
@@ -28,6 +31,9 @@ class GameController extends ChangeNotifier {
 
   /// 그 밖의 소식 (예: 승급 준비 완료)을 소장에게 알리는 함수.
   void Function(String message)? onMessage;
+
+  /// 소리를 붙일 순간 (메시지와 함께 온다).
+  void Function(GameCue cue)? onCue;
   GameState _state;
   Timer? _ticker;
 
@@ -180,10 +186,13 @@ class GameController extends ChangeNotifier {
     if (first) {
       _state.unseenOres.add(ore.id);
       onMessage?.call('📖 도감 등록! ${ore.name} (${ore.rarity.label})을(를) 찾았어요!');
+      onCue?.call(GameCue.newOre);
     } else {
       onMessage?.call('✨ ${ore.name} 발견! (보관 ${oreCount(ore)}개)');
+      onCue?.call(GameCue.oreFound);
     }
     if (!completedBefore && isRegionComplete(region)) {
+      onCue?.call(GameCue.setComplete);
       onMessage?.call(
         '🎉 ${region.name} 도감 완성! 생산량이 영구히 '
         '+${(GameConfig.regionSetBonus * 100).round()}% 올라요!',
@@ -576,6 +585,7 @@ class GameController extends ChangeNotifier {
           '소장님, ${workerLabel(slot)} ${gradeOf(slot).name} 인부가 '
           '승급할 준비가 됐어요! ⬆',
         );
+        onCue?.call(GameCue.promotionReady);
       }
     }
   }

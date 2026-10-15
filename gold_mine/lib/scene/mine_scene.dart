@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../audio/sound_service.dart';
 import '../game/game_config.dart';
 import '../game/game_controller.dart';
 import '../game/mine_event.dart';
@@ -21,7 +22,11 @@ class MineScene extends StatefulWidget {
     this.onEventTap,
     this.onWorkerTap,
     this.onShowWorkers,
+    this.sound,
   });
+
+  /// 터치, 광석 내려놓기, 폭발 소리 (없으면 조용히).
+  final SoundService? sound;
 
   final GameController game;
 
@@ -104,8 +109,14 @@ class _MineSceneState extends State<MineScene>
         final key = f * 100 + i;
         final from = _workerTimes[key] ?? 0;
         final to = from + dt * _game.workerSpeed(f, i);
+        if (_game.equipmentTier == Tool.dynamite &&
+            _blastedBetween(from, to, f, i)) {
+          widget.sound?.play(Sfx.blast);
+          widget.sound?.vibrate(Buzz.heavy);
+        }
         _workerTimes[key] = to;
         if (MinerCycle.droppedBetween(from, to, f, i)) {
+          widget.sound?.play(Sfx.coin);
           _popups.add(
             GoldPopup(
               '+${formatGold(perDrop * _game.floorMultiplier(f))}',
@@ -117,6 +128,16 @@ class _MineSceneState extends State<MineScene>
         }
       }
     }
+  }
+
+  /// 이 인부의 다이너마이트가 시간 [from]~[to] 사이에 터졌는지.
+  bool _blastedBetween(double from, double to, int floor, int worker) {
+    final a = MinerCycle.pose(from, floor, worker, Tool.dynamite);
+    final b = MinerCycle.pose(to, floor, worker, Tool.dynamite);
+    return a.action == MinerAction.mine &&
+        b.action == MinerAction.mine &&
+        a.phase < MinerCycle.dynamiteBlast &&
+        b.phase >= MinerCycle.dynamiteBlast;
   }
 
   void _handleTap(TapUpDetails details, double scale) {
@@ -132,6 +153,8 @@ class _MineSceneState extends State<MineScene>
       return;
     }
     final earned = _game.tap();
+    widget.sound?.play(Sfx.pick);
+    widget.sound?.vibrate(Buzz.light);
     _popups.add(
       GoldPopup('+${formatRate(earned)}', pos.dx, pos.dy - 6, _realTime),
     );
