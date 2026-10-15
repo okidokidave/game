@@ -84,6 +84,64 @@ void main() {
     });
   });
 
+  group('채굴 장비', () {
+    test('장비 레벨에 따라 곡괭이 → 드릴 → 다이너마이트 → 굴착 기계로 바뀐다', () {
+      final names = [for (final t in GameConfig.equipmentTiers) t.name];
+      expect(names, ['곡괭이', '착암 드릴', '다이너마이트', '굴착 기계']);
+      for (var i = 0; i < GameConfig.equipmentTiers.length; i++) {
+        final tier = GameConfig.equipmentTiers[i];
+        expect(GameConfig.equipmentTier(tier.startLevel), i);
+        if (i > 0) expect(GameConfig.equipmentTier(tier.startLevel - 1), i - 1);
+      }
+    });
+
+    test('새 장비는 광산이 충분히 깊어야 들일 수 있다', () async {
+      final game = await newController();
+      game.grantBonusGold(1e12);
+      final drill = GameConfig.equipmentTiers[1];
+      while (game.pickaxeLevel < drill.startLevel - 1) {
+        expect(game.upgradePickaxe(), isTrue);
+      }
+      expect(game.nextEquipment!.name, drill.name);
+      expect(game.equipmentLockedUntilMine, drill.requiredMineLevel);
+      expect(game.upgradePickaxe(), isFalse);
+
+      while (game.mineLevel < drill.requiredMineLevel) {
+        game.upgradeMine();
+      }
+      expect(game.equipmentLockedUntilMine, isNull);
+      expect(game.upgradePickaxe(), isTrue);
+      expect(game.equipmentTier, 1);
+    });
+
+    test('장비 배수가 인부 생산량과 터치 채굴에 곱해진다', () async {
+      final game = await newController();
+      game.grantBonusGold(1e12);
+      final drill = GameConfig.equipmentTiers[1];
+      while (game.mineLevel < drill.requiredMineLevel) {
+        game.upgradeMine();
+      }
+      final before = game.steadyGoldPerSecond;
+      while (game.equipmentTier < 1) {
+        game.upgradePickaxe();
+      }
+      expect(
+        game.steadyGoldPerSecond,
+        closeTo(before * drill.multiplier, 1e-9),
+      );
+      expect(game.baseGoldPerSecond, closeTo(game.steadyGoldPerSecond, 1e-9));
+      expect(
+        game.goldPerTap,
+        closeTo(
+          game.pickaxeLevel *
+              GameConfig.mineMultiplier(game.mineLevel) *
+              drill.multiplier,
+          1e-9,
+        ),
+      );
+    });
+  });
+
   group('오프라인 보상', () {
     test('꺼 둔 시간만큼 효율을 적용해 지급한다', () async {
       final game = await newController();

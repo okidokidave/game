@@ -56,7 +56,9 @@ class Sprites {
 
   final Map<String, SpriteSheet> _sheets;
 
-  /// 0-3 걷기, 4-7 광석 지고 걷기, 8-10 곡괭이질, 11 서 있기. 오른쪽을 본다.
+  /// 0-3 걷기, 4-7 광석 지고 걷기, 8-10 곡괭이질, 11 서 있기,
+  /// 12 앉아 쉬기, 13 다쳐서 누움, 14 다이아 들기, 15-16 드릴,
+  /// 17 다이너마이트 설치, 18 귀 막기, 19 기계 조종. 오른쪽을 본다.
   SpriteSheet get miner => _sheets['miner']!;
 
   /// 층 테마별 암벽 (흙, 돌, 깊은 돌, 수정, 용암).
@@ -81,6 +83,9 @@ class Sprites {
   SpriteSheet get wheel => _sheets['wheel']!;
   SpriteSheet get cloud => _sheets['cloud']!;
 
+  /// 굴착 기계 (두 칸이 번갈아 드릴이 돈다).
+  SpriteSheet get machine => _sheets['machine']!;
+
   /// 파일 이름 → (칸 너비, 칸 높이)
   static const Map<String, (double, double)> frameSizes = {
     'miner': (24, 22),
@@ -93,6 +98,7 @@ class Sprites {
     'warehouse': (34, 28),
     'wheel': (10, 10),
     'cloud': (22, 8),
+    'machine': (32, 22),
   };
 
   static Future<Sprites> load([AssetBundle? bundle]) async {

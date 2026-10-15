@@ -28,6 +28,7 @@ class MinePainter extends CustomPainter {
     required this.workerTime,
     required this.workerLook,
     required this.hasGoldVein,
+    required this.tool,
     required this.title,
     required this.lockedLabel,
     required this.popups,
@@ -48,6 +49,9 @@ class MinePainter extends CustomPainter {
   final double Function(int floor, int worker) workerTime;
   final WorkerLook Function(int floor, int worker) workerLook;
   final bool Function(int floor) hasGoldVein;
+
+  /// 지금 쓰는 채굴 장비 (Tool.pickaxe ~ Tool.machine).
+  final int tool;
   final String title;
   final String lockedLabel;
   final List<GoldPopup> popups;
@@ -230,10 +234,31 @@ class MinePainter extends CustomPainter {
       );
 
       if (hasGoldVein(floor)) _goldVein(c, top, t);
+      if (tool == Tool.machine && count > 0) {
+        s.machine.draw(
+          c,
+          (t * 8).floor() % 2,
+          MinerCycle.machineX,
+          top + MineLayout.floorLine - 21,
+        );
+        _sparks(
+          c,
+          MinerCycle.machineX + 1,
+          top + MineLayout.floorLine - 11,
+          t,
+          floor,
+        );
+      }
 
       for (var i = 0; i < count; i++) {
         final look = workerLook(floor, i);
-        final sprite = MinerCycle.sprite(look, workerTime(floor, i), floor, i);
+        final sprite = MinerCycle.sprite(
+          look,
+          workerTime(floor, i),
+          floor,
+          i,
+          tool,
+        );
         s.miner.draw(
           c,
           sprite.frame,
@@ -241,8 +266,8 @@ class MinePainter extends CustomPainter {
           top + MineLayout.floorLine - MineLayout.minerHeight + 1,
           flip: sprite.flip,
         );
-        if (sprite.action == MinerAction.mine && sprite.frame == 10) {
-          _debris(c, sprite.x, top + MineLayout.floorLine - 8, t, floor, i);
+        if (sprite.action == MinerAction.mine) {
+          _toolEffect(c, sprite, top, t, floor, i);
         }
         _workerMark(c, look, floor, sprite.x, t);
       }
@@ -346,6 +371,103 @@ class MinePainter extends CustomPainter {
       Paint()..color = const Color(0xFFFFD35A).withValues(alpha: flicker),
     );
     _rect(c, x - 1, y, 2, 2, const Color(0xFFFFE9A0));
+  }
+
+  /// 장비마다 다른 채굴 효과.
+  void _toolEffect(
+    Canvas c,
+    WorkerSprite sprite,
+    double top,
+    double t,
+    int floor,
+    int i,
+  ) {
+    final ground = top + MineLayout.floorLine;
+    switch (tool) {
+      case Tool.pickaxe:
+        if (sprite.frame == 10) _debris(c, sprite.x, ground - 8, t, floor, i);
+      case Tool.drill:
+        _dust(c, sprite.x - 1, ground - 9, t, floor, i);
+      case Tool.dynamite:
+        _dynamite(c, sprite.phase, ground, t);
+      case Tool.machine:
+        break; // 기계 쪽에서 불꽃을 그린다
+    }
+  }
+
+  /// 드릴이 벽을 뚫을 때 날리는 돌가루.
+  void _dust(Canvas c, double x, double y, double t, int floor, int i) {
+    for (var k = 0; k < 4; k++) {
+      final p = (t * 5 + k * 0.25 + floor * 0.3 + i * 0.5) % 1;
+      _rect(
+        c,
+        x + p * 6,
+        y - 2 + k * 1.5 - p * 3,
+        1,
+        1,
+        Color.lerp(const Color(0xFFD8CBB8), const Color(0x00D8CBB8), p)!,
+      );
+    }
+  }
+
+  /// 다이너마이트: 심지가 타다가 펑!
+  void _dynamite(Canvas c, double phase, double ground, double t) {
+    const wallX = 14.0;
+    if (phase < MinerCycle.dynamitePlantEnd) return;
+    if (phase < MinerCycle.dynamiteBlast) {
+      _rect(c, wallX, ground - 10, 2, 5, const Color(0xFFC82828));
+      if ((t * 12).floor() % 2 == 0) {
+        _rect(c, wallX + 1, ground - 12, 1, 1, const Color(0xFFFFF3A0));
+        _rect(c, wallX, ground - 13, 1, 1, const Color(0xFFFF9A3C));
+      }
+      return;
+    }
+    // 폭발: 커지면서 사라지는 불꽃과 연기
+    final p =
+        (phase - MinerCycle.dynamiteBlast) / (1 - MinerCycle.dynamiteBlast);
+    final center = Offset(wallX + 1, ground - 8);
+    c.drawCircle(
+      center,
+      4 + p * 10,
+      Paint()..color = const Color(0xFF8A8580).withValues(alpha: 0.5 * (1 - p)),
+    );
+    c.drawCircle(
+      center,
+      3 + p * 7,
+      Paint()..color = const Color(0xFFFF8A2A).withValues(alpha: 0.9 * (1 - p)),
+    );
+    c.drawCircle(
+      center,
+      2 + p * 3,
+      Paint()..color = const Color(0xFFFFF0A0).withValues(alpha: 1 - p),
+    );
+    for (var k = 0; k < 6; k++) {
+      final angle = k * pi / 3 + 0.4;
+      final r = 3 + p * 14;
+      _rect(
+        c,
+        center.dx + cos(angle) * r,
+        center.dy + sin(angle) * r * 0.7,
+        1,
+        1,
+        const Color(0xFFFFD35A).withValues(alpha: 1 - p),
+      );
+    }
+  }
+
+  /// 굴착 기계 드릴 끝의 불꽃.
+  void _sparks(Canvas c, double x, double y, double t, int floor) {
+    for (var k = 0; k < 3; k++) {
+      final p = (t * 6 + k / 3 + floor * 0.2) % 1;
+      _rect(
+        c,
+        x + 2 + p * 5,
+        y - 3 + k * 2 - p * 4,
+        1,
+        1,
+        Color.lerp(const Color(0xFFFFF3A0), const Color(0x00FF8A2A), p)!,
+      );
+    }
   }
 
   /// 곡괭이가 바위를 찍을 때 튀는 돌 조각.

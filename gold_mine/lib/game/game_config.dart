@@ -1,5 +1,24 @@
 import 'dart:math';
 
+/// 채굴 장비 단계. 장비 레벨이 [startLevel]에 닿으면 이 장비로 바뀐다.
+class EquipmentTier {
+  const EquipmentTier(
+    this.name,
+    this.startLevel,
+    this.requiredMineLevel,
+    this.multiplier,
+  );
+
+  final String name;
+  final int startLevel;
+
+  /// 이 장비를 들이려면 광산이 이 레벨(층 수) 이상이어야 한다.
+  final int requiredMineLevel;
+
+  /// 인부 생산량과 터치 채굴에 곱해지는 배수.
+  final double multiplier;
+}
+
 /// 게임 밸런스 숫자를 한곳에 모아 둔 클래스.
 ///
 /// 여기 있는 숫자만 바꿔도 게임 속도와 난이도를 조절할 수 있다.
@@ -27,6 +46,27 @@ class GameConfig {
 
   static const double pickaxeBaseCost = 40;
   static const double pickaxeCostGrowth = 2;
+
+  // ── 채굴 장비 단계 ──────────────────────────────────
+  // 목표: 드릴 약 10분, 다이너마이트 약 30분, 굴착 기계 약 75분.
+  static const List<EquipmentTier> equipmentTiers = [
+    EquipmentTier('곡괭이', 1, 1, 1),
+    EquipmentTier('착암 드릴', 4, 3, 1.5),
+    EquipmentTier('다이너마이트', 8, 4, 2.5),
+    EquipmentTier('굴착 기계', 12, 5, 4),
+  ];
+
+  /// 장비 레벨이 몇 번째 단계인지 (0 = 곡괭이).
+  static int equipmentTier(int equipmentLevel) {
+    var tier = 0;
+    for (var i = 0; i < equipmentTiers.length; i++) {
+      if (equipmentLevel >= equipmentTiers[i].startLevel) tier = i;
+    }
+    return tier;
+  }
+
+  static double equipmentMultiplier(int equipmentLevel) =>
+      equipmentTiers[equipmentTier(equipmentLevel)].multiplier;
 
   // ── 오프라인 보상 ───────────────────────────────────
   /// 앱을 꺼 둔 시간 중 최대 몇 시간까지 보상하는지.
@@ -110,11 +150,20 @@ class GameConfig {
         workersPerMineLevel,
       );
 
-  static double goldPerSecond(int workers, int mineLevel) =>
-      workers * goldPerWorkerPerSecond * mineMultiplier(mineLevel);
+  static double goldPerSecond(
+    int workers,
+    int mineLevel, [
+    int equipmentLevel = 1,
+  ]) =>
+      workers *
+      goldPerWorkerPerSecond *
+      mineMultiplier(mineLevel) *
+      equipmentMultiplier(equipmentLevel);
 
   static double goldPerTap(int pickaxeLevel, int mineLevel) =>
-      pickaxeLevel * mineMultiplier(mineLevel);
+      pickaxeLevel *
+      mineMultiplier(mineLevel) *
+      equipmentMultiplier(pickaxeLevel);
 
   /// 현재 [workers]명일 때 다음 인부를 고용하는 비용.
   static double workerCost(int workers) =>

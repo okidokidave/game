@@ -72,6 +72,51 @@ void main() {
     });
   });
 
+  group('장비별 채굴 동작', () {
+    test('장비가 바뀌어도 한 바퀴 시간은 같고, 순서도 같다', () {
+      for (var tool = Tool.pickaxe; tool <= Tool.machine; tool++) {
+        final actions = <MinerAction>[];
+        for (var t = 0.0; t < MinerCycle.duration; t += 0.05) {
+          final a = MinerCycle.pose(
+            t - MinerCycle.phaseOffset(0, 0),
+            0,
+            0,
+            tool,
+          ).action;
+          if (actions.isEmpty || actions.last != a) actions.add(a);
+        }
+        expect(actions, [
+          MinerAction.walkToRock,
+          MinerAction.mine,
+          MinerAction.carry,
+          MinerAction.drop,
+        ]);
+      }
+    });
+
+    test('장비마다 채굴하는 그림이 다르다', () {
+      Set<int> frames(int tool) => {
+        for (var t = 0.0; t < MinerCycle.duration; t += 0.02)
+          if (MinerCycle.pose(t, 0, 0, tool) case final p
+              when p.action == MinerAction.mine)
+            p.frame,
+      };
+      expect(frames(Tool.pickaxe), {8, 9, 10});
+      expect(frames(Tool.drill), {15, 16});
+      expect(frames(Tool.dynamite), {17, 18});
+      expect(frames(Tool.machine), {19});
+    });
+
+    test('굴착 기계를 쓰면 기계 뒤에서 조종한다', () {
+      for (var t = 0.0; t < MinerCycle.duration; t += 0.05) {
+        final p = MinerCycle.pose(t, 0, 1, Tool.machine);
+        if (p.action == MinerAction.mine) {
+          expect(p.x, MinerCycle.operateX + MinerCycle.xOffset(1));
+        }
+      }
+    });
+  });
+
   group('엘리베이터와 광차', () {
     test('엘리베이터는 지상과 가장 깊은 층 사이에서만 움직인다', () {
       const floors = 4;

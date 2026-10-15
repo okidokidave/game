@@ -13,6 +13,7 @@ class UpgradeTile extends StatelessWidget {
     required this.enabled,
     required this.onPressed,
     this.maxed = false,
+    this.buttonLabel,
   });
 
   final IconData icon;
@@ -24,6 +25,9 @@ class UpgradeTile extends StatelessWidget {
   final bool enabled;
   final bool maxed;
   final VoidCallback onPressed;
+
+  /// 가격 대신 보여 줄 글자 (예: "B3층 필요").
+  final String? buttonLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +79,7 @@ class UpgradeTile extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                child: Text(maxed ? '가득 참' : formatGold(cost)),
+                child: Text(buttonLabel ?? (maxed ? '가득 참' : formatGold(cost))),
               ),
             ),
           ],

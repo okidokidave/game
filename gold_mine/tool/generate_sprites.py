@@ -37,6 +37,12 @@ GOLD_L = (255, 245, 170, 255)
 SACK = (166, 124, 82, 255)
 SACK_D = (122, 86, 56, 255)
 EYE = (26, 26, 26, 255)
+DRILL = (214, 168, 36, 255)
+DRILL_L = (245, 205, 80, 255)
+DYNAMITE = (200, 40, 40, 255)
+DYNAMITE_L = (240, 90, 80, 255)
+MACHINE = (240, 180, 30, 255)
+MACHINE_D = (180, 120, 20, 255)
 GEM = (120, 220, 255, 255)
 GEM_D = (60, 150, 220, 255)
 GEM_L = (210, 245, 255, 255)
@@ -190,6 +196,21 @@ def miner(legs=0, bob=0, pose='walk', carry=False):
         c.line(sx, sy, sx + 4, sy + 1, SHIRT_D)
         c.px(sx + 5, sy + 1, SKIN)
         pickaxe(c, sx + 5, sy + 1, sx + 11, sy + 2, 'down')
+    elif pose in ('drill1', 'drill2'):
+        # 착암 드릴을 허리 높이로 들고 벽을 뚫는다 (두 칸이 번갈아 떨림)
+        shake = 1 if pose == 'drill2' else 0
+        c.rect(sx, sy + 1, 3, 2, SHIRT_D)
+        c.px(sx + 3, sy + 2, SKIN)
+        dx0 = sx + 4 + shake
+        c.rect(dx0, sy, 6, 4, DRILL)
+        c.rect(dx0, sy, 6, 1, DRILL_L)
+        c.rect(dx0 + 1, sy - 2, 1, 2, METAL_D)  # 손잡이
+        c.rect(dx0 + 6, sy + 1, 3, 2, METAL)
+        c.px(dx0 + 9, sy + 2 - shake, METAL_D)  # 떨리는 끝
+    elif pose == 'operate':
+        # 굴착 기계의 레버를 앞으로 민다
+        c.line(sx, sy, sx + 4, sy + 1, SHIRT_D)
+        c.px(sx + 5, sy + 1, SKIN)
     elif pose == 'diamond':
         # 다이아몬드를 앞으로 번쩍 들어 보인다
         c.line(sx, sy, sx + 4, sy - 3, SHIRT_D)
@@ -217,7 +238,97 @@ def miner_sheet():
     frames.append(miner_sit())  # 12: 앉아서 쉬기
     frames.append(miner_lie())  # 13: 다쳐서 누움
     frames.append(miner(pose='diamond'))  # 14: 다이아몬드 들기
+    frames.append(miner(pose='drill1'))  # 15-16: 착암 드릴
+    frames.append(miner(pose='drill2'))
+    frames.append(miner_plant())  # 17: 다이너마이트 설치
+    frames.append(miner_cover())  # 18: 귀 막고 피하기
+    frames.append(miner(pose='operate'))  # 19: 굴착 기계 조종
     return strip(frames)
+
+
+def miner_plant():
+    """쪼그려 앉아 벽에 다이너마이트를 꽂는다."""
+    c = Canvas(MINER_W, MINER_H)
+    ox, oy = 6, 5
+    c.rect(ox + 2, oy + 12, 3, 3, PANTS_D)  # 접은 다리
+    c.rect(ox + 5, oy + 12, 4, 2, PANTS)
+    c.rect(ox + 1, oy + 15, 4, 2, BOOT)
+    c.rect(ox + 7, oy + 14, 3, 3, BOOT)
+    c.rect(ox + 1, oy + 7, 7, 5, SHIRT)
+    c.rect(ox + 1, oy + 10, 7, 2, SHIRT_D)
+    c.rect(ox + 3, oy + 2, 5, 5, SKIN)
+    c.px(ox + 6, oy + 4, EYE)
+    c.rect(ox + 3, oy - 1, 5, 3, HELMET)
+    c.rect(ox + 2, oy + 2, 8, 1, HELMET_D)
+    c.rect(ox + 7, oy, 2, 1, LAMP)
+    c.rect(ox + 7, oy + 9, 4, 2, SHIRT_D)  # 앞으로 뻗은 팔
+    c.px(ox + 11, oy + 10, SKIN)
+    c.rect(ox + 12, oy + 8, 2, 5, DYNAMITE)  # 다이너마이트
+    c.px(ox + 12, oy + 8, DYNAMITE_L)
+    c.px(ox + 13, oy + 7, (60, 40, 30, 255))  # 심지
+    c.outline()
+    return c.img
+
+
+def miner_cover():
+    """폭발 직전, 뒤로 물러나 귀를 막는다."""
+    c = Canvas(MINER_W, MINER_H)
+    ox, oy = 7, 2
+    c.rect(ox + 3, oy + 13, 2, 5, PANTS_D)
+    c.rect(ox + 5, oy + 13, 2, 5, PANTS)
+    c.rect(ox + 3, 18, 2, 2, BOOT)
+    c.rect(ox + 5, 18, 3, 2, BOOT)
+    c.rect(ox + 1, oy + 8, 6, 5, SHIRT)
+    c.rect(ox + 1, oy + 11, 6, 2, SHIRT_D)
+    c.rect(ox + 2, oy + 3, 5, 5, SKIN)
+    c.rect(ox + 3, oy + 5, 3, 1, SKIN_D)  # 질끈 감은 눈
+    c.rect(ox + 2, oy, 5, 3, HELMET)
+    c.rect(ox + 1, oy + 3, 8, 1, HELMET_D)
+    # 양손으로 귀를 막음
+    c.rect(ox, oy + 5, 2, 4, SHIRT_D)
+    c.px(ox + 1, oy + 4, SKIN)
+    c.rect(ox + 7, oy + 5, 2, 4, SHIRT_D)
+    c.px(ox + 7, oy + 4, SKIN)
+    c.outline()
+    return c.img
+
+
+# ── 굴착 기계 ───────────────────────────────────────────
+MACHINE_W, MACHINE_H = 32, 22
+
+
+def machine(frame):
+    """왼쪽으로 드릴을 내민 굴착 기계. 두 칸이 번갈아 드릴이 돈다."""
+    c = Canvas(MACHINE_W, MACHINE_H)
+    # 무한궤도
+    c.rect(9, 17, 21, 4, (50, 50, 56, 255))
+    for wx in range(10, 29, 4):
+        c.rect(wx + (frame % 2), 18, 2, 2, METAL_D)
+    # 몸체
+    c.rect(10, 7, 19, 10, MACHINE)
+    c.rect(10, 7, 19, 1, (255, 215, 90, 255))
+    c.rect(10, 15, 19, 2, MACHINE_D)
+    for x in range(12, 28, 4):  # 경고 줄무늬
+        c.rect(x, 13, 2, 2, (40, 40, 40, 255))
+    c.rect(21, 3, 7, 5, METAL_D)  # 조종석
+    c.rect(22, 4, 5, 3, (150, 210, 240, 255))
+    c.rect(13, 3, 2, 4, METAL_D)  # 배기관
+    # 드릴 팔과 나선 드릴
+    c.rect(6, 9, 4, 4, METAL_D)
+    for i in range(6):
+        h = 6 - i
+        c.rect(5 - i, 11 - h // 2, 1, h, METAL if (i + frame) % 2 else METAL_D)
+    c.outline()
+    # 배기 연기
+    if frame == 1:
+        c.rect(12, 0, 3, 2, (200, 200, 200, 200))
+    else:
+        c.rect(14, 1, 2, 1, (200, 200, 200, 160))
+    return c.img
+
+
+def machine_sheet():
+    return strip([machine(0), machine(1)])
 
 
 def miner_sit():
@@ -513,6 +624,7 @@ def main():
         'warehouse.png': warehouse(),
         'wheel.png': wheel_sheet(),
         'cloud.png': cloud(),
+        'machine.png': machine_sheet(),
     }
     for name, img in sheets.items():
         img.save(os.path.join(OUT, name))

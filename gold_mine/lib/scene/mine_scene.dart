@@ -133,6 +133,7 @@ class _MineSceneState extends State<MineScene>
         _workerTime(e.floor, e.worker),
         e.floor,
         e.worker,
+        _game.equipmentTier,
       );
       final bubble = MinerCycle.bubbleCenter(e.floor, sprite.x, look);
       final body = bubble.translate(0, 14);
@@ -172,6 +173,7 @@ class _MineSceneState extends State<MineScene>
                     workerTime: _workerTime,
                     workerLook: _look,
                     hasGoldVein: (f) => _game.floorEvent(f) != null,
+                    tool: _game.equipmentTier,
                     title: '${_game.mineName}  Lv.$floors',
                     lockedLabel:
                         '🔒 광산 확장하면 B${floors + 1}층이 열려요 '

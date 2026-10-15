@@ -37,14 +37,18 @@ class GameController extends ChangeNotifier {
   String get mineName => GameConfig.mineName(_state.mineLevel);
 
   /// 돌발상황이 없을 때의 초당 생산량. 오프라인 보상은 이 값으로 계산한다.
-  double get steadyGoldPerSecond =>
-      GameConfig.goldPerSecond(_state.workers, _state.mineLevel);
+  double get steadyGoldPerSecond => GameConfig.goldPerSecond(
+    _state.workers,
+    _state.mineLevel,
+    _state.pickaxeLevel,
+  );
 
   /// 돌발상황(부상, 금맥 등)을 반영하고 광고 부스트는 뺀 초당 생산량.
   double get baseGoldPerSecond {
     final perWorker =
         GameConfig.goldPerWorkerPerSecond *
-        GameConfig.mineMultiplier(_state.mineLevel);
+        GameConfig.mineMultiplier(_state.mineLevel) *
+        GameConfig.equipmentMultiplier(_state.pickaxeLevel);
     var total = 0.0;
     for (var f = 0; f < _state.mineLevel; f++) {
       final count = GameConfig.workersOnFloor(f, _state.workers);
@@ -70,7 +74,29 @@ class GameController extends ChangeNotifier {
   bool get isWorkerFull => _state.workers >= maxWorkers;
   bool get canHireWorker => !isWorkerFull && gold >= workerCost;
   bool get canUpgradeMine => gold >= mineUpgradeCost;
-  bool get canUpgradePickaxe => gold >= pickaxeUpgradeCost;
+  bool get canUpgradePickaxe =>
+      equipmentLockedUntilMine == null && gold >= pickaxeUpgradeCost;
+
+  // ── 채굴 장비 ───────────────────────────────────────
+  /// 지금 장비 단계 (0 곡괭이, 1 드릴, 2 다이너마이트, 3 굴착 기계).
+  int get equipmentTier => GameConfig.equipmentTier(_state.pickaxeLevel);
+
+  EquipmentTier get equipment => GameConfig.equipmentTiers[equipmentTier];
+
+  /// 다음 레벨에서 새 장비로 바뀌면 그 장비, 아니면 null.
+  EquipmentTier? get nextEquipment {
+    final next = GameConfig.equipmentTier(_state.pickaxeLevel + 1);
+    return next != equipmentTier ? GameConfig.equipmentTiers[next] : null;
+  }
+
+  /// 다음 장비를 들이려면 필요한 광산 레벨. 지금 강화할 수 있으면 null.
+  int? get equipmentLockedUntilMine {
+    final next = nextEquipment;
+    if (next == null || _state.mineLevel >= next.requiredMineLevel) {
+      return null;
+    }
+    return next.requiredMineLevel;
+  }
 
   Duration get boostRemaining {
     final endsAt = _state.boostEndsAt;

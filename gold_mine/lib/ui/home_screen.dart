@@ -403,6 +403,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  static const _equipmentIcons = [
+    Icons.hardware, // 곡괭이
+    Icons.construction, // 착암 드릴
+    Icons.local_fire_department, // 다이너마이트
+    Icons.precision_manufacturing, // 굴착 기계
+  ];
+
+  String _equipmentDescription() {
+    final next = _game.nextEquipment;
+    if (next != null) return 'Lv.${_game.pickaxeLevel} · 다음: ${next.name}';
+    return 'Lv.${_game.pickaxeLevel} · 터치 +${formatRate(_game.goldPerTap)}';
+  }
+
+  /// 장비를 강화하고, 새 장비로 바뀌었으면 크게 알린다.
+  void _upgradeEquipment() {
+    final before = _game.equipmentTier;
+    if (!_game.upgradePickaxe() || _game.equipmentTier == before) return;
+    final tier = _game.equipment;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          _equipmentIcons[_game.equipmentTier],
+          size: 48,
+          color: Colors.amber,
+        ),
+        title: Text('${tier.name} 도입!'),
+        content: Text(
+          '반장님, 새 장비가 들어왔어요!\n'
+          '이제 인부들이 ${tier.name}(으)로 일해서\n'
+          '생산량이 ${tier.multiplier}배가 돼요.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('좋아요!'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUpgrades() {
     final nextMultiplier =
         GameConfig.mineMultiplier(_game.mineLevel + 1) /
@@ -439,13 +482,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           Expanded(
             child: UpgradeTile(
-              icon: Icons.hardware,
-              title: '곡괭이',
-              description:
-                  'Lv.${_game.pickaxeLevel} · 터치 +${formatRate(_game.goldPerTap)}',
+              icon: _equipmentIcons[_game.equipmentTier],
+              title: _game.equipment.name,
+              description: _equipmentDescription(),
               cost: _game.pickaxeUpgradeCost,
               enabled: _game.canUpgradePickaxe,
-              onPressed: _game.upgradePickaxe,
+              buttonLabel: _game.equipmentLockedUntilMine == null
+                  ? null
+                  : 'B${_game.equipmentLockedUntilMine}층 필요',
+              onPressed: _upgradeEquipment,
             ),
           ),
         ],

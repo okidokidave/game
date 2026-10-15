@@ -61,7 +61,13 @@ enum WorkerLook { normal, tired, resting, injured, diamond, energized }
 
 /// 그릴 칸 번호와 위치.
 class WorkerSprite {
-  const WorkerSprite(this.frame, this.x, this.flip, [this.action]);
+  const WorkerSprite(
+    this.frame,
+    this.x,
+    this.flip, [
+    this.action,
+    this.phase = 0,
+  ]);
 
   final int frame;
   final double x;
@@ -69,16 +75,36 @@ class WorkerSprite {
 
   /// 일하는 중이면 하는 일, 멈춰 있으면 null.
   final MinerAction? action;
+
+  /// 채굴 동작 진행도 (0~1).
+  final double phase;
 }
 
 /// 인부 한 명의 순간 모습.
 class MinerPose {
-  const MinerPose(this.action, this.x, this.frame, this.facingLeft);
+  const MinerPose(
+    this.action,
+    this.x,
+    this.frame,
+    this.facingLeft, [
+    this.phase = 0,
+  ]);
 
   final MinerAction action;
   final double x;
   final int frame;
   final bool facingLeft;
+
+  /// 채굴 중일 때 채굴 동작이 얼마나 진행됐는지 (0~1).
+  final double phase;
+}
+
+/// 장비 단계 번호 (GameConfig.equipmentTiers 순서).
+abstract final class Tool {
+  static const int pickaxe = 0;
+  static const int drill = 1;
+  static const int dynamite = 2;
+  static const int machine = 3;
 }
 
 /// 인부의 일 순서: 암벽으로 걸어감 → 곡괭이질 → 광석 지고 돌아옴 → 상자에 내려놓음.
@@ -103,28 +129,68 @@ class MinerCycle {
 
   static double xOffset(int index) => const [0.0, 4.0, -3.0][index % 3];
 
-  static MinerPose pose(double time, int floor, int index) {
+  /// 굴착 기계가 놓이는 자리와, 기계를 조종하는 인부의 자리.
+  static const double machineX = 6;
+  static const double operateX = 26;
+
+  /// 다이너마이트에 불을 붙인 뒤 물러나는 거리.
+  static const double dynamiteRetreat = 14;
+
+  /// 장비마다 일하는 자리. 걷는 시간은 같게 해서 한 바퀴 시간이 바뀌지 않는다.
+  static double workX(int tool) =>
+      tool == Tool.machine ? operateX : MineLayout.mineX;
+
+  static MinerPose pose(
+    double time,
+    int floor,
+    int index, [
+    int tool = Tool.pickaxe,
+  ]) {
     var t = (time + phaseOffset(floor, index)) % duration;
     final dx = xOffset(index);
+    final workAt = workX(tool);
+    final walkDistance = MineLayout.dropX - workAt;
 
     if (t < walkTime) {
-      final x = MineLayout.dropX - t * walkSpeed;
+      final x = MineLayout.dropX - t / walkTime * walkDistance;
       return MinerPose(MinerAction.walkToRock, x + dx, _walkFrame(t), true);
     }
     t -= walkTime;
     if (t < mineTime) {
-      // 들어 올림 → 휘두름 → 찍기
-      final swing = (t % swingTime) / swingTime;
-      final frame = swing < 0.45 ? 8 : (swing < 0.6 ? 9 : 10);
-      return MinerPose(MinerAction.mine, MineLayout.mineX + dx, frame, true);
+      final phase = t / mineTime;
+      final (frame, x) = _mineFrame(tool, t, phase, workAt);
+      return MinerPose(MinerAction.mine, x + dx, frame, true, phase);
     }
     t -= mineTime;
     if (t < walkTime) {
-      final x = MineLayout.mineX + t * walkSpeed;
+      final x = workAt + t / walkTime * walkDistance;
       return MinerPose(MinerAction.carry, x + dx, 4 + _walkFrame(t), false);
     }
     return MinerPose(MinerAction.drop, MineLayout.dropX + dx, 11, false);
   }
+
+  /// 장비별 채굴 동작의 그림 칸과 위치.
+  static (int, double) _mineFrame(int tool, double t, double phase, double x) {
+    switch (tool) {
+      case Tool.drill:
+        // 드르르륵: 두 칸을 빠르게 번갈아
+        return ((t * 14).floor() % 2 == 0 ? 15 : 16, x);
+      case Tool.dynamite:
+        // 설치 → 물러나 귀 막기 → (폭발은 그림 효과)
+        if (phase < dynamitePlantEnd) return (17, x);
+        return (18, x + dynamiteRetreat);
+      case Tool.machine:
+        return (19, x);
+      default:
+        // 들어 올림 → 휘두름 → 찍기
+        final swing = (t % swingTime) / swingTime;
+        return (swing < 0.45 ? 8 : (swing < 0.6 ? 9 : 10), x);
+    }
+  }
+
+  /// 다이너마이트: 설치가 끝나는 시점과 터지는 시점 (채굴 진행도 기준).
+  static const double dynamitePlantEnd = 0.4;
+  static const double dynamiteBlast = 0.72;
 
   static int _walkFrame(double t) => (t * 8).floor() % 4;
 
@@ -132,7 +198,13 @@ class MinerCycle {
   static const double injuredX = 26; // 바닥에 누움
 
   /// 인부 모습에 맞는 그림 칸과 위치. [time]은 그 인부의 일하는 시간.
-  static WorkerSprite sprite(WorkerLook look, double time, int floor, int i) {
+  static WorkerSprite sprite(
+    WorkerLook look,
+    double time,
+    int floor,
+    int i, [
+    int tool = Tool.pickaxe,
+  ]) {
     final dx = xOffset(i);
     switch (look) {
       case WorkerLook.resting:
@@ -144,8 +216,8 @@ class MinerCycle {
       case WorkerLook.normal:
       case WorkerLook.tired:
       case WorkerLook.energized:
-        final p = pose(time, floor, i);
-        return WorkerSprite(p.frame, p.x, p.facingLeft, p.action);
+        final p = pose(time, floor, i, tool);
+        return WorkerSprite(p.frame, p.x, p.facingLeft, p.action, p.phase);
     }
   }
 
