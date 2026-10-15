@@ -5,9 +5,11 @@ import '../audio/sound_service.dart';
 import '../game/game_config.dart';
 import '../game/game_controller.dart';
 import '../game/mine_event.dart';
+import '../game/shop.dart';
 import '../scene/mine_scene.dart';
 import '../scene/sprites.dart';
 import 'codex_sheet.dart';
+import 'shop_sheet.dart';
 import 'number_format.dart';
 import 'widgets/boost_bar.dart';
 import 'widgets/gold_header.dart';
@@ -181,28 +183,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final floor = 'B${event.floor + 1}';
     switch (event.type) {
       case MineEventType.fatigue:
-        _decide(
-          title: '💦 지친 인부',
-          message:
-              '소장님, $floor 인부가 많이 지쳤어요.\n'
-              '지금은 절반 속도로 일하고 있어요.\n'
-              '${GameConfig.fatigueToInjury.inMinutes}분 넘게 무리하면 다칠 수 있어요.',
-          choices: [
-            ('계속 일 시키기', false, () {}),
-            (
-              '휴식 주기 (${GameConfig.restDuration.inSeconds}초)',
-              true,
-              () {
-                if (_game.restWorker(event.id)) {
-                  _showMessage(
-                    '쉬고 나면 ${GameConfig.energizedDuration.inMinutes}분간 '
-                    '${GameConfig.energizedSpeed}배로 일해요!',
-                  );
-                }
-              },
-            ),
-          ],
-        );
+        _showWorkerCare(GameController.slotOf(event.floor, event.worker));
       case MineEventType.injury:
         final healIn = event.remaining(DateTime.now()).inMinutes + 1;
         _decide(
@@ -335,7 +316,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _sound.play(Sfx.sparkle);
       case GameCue.promotionReady:
         _sound.play(Sfx.click);
+      case GameCue.workerTired:
+        _sound.play(Sfx.alert);
+      case GameCue.workerCollapsed:
+        _sound.play(Sfx.alert);
+        _sound.vibrate(Buzz.heavy);
     }
+  }
+
+  // ── 체력 돌보기 ─────────────────────────────────────
+  void _openShop({int? forSlot}) =>
+      ShopSheet.show(context, _game, sound: _sound, forSlot: forSlot);
+
+  /// 지치거나 쓰러진 인부를 눌렀을 때: 가진 먹거리 먹이기, 쉬게 하기, 매점 가기.
+  void _showWorkerCare(int slot) {
+    final label = GameController.workerLabel(slot);
+    final collapsed = _game.isCollapsed(slot);
+    final stamina = _game.staminaOf(slot).round();
+    final foods = [
+      for (final item in Shop.items)
+        if (item.target == ShopTarget.worker && _game.itemCount(item) > 0) item,
+    ];
+    _decide(
+      title: collapsed ? '😵 $label 인부가 쓰러졌어요' : '💦 $label 인부',
+      message: collapsed
+          ? '체력이 바닥나 쓰러졌어요 (체력 $stamina).\n'
+                '먹을 것을 주면 바로 일어나요.\n'
+                '그냥 두면 15분쯤 뒤에 겨우 일어나요.'
+          : '체력 $stamina / 100\n'
+                '${stamina < GameConfig.tiredStamina ? '지쳐서 절반 속도로 일하고 있어요.' : '아직 일할 만해요.'}',
+      choices: [
+        for (final item in foods)
+          (
+            '${item.emoji} ${item.name} 먹이기 (${_game.itemCount(item)}개)',
+            true,
+            () {
+              if (_game.feedWorker(item, slot)) {
+                _sound.play(Sfx.sparkle);
+                _showMessage('${item.emoji} $label 인부가 기운을 차렸어요!');
+              }
+            },
+          ),
+        if (!collapsed)
+          (
+            '쉬게 하기 (${GameConfig.restDuration.inSeconds}초)',
+            false,
+            () {
+              if (_game.restWorker(slot)) {
+                _showMessage(
+                  '쉬고 나면 체력 +${GameConfig.restStamina.round()}, '
+                  '${GameConfig.energizedDuration.inMinutes}분간 '
+                  '${GameConfig.energizedSpeed}배로 일해요!',
+                );
+              }
+            },
+          ),
+        ('🏪 매점 가기', foods.isEmpty, () => _openShop(forSlot: slot)),
+      ],
+    );
   }
 
   void _onMessage(String message) {
@@ -389,14 +427,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final need = _game.xpNeeded(slot);
     final xp = _game.xpOf(slot);
     final ready = _game.isPromotionReady(slot);
+    final stamina = _game.staminaOf(slot);
+    final collapsed = _game.isCollapsed(slot);
+    final staminaColor = collapsed || stamina < GameConfig.tiredStamina
+        ? const Color(0xFFE5533D)
+        : stamina < 60
+        ? Colors.orange
+        : const Color(0xFF66BB6A);
     return ListTile(
+      onTap: () => _showWorkerCare(slot),
       leading: CircleAvatar(
         backgroundColor: _gradeColors[_game.gradeIndexOf(slot)],
         foregroundColor: Colors.black87,
         child: const Icon(Icons.engineering),
       ),
-      title: Text(
-        '${GameController.workerLabel(slot)}  ${grade.name}  ×${grade.multiplier}',
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${GameController.workerLabel(slot)}  ${grade.name}  ×${grade.multiplier}',
+            ),
+          ),
+          Text(
+            collapsed ? '😵 쓰러짐' : '체력 ${stamina.round()}',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: staminaColor,
+            ),
+          ),
+        ],
       ),
       subtitle: need == null
           ? const Text('최고 등급이에요!')
@@ -590,11 +650,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onPressed: () => CodexSheet.show(context, _game),
               ),
               IconButton(
+                tooltip: '매점',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.storefront, color: Colors.white70),
+                onPressed: _openShop,
+              ),
+              IconButton(
                 tooltip: '인부 관리',
                 visualDensity: VisualDensity.compact,
                 icon: Badge(
-                  isLabelVisible: _game.promotionReadyCount > 0,
-                  label: Text('${_game.promotionReadyCount}'),
+                  isLabelVisible:
+                      _game.promotionReadyCount + _game.exhaustedCount > 0,
+                  backgroundColor: _game.exhaustedCount > 0
+                      ? const Color(0xFFE5533D)
+                      : const Color(0xFF4CAF50),
+                  label: Text(
+                    '${_game.promotionReadyCount + _game.exhaustedCount}',
+                  ),
                   child: const Icon(Icons.groups, color: Colors.white70),
                 ),
                 onPressed: _showWorkers,
@@ -620,6 +692,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onEventTap: _showEventDialog,
                     onWorkerTap: _showPromotionDialog,
                     onShowWorkers: _showWorkers,
+                    onWorkerCare: _showWorkerCare,
+                    onOpenShop: _openShop,
                   ),
                 ),
               ),

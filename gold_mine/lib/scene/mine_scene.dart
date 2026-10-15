@@ -22,8 +22,16 @@ class MineScene extends StatefulWidget {
     this.onEventTap,
     this.onWorkerTap,
     this.onShowWorkers,
+    this.onWorkerCare,
+    this.onOpenShop,
     this.sound,
   });
+
+  /// 지치거나 쓰러진 인부를 눌렀을 때. 인부 번호를 넘긴다.
+  final void Function(int slot)? onWorkerCare;
+
+  /// 지상 매점을 눌렀을 때.
+  final VoidCallback? onOpenShop;
 
   /// 터치, 광석 내려놓기, 폭발 소리 (없으면 조용히).
   final SoundService? sound;
@@ -75,15 +83,26 @@ class _MineSceneState extends State<MineScene>
   double _workerTime(int floor, int worker) =>
       _workerTimes[floor * 100 + worker] ?? 0;
 
-  WorkerLook _look(int floor, int worker) =>
-      switch (_game.workerEvent(floor, worker)?.type) {
-        MineEventType.fatigue => WorkerLook.tired,
-        MineEventType.injury => WorkerLook.injured,
-        MineEventType.rest => WorkerLook.resting,
-        MineEventType.diamond => WorkerLook.diamond,
-        MineEventType.energized => WorkerLook.energized,
-        MineEventType.goldVein || null => WorkerLook.normal,
-      };
+  WorkerLook _look(int floor, int worker) {
+    switch (_game.workerEvent(floor, worker)?.type) {
+      case MineEventType.injury:
+        return WorkerLook.injured;
+      case MineEventType.rest:
+        return WorkerLook.resting;
+      case MineEventType.diamond:
+        return WorkerLook.diamond;
+      case MineEventType.energized:
+        return WorkerLook.energized;
+      case MineEventType.fatigue:
+      case MineEventType.goldVein:
+      case null:
+        break;
+    }
+    final slot = GameController.slotOf(floor, worker);
+    if (_game.isCollapsed(slot)) return WorkerLook.collapsed;
+    if (_game.isTired(slot)) return WorkerLook.tired;
+    return WorkerLook.normal;
+  }
 
   void _onTick(Duration elapsed) {
     // 앱이 잠깐 멈췄다 돌아와도 인부가 순간이동하지 않게 한 번에 최대 0.1초만 진행한다.
@@ -147,6 +166,15 @@ class _MineSceneState extends State<MineScene>
       widget.onEventTap?.call(event);
       return;
     }
+    if (_isKiosk(pos)) {
+      widget.onOpenShop?.call();
+      return;
+    }
+    final tired = _exhaustedWorkerAt(pos);
+    if (tired != null && widget.onWorkerCare != null) {
+      widget.onWorkerCare!(tired);
+      return;
+    }
     final ready = _readyWorkerAt(pos);
     if (ready != null && widget.onWorkerTap != null) {
       widget.onWorkerTap!(ready);
@@ -175,6 +203,35 @@ class _MineSceneState extends State<MineScene>
       final body = bubble.translate(0, 14);
       if ((pos - bubble).distance < 12 || (pos - body).distance < 12) {
         return e;
+      }
+    }
+    return null;
+  }
+
+  bool _isKiosk(Offset pos) =>
+      pos.dx >= MineLayout.kioskLeft &&
+      pos.dx <= MineLayout.kioskLeft + MineLayout.kioskWidth &&
+      pos.dy >= MineLayout.groundY - MineLayout.kioskHeight &&
+      pos.dy <= MineLayout.groundY;
+
+  /// 누른 곳 가까이에 지치거나 쓰러진 인부가 있으면 그 인부 번호.
+  int? _exhaustedWorkerAt(Offset pos) {
+    for (var f = 0; f < _game.mineLevel; f++) {
+      for (var i = 0; i < MineLayout.workersOnFloor(f, _game.workers); i++) {
+        final look = _look(f, i);
+        if (look != WorkerLook.tired && look != WorkerLook.collapsed) continue;
+        final sprite = MinerCycle.sprite(
+          look,
+          _workerTime(f, i),
+          f,
+          i,
+          _game.equipmentTier,
+        );
+        final bubble = MinerCycle.bubbleCenter(f, sprite.x, look);
+        if ((pos - bubble).distance < 12 ||
+            (pos - bubble.translate(0, 14)).distance < 12) {
+          return GameController.slotOf(f, i);
+        }
       }
     }
     return null;
@@ -239,6 +296,9 @@ class _MineSceneState extends State<MineScene>
                     promotionReady: (f, i) =>
                         _game.isPromotionReady(GameController.slotOf(f, i)),
                     themeOf: _game.region.themeOf,
+                    workerStamina: (f, i) =>
+                        _game.staminaOf(GameController.slotOf(f, i)) /
+                        GameConfig.maxStamina,
                     bottomFloor: _game.isAtBottom
                         ? _game.region.bottomFloor - 1
                         : null,
@@ -261,6 +321,7 @@ class _MineSceneState extends State<MineScene>
                 now: DateTime.now(),
                 onTap: widget.onEventTap,
                 promotionReady: _game.promotionReadyCount,
+                exhausted: _game.exhaustedCount,
                 onShowWorkers: widget.onShowWorkers,
               ),
             ),
@@ -278,6 +339,7 @@ class _EventBadges extends StatelessWidget {
     required this.now,
     this.onTap,
     this.promotionReady = 0,
+    this.exhausted = 0,
     this.onShowWorkers,
   });
 
@@ -285,6 +347,7 @@ class _EventBadges extends StatelessWidget {
   final DateTime now;
   final void Function(MineEvent event)? onTap;
   final int promotionReady;
+  final int exhausted;
   final VoidCallback? onShowWorkers;
 
   @override
@@ -293,12 +356,20 @@ class _EventBadges extends StatelessWidget {
       for (final e in events)
         if (e.type.needsManager || e.type == MineEventType.goldVein) e,
     ];
-    if (shown.isEmpty && promotionReady == 0) return const SizedBox.shrink();
+    if (shown.isEmpty && promotionReady == 0 && exhausted == 0) {
+      return const SizedBox.shrink();
+    }
     return Wrap(
       spacing: 6,
       runSpacing: 4,
       children: [
         for (final e in shown) _badge(e),
+        if (exhausted > 0)
+          _chip(
+            '😵 지친 인부 $exhausted명  ›',
+            const Color(0xFFB8432F),
+            onShowWorkers,
+          ),
         if (promotionReady > 0)
           _chip(
             '⬆ 승급 가능 $promotionReady명  ›',

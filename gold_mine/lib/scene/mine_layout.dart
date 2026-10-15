@@ -33,6 +33,11 @@ class MineLayout {
 
   static const double crateX = 82;
 
+  /// 지상 매점 (엘리베이터 탑 왼쪽, 광차 레일 뒤).
+  static const double kioskLeft = 77;
+  static const double kioskWidth = 19;
+  static const double kioskHeight = 16;
+
   /// 인부 그림 크기와 서 있는 위치 (그림의 왼쪽 x).
   static const double minerWidth = 24;
   static const double minerHeight = 22;
@@ -54,7 +59,17 @@ class MineLayout {
 enum MinerAction { walkToRock, mine, carry, drop }
 
 /// 돌발상황에 따라 달라지는 인부의 모습.
-enum WorkerLook { normal, tired, resting, injured, diamond, energized }
+enum WorkerLook {
+  normal,
+  tired,
+  resting,
+  injured,
+  diamond,
+  energized,
+
+  /// 체력이 바닥나 쓰러짐.
+  collapsed,
+}
 
 /// 그릴 칸 번호와 위치.
 class WorkerSprite {
@@ -207,6 +222,7 @@ class MinerCycle {
       case WorkerLook.resting:
         return WorkerSprite(12, restX + dx, false);
       case WorkerLook.injured:
+      case WorkerLook.collapsed:
         return WorkerSprite(13, injuredX + dx, false);
       case WorkerLook.diamond:
         return WorkerSprite(14, MineLayout.mineX + 8 + dx, false);
@@ -227,7 +243,9 @@ class MinerCycle {
             MineLayout.floorLine -
             MineLayout.minerHeight -
             5 +
-            (look == WorkerLook.injured ? 9 : 0),
+            (look == WorkerLook.injured || look == WorkerLook.collapsed
+                ? 9
+                : 0),
       );
 
   /// 시간 [from]~[to] 사이에 이 인부가 상자에 광석을 내려놓았는지.

@@ -86,39 +86,28 @@ void main() {
     expect(game.events, isEmpty);
   });
 
-  group('지친 인부', () {
-    test('절반 속도로 일하고 소장에게 보고된다', () {
-      final e = spawn(MineEventType.fatigue);
-      expect(e.type, MineEventType.fatigue);
-      expect(e.type.needsManager, isTrue);
-      expect(game.workerSpeed(0, 0), GameConfig.fatigueSpeed);
-      expect(
-        game.baseGoldPerSecond,
-        closeTo(game.steadyGoldPerSecond * GameConfig.fatigueSpeed, 1e-9),
-      );
-      expect(notices.single, contains('지쳤어요'));
-    });
+  test('쉬게 하면 쉬었다가 체력이 차고, 한동안 빨리 일한다', () {
+    expect(game.restWorker(0), isTrue);
+    expect(game.workerSpeed(0, 0), 0);
+    expect(game.restWorker(0), isFalse); // 이미 쉬는 중
 
-    test('휴식을 주면 쉬었다가 한동안 빨리 일하고, 다시 보통으로 돌아온다', () {
-      final e = spawn(MineEventType.fatigue);
-      expect(game.restWorker(e.id), isTrue);
-      expect(game.workerSpeed(0, 0), 0);
+    advance(GameConfig.restDuration);
+    expect(game.workerEvent(0, 0)!.type, MineEventType.energized);
+    expect(game.workerSpeed(0, 0), GameConfig.energizedSpeed);
 
-      advance(GameConfig.restDuration);
-      expect(game.workerEvent(0, 0)!.type, MineEventType.energized);
-      expect(game.workerSpeed(0, 0), GameConfig.energizedSpeed);
+    advance(GameConfig.energizedDuration);
+    expect(game.workerEvent(0, 0), isNull);
+    expect(game.workerSpeed(0, 0), 1);
+  });
 
-      advance(GameConfig.energizedDuration);
-      expect(game.workerEvent(0, 0), isNull);
-      expect(game.workerSpeed(0, 0), 1);
-    });
-
-    test('계속 무리시키면 다친다', () {
-      spawn(MineEventType.fatigue);
-      advance(GameConfig.fatigueToInjury);
-      expect(game.workerEvent(0, 0)!.type, MineEventType.injury);
-      expect(notices.last, contains('다쳤어요'));
-    });
+  test('지친 인부는 더 이상 무작위 상황으로 생기지 않는다', () {
+    expect(GameConfig.fatigueWeight, 0);
+    for (var k = 0; k < 20; k++) {
+      random.doubles.add(0);
+      random.ints.addAll([k * 3, 0]);
+      game.updateEvents(1);
+    }
+    expect(game.events.where((e) => e.type == MineEventType.fatigue), isEmpty);
   });
 
   group('다친 인부', () {
@@ -222,7 +211,7 @@ void main() {
   });
 
   test('처음부터 다시 시작하면 상황도 사라진다', () async {
-    spawn(MineEventType.fatigue);
+    spawn(MineEventType.injury);
     await game.reset();
     expect(game.events, isEmpty);
   });

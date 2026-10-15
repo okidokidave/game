@@ -32,6 +32,7 @@ class MinePainter extends CustomPainter {
     required this.workerGrade,
     required this.promotionReady,
     required this.themeOf,
+    required this.workerStamina,
     this.bottomFloor,
     required this.title,
     required this.lockedLabel,
@@ -60,6 +61,9 @@ class MinePainter extends CustomPainter {
   /// 인부 등급 (안전모 색 줄 번호), 승급 준비가 됐는지.
   final int Function(int floor, int worker) workerGrade;
   final bool Function(int floor, int worker) promotionReady;
+
+  /// 인부 체력 비율 (0~1). 낮아지면 머리 위에 막대가 보인다.
+  final double Function(int floor, int worker) workerStamina;
 
   /// 층마다 쓰는 암석 그림 (지역마다 다르다).
   final int Function(int floor) themeOf;
@@ -140,6 +144,7 @@ class MinePainter extends CustomPainter {
     // 광차 레일
     _rect(c, 30, ground - 1, 70, 1, _rail);
 
+    _kiosk(c);
     if (s != null) {
       s.warehouse.draw(c, 0, 1, ground - 28);
       final (cartX, loaded, moving) = CartMotion.at(t);
@@ -284,6 +289,7 @@ class MinePainter extends CustomPainter {
         if (sprite.action == MinerAction.mine) {
           _toolEffect(c, sprite, top, t, floor, i);
         }
+        _staminaBar(c, floor, sprite.x, look, workerStamina(floor, i));
         _workerMark(
           c,
           look,
@@ -326,6 +332,70 @@ class MinePainter extends CustomPainter {
     }
   }
 
+  /// 체력이 60% 아래로 내려간 인부의 머리 위 체력 막대.
+  void _staminaBar(
+    Canvas c,
+    int floor,
+    double x,
+    WorkerLook look,
+    double ratio,
+  ) {
+    if (ratio >= 0.6 || look == WorkerLook.collapsed) return;
+    if (look == WorkerLook.resting || look == WorkerLook.injured) return;
+    final center = MinerCycle.bubbleCenter(floor, x, look);
+    final left = center.dx - 5;
+    final y = center.dy + 6;
+    _rect(c, left - 0.5, y - 0.5, 11, 2, Colors.black87);
+    final color = ratio < 0.3
+        ? const Color(0xFFE5533D)
+        : const Color(0xFFFFA726);
+    _rect(c, left, y, 10 * ratio, 1, color);
+  }
+
+  /// 지상 매점: 줄무늬 차양, 나무 진열대, 음료수.
+  void _kiosk(Canvas c) {
+    const x = MineLayout.kioskLeft;
+    const w = MineLayout.kioskWidth;
+    const ground = MineLayout.groundY;
+    const top = ground - MineLayout.kioskHeight;
+    _rect(c, x + 1, top + 3, 1, 13, _woodDark);
+    _rect(c, x + w - 2, top + 3, 1, 13, _woodDark);
+    for (var i = 0; i < w; i += 2) {
+      _rect(
+        c,
+        x + i,
+        top,
+        2,
+        3,
+        i % 4 == 0 ? const Color(0xFFE5533D) : Colors.white,
+      );
+    }
+    _rect(c, x, top + 3, w, 1, const Color(0xFFB03A2E));
+    _rect(c, x + 1, ground - 7, w - 2, 7, _wood);
+    _rect(c, x + 1, ground - 7, w - 2, 1, _woodLight);
+    // 진열된 음료수와 도시락
+    const goods = [
+      Color(0xFFFFD23F),
+      Color(0xFF4FC3F7),
+      Color(0xFFE53935),
+      Color(0xFF81C784),
+      Color(0xFFFFFFFF),
+    ];
+    for (var k = 0; k < goods.length; k++) {
+      _rect(c, x + 3 + k * 3, ground - 10, 2, 3, goods[k]);
+    }
+    _text(
+      c,
+      '매점',
+      x + w / 2,
+      ground - 5.6,
+      3.6,
+      Colors.white,
+      bold: true,
+      center: true,
+    );
+  }
+
   /// 인부 머리 위 말풍선 (돌발상황, 좋은 일).
   void _workerMark(
     Canvas c,
@@ -342,6 +412,7 @@ class MinePainter extends CustomPainter {
         : switch (look) {
             WorkerLook.tired => ('💦', const Color(0xFFE5533D)),
             WorkerLook.injured => ('🩹', const Color(0xFFE5533D)),
+            WorkerLook.collapsed => ('😵', const Color(0xFFE5533D)),
             WorkerLook.diamond => ('💎', const Color(0xFF5BC8F5)),
             WorkerLook.resting => ('💤', const Color(0xFF9AA4B0)),
             WorkerLook.energized => ('⚡', const Color(0xFFFFC83D)),
@@ -353,6 +424,7 @@ class MinePainter extends CustomPainter {
     final needsManager =
         promote ||
         look == WorkerLook.tired ||
+        look == WorkerLook.collapsed ||
         look == WorkerLook.injured ||
         look == WorkerLook.diamond;
     final bob = needsManager ? (sin(t * 6) > 0 ? -1.0 : 0.0) : 0.0;

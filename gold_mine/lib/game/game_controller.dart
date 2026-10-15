@@ -7,10 +7,18 @@ import 'game_config.dart';
 import 'game_state.dart';
 import 'mine_event.dart';
 import 'regions.dart';
+import 'shop.dart';
 import 'save_repository.dart';
 
 /// 화면에서 소리·효과를 붙일 수 있게 알려 주는 게임 속 순간들.
-enum GameCue { promotionReady, oreFound, newOre, setComplete }
+enum GameCue {
+  promotionReady,
+  oreFound,
+  newOre,
+  setComplete,
+  workerTired,
+  workerCollapsed,
+}
 
 /// 게임 규칙을 실행하고, 값이 바뀌면 화면에 알린다.
 class GameController extends ChangeNotifier {
@@ -18,7 +26,10 @@ class GameController extends ChangeNotifier {
   GameController(this._repository, {DateTime Function()? clock, Random? random})
     : _clock = clock ?? DateTime.now,
       _random = random ?? Random(),
-      _state = _repository.load() ?? GameState();
+      _state = _repository.load() ?? GameState() {
+    // 예전 버전의 무작위 "지친 인부" 상황은 체력 시스템이 대신한다.
+    _state.events.removeWhere((e) => e.type == MineEventType.fatigue);
+  }
 
   static const _tickInterval = Duration(milliseconds: 100);
 
@@ -133,6 +144,8 @@ class GameController extends ChangeNotifier {
       ..pickaxeLevel = 1
       ..workerGrades = [0]
       ..workerXp = [0]
+      ..workerStamina = [GameConfig.maxStamina]
+      ..workerCollapsed = [false]
       ..events = [];
     notifyListeners();
     return true;
@@ -274,18 +287,21 @@ class GameController extends ChangeNotifier {
   /// 인부 한 명의 작업 속도 (0 = 쉼, 1 = 보통). 애니메이션 속도로도 쓴다.
   double workerSpeed(int floor, int worker) {
     switch (workerEvent(floor, worker)?.type) {
-      case MineEventType.fatigue:
-        return GameConfig.fatigueSpeed;
       case MineEventType.injury:
       case MineEventType.rest:
       case MineEventType.diamond:
         return 0;
       case MineEventType.energized:
         return GameConfig.energizedSpeed;
+      case MineEventType.fatigue:
       case MineEventType.goldVein:
       case null:
-        return 1;
+        break;
     }
+    final slot = slotOf(floor, worker);
+    if (isCollapsed(slot)) return 0;
+    if (isTired(slot)) return GameConfig.fatigueSpeed;
+    return 1;
   }
 
   double floorMultiplier(int floor) =>
@@ -298,11 +314,13 @@ class GameController extends ChangeNotifier {
 
   bool get canTreat => gold >= treatCost;
 
-  /// 지친 인부를 쉬게 한다. 쉬고 나면 한동안 빨리 일한다.
-  bool restWorker(int eventId) {
-    final e = eventById(eventId);
-    if (e == null || e.type != MineEventType.fatigue) return false;
-    _replace(e, MineEventType.rest, GameConfig.restDuration);
+  /// 인부를 쉬게 한다. 쉬고 나면 체력이 차고 한동안 빨리 일한다.
+  /// 다쳤거나 이미 쉬는 중이면 쉬게 할 수 없다.
+  bool restWorker(int slot) {
+    final floor = slot ~/ GameConfig.workersPerMineLevel;
+    final worker = slot % GameConfig.workersPerMineLevel;
+    if (workerEvent(floor, worker) != null) return false;
+    _add(MineEventType.rest, floor, worker, _clock(), GameConfig.restDuration);
     notifyListeners();
     return true;
   }
@@ -347,21 +365,12 @@ class GameController extends ChangeNotifier {
   bool _expireEvents(DateTime now) {
     var changed = false;
     for (final e in List.of(_state.events)) {
-      if (e.type == MineEventType.fatigue &&
-          now.difference(e.startedAt) >= GameConfig.fatigueToInjury) {
-        final injury = _replace(
-          e,
-          MineEventType.injury,
-          GameConfig.injuryHealTime,
-        );
-        _notice(injury, '소장님, B${e.floor + 1} 인부가 무리하다 다쳤어요!');
-        changed = true;
-        continue;
-      }
       if (!e.isOver(now)) continue;
       changed = true;
       switch (e.type) {
         case MineEventType.rest:
+          final slot = slotOf(e.floor, e.worker);
+          _setStamina(slot, staminaOf(slot) + GameConfig.restStamina);
           final energized = _replace(
             e,
             MineEventType.energized,
@@ -495,6 +504,117 @@ class GameController extends ChangeNotifier {
 
   void _notice(MineEvent e, String message) => onEventNotice?.call(e, message);
 
+  // ── 체력 (피로도) ───────────────────────────────────
+  double staminaOf(int slot) => _state.workerStamina[slot];
+  bool isCollapsed(int slot) => _state.workerCollapsed[slot];
+  bool isTired(int slot) =>
+      !isCollapsed(slot) && staminaOf(slot) < GameConfig.tiredStamina;
+
+  /// 비타민 효과가 남아 있어 아무도 지치지 않는지.
+  bool get isStaminaBuffActive =>
+      _state.staminaBuffUntil != null &&
+      _clock().isBefore(_state.staminaBuffUntil!);
+
+  Duration get staminaBuffRemaining => isStaminaBuffActive
+      ? _state.staminaBuffUntil!.difference(_clock())
+      : Duration.zero;
+
+  /// 돌봐야 하는 인부 수 (지쳤거나 쓰러짐).
+  int get exhaustedCount => [
+    for (var s = 0; s < _state.workers; s++)
+      if (isCollapsed(s) || isTired(s)) s,
+  ].length;
+
+  void _setStamina(int slot, double value) {
+    _state.workerStamina[slot] = value.clamp(0, GameConfig.maxStamina);
+    // 체력이 조금이라도 생기면 쓰러졌던 인부가 일어난다.
+    if (isCollapsed(slot) && staminaOf(slot) >= GameConfig.tiredStamina) {
+      _state.workerCollapsed[slot] = false;
+    }
+  }
+
+  /// 일한 만큼 체력이 줄고, 쓰러진 인부는 천천히 회복한다.
+  void _useStamina(double seconds) {
+    final buff = isStaminaBuffActive;
+    for (var slot = 0; slot < _state.workers; slot++) {
+      final label = workerLabel(slot);
+      if (isCollapsed(slot)) {
+        _setStamina(
+          slot,
+          staminaOf(slot) + seconds * GameConfig.collapsedRegenPerSecond,
+        );
+        if (!isCollapsed(slot)) {
+          onMessage?.call('$label 인부가 겨우 일어나 다시 일해요.');
+        }
+        continue;
+      }
+      if (buff) continue;
+      final floor = slot ~/ GameConfig.workersPerMineLevel;
+      final speed = workerSpeed(floor, slot % GameConfig.workersPerMineLevel);
+      if (speed <= 0) continue;
+      final wasTired = isTired(slot);
+      final next =
+          staminaOf(slot) - seconds * GameConfig.staminaDrainPerSecond * speed;
+      _state.workerStamina[slot] = max(0, next);
+      if (staminaOf(slot) <= 0) {
+        _state.workerCollapsed[slot] = true;
+        onMessage?.call('😵 소장님! $label 인부가 지쳐 쓰러졌어요! 매점에서 먹을 것을 사 주세요.');
+        onCue?.call(GameCue.workerCollapsed);
+      } else if (!wasTired && isTired(slot)) {
+        onMessage?.call('💦 $label 인부가 지쳤어요. 체력을 채워 주세요.');
+        onCue?.call(GameCue.workerTired);
+      }
+    }
+  }
+
+  // ── 매점 ────────────────────────────────────────────
+  int itemCount(ShopItem item) => _state.inventory[item.id] ?? 0;
+
+  /// 가격은 광산 규모(관리인 수입 제외 생산량)에 맞춰 오른다.
+  double itemCost(ShopItem item) => max(
+    item.minCost,
+    (steadyGoldPerSecond - caretakerIncome) * item.costSeconds,
+  );
+
+  bool canBuy(ShopItem item) => gold >= itemCost(item);
+
+  bool buyItem(ShopItem item) {
+    if (!canBuy(item)) return false;
+    _state.gold -= itemCost(item);
+    _state.inventory[item.id] = itemCount(item) + 1;
+    notifyListeners();
+    return true;
+  }
+
+  /// 인부 한 명에게 먹인다 ([ShopTarget.worker] 물건).
+  bool feedWorker(ShopItem item, int slot) {
+    if (item.target != ShopTarget.worker || itemCount(item) <= 0) return false;
+    _state.inventory[item.id] = itemCount(item) - 1;
+    _setStamina(slot, staminaOf(slot) + item.stamina);
+    _state.workerCollapsed[slot] = false;
+    notifyListeners();
+    return true;
+  }
+
+  /// 모두에게 쓰는 물건이나 비타민을 쓴다.
+  bool useItem(ShopItem item) {
+    if (item.target == ShopTarget.worker || itemCount(item) <= 0) {
+      return false;
+    }
+    _state.inventory[item.id] = itemCount(item) - 1;
+    if (item.target == ShopTarget.everyone) {
+      for (var slot = 0; slot < _state.workers; slot++) {
+        _setStamina(slot, staminaOf(slot) + item.stamina);
+        _state.workerCollapsed[slot] = false;
+      }
+    } else {
+      final from = isStaminaBuffActive ? _state.staminaBuffUntil! : _clock();
+      _state.staminaBuffUntil = from.add(Duration(minutes: item.buffMinutes));
+    }
+    notifyListeners();
+    return true;
+  }
+
   // ── 인부 등급 ───────────────────────────────────────
   /// 인부 번호 (B1의 첫 인부가 0, 층마다 3명씩).
   static int slotOf(int floor, int worker) =>
@@ -596,6 +716,7 @@ class GameController extends ChangeNotifier {
     if (seconds <= 0) return;
     _earn(goldPerSecond * seconds);
     _gainXp(seconds, notify: true);
+    _useStamina(seconds);
     notifyListeners();
   }
 
@@ -613,6 +734,8 @@ class GameController extends ChangeNotifier {
     _state.workers++;
     _state.workerGrades.add(0);
     _state.workerXp.add(0);
+    _state.workerStamina.add(GameConfig.maxStamina);
+    _state.workerCollapsed.add(false);
     notifyListeners();
     return true;
   }
@@ -663,6 +786,13 @@ class GameController extends ChangeNotifier {
     final earned = steadyGoldPerSecond * seconds * GameConfig.offlineEfficiency;
     _state.lastSavedAt = now;
     _gainXp(seconds * GameConfig.offlineEfficiency, notify: false);
+    // 자리를 비운 동안 인부들은 쉬면서 체력을 채운다.
+    for (var slot = 0; slot < _state.workers; slot++) {
+      _setStamina(
+        slot,
+        staminaOf(slot) + seconds * GameConfig.offlineStaminaPerSecond,
+      );
+    }
     if (earned > 0) {
       _earn(earned);
       notifyListeners();

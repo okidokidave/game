@@ -18,7 +18,14 @@ class GameState {
     Map<String, int>? codex,
     List<String>? unseenOres,
     Map<int, double>? caretakers,
-  }) : codex = codex ?? {},
+    List<double>? workerStamina,
+    List<bool>? workerCollapsed,
+    Map<String, int>? inventory,
+    this.staminaBuffUntil,
+  }) : workerStamina = workerStamina ?? [],
+       workerCollapsed = workerCollapsed ?? [],
+       inventory = inventory ?? {},
+       codex = codex ?? {},
        unseenOres = unseenOres ?? [],
        caretakers = caretakers ?? {},
        lastSavedAt = lastSavedAt ?? DateTime.now(),
@@ -31,6 +38,12 @@ class GameState {
     }
     while (this.workerXp.length < workers) {
       this.workerXp.add(0);
+    }
+    while (this.workerStamina.length < workers) {
+      this.workerStamina.add(100);
+    }
+    while (this.workerCollapsed.length < workers) {
+      this.workerCollapsed.add(false);
     }
   }
 
@@ -69,6 +82,16 @@ class GameState {
   /// 관리인에게 맡긴 지역 → 초당 보내 주는 골드.
   Map<int, double> caretakers;
 
+  /// 인부마다의 체력(0~100)과 쓰러졌는지.
+  List<double> workerStamina;
+  List<bool> workerCollapsed;
+
+  /// 매점에서 사서 가지고 있는 물건: 물건 id → 개수.
+  Map<String, int> inventory;
+
+  /// 비타민 효과가 끝나는 시각 (그때까지 아무도 지치지 않는다).
+  DateTime? staminaBuffUntil;
+
   Map<String, dynamic> toJson() => {
     'gold': gold,
     'totalEarned': totalEarned,
@@ -84,6 +107,10 @@ class GameState {
     'regionIndex': regionIndex,
     'codex': codex,
     'unseenOres': unseenOres,
+    'workerStamina': workerStamina,
+    'workerCollapsed': workerCollapsed,
+    'inventory': inventory,
+    'staminaBuffUntil': staminaBuffUntil?.millisecondsSinceEpoch,
     'caretakers': {for (final e in caretakers.entries) '${e.key}': e.value},
   };
 
@@ -116,6 +143,24 @@ class GameState {
           (x as num).toDouble(),
       ],
       regionIndex: json['regionIndex'] as int? ?? 0,
+      workerStamina: [
+        for (final v in (json['workerStamina'] as List<dynamic>? ?? const []))
+          (v as num).toDouble(),
+      ],
+      workerCollapsed: [
+        for (final v in (json['workerCollapsed'] as List<dynamic>? ?? const []))
+          v as bool,
+      ],
+      inventory: {
+        for (final e
+            in (json['inventory'] as Map<String, dynamic>? ?? const {}).entries)
+          e.key: e.value as int,
+      },
+      staminaBuffUntil: json['staminaBuffUntil'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              json['staminaBuffUntil'] as int,
+            ),
       codex: {
         for (final e
             in (json['codex'] as Map<String, dynamic>? ?? const {}).entries)

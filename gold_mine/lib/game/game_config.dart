@@ -154,14 +154,33 @@ class GameConfig {
   static const double eventsStartAfterEarned = 100;
 
   /// 상황이 나올 비율 (합이 100일 필요는 없다).
-  static const int fatigueWeight = 30;
+  /// 지친 인부는 이제 체력(피로도) 시스템으로 생긴다. 무작위로는 나오지 않는다.
+  static const int fatigueWeight = 0;
   static const int injuryWeight = 15;
   static const int diamondWeight = 25;
   static const int goldVeinWeight = 30;
 
-  /// 지친 인부의 작업 속도, 방치하면 다치기까지 걸리는 시간.
+  /// 지친 인부(체력이 [tiredStamina] 아래)의 작업 속도.
   static const double fatigueSpeed = 0.5;
-  static const Duration fatigueToInjury = Duration(minutes: 3);
+
+  // ── 체력 (피로도) ───────────────────────────────────
+  static const double maxStamina = 100;
+
+  /// 일하는 동안 초당 줄어드는 체력 (가득 찬 체력이 약 20분 만에 바닥).
+  static const double staminaDrainPerSecond = 100 / (20 * 60);
+
+  /// 이보다 낮으면 지쳐서 절반 속도로 일한다.
+  static const double tiredStamina = 30;
+
+  /// 쓰러진 인부는 이 속도로 체력을 되찾고, [tiredStamina]가 되면 일어난다
+  /// (약 15분).
+  static const double collapsedRegenPerSecond = 30 / (15 * 60);
+
+  /// 게임을 꺼 둔 동안은 쉬면서 체력을 채운다 (30분이면 가득).
+  static const double offlineStaminaPerSecond = 100 / (30 * 60);
+
+  /// "쉬게 하기"를 하면 쉬고 난 뒤 채워지는 체력.
+  static const double restStamina = 40;
 
   /// 휴식 시간, 휴식 뒤 활력 시간과 속도.
   static const Duration restDuration = Duration(seconds: 20);
