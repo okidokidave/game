@@ -1,6 +1,6 @@
 # 게임북
 
-선택에 따라 이야기가 갈라지는 텍스트 게임북 사이트입니다. 빌드 도구 없이 `index.html`을 브라우저로 열면 바로 실행됩니다.
+선택에 따라 이야기가 갈라지는 텍스트 게임북과 인플루언서 시뮬레이터가 있는 사이트입니다. 빌드 도구 없이 `index.html`을 브라우저로 열면 바로 실행됩니다.
 
 ## 구조
 - `js/stories/*.js`: 이야기 파일 (한 파일에 이야기 하나)
@@ -10,6 +10,18 @@
 - `js/ads.js`: Google AdSense 설정
 - `css/style.css`: 스타일 (사이드바 레이아웃, 다크모드, 모바일 대응)
 - `privacy.html`: 개인정보처리방침 (AdSense 승인에 필요)
+
+## 인플루언서 시뮬레이터 (`influencer.html`)
+스마트폰 하나로 방송을 시작해 60일 안에 셀럽이 되는 도트 시뮬레이션입니다. 싸이월드 미니룸처럼 방의 단면을 보여주고, 돈을 벌어 장비(카메라·마이크·조명·PC)와 소품을 사면 방에 그대로 나타납니다. 방송 중 사건(악플, 뒷광고 제안, 열애설 등)에서 고른 선택은 가상 SNS "버즈"에서 악플과 쉴드가 맞붙는 토론으로 이어집니다.
+
+- `js/influencer/data.js`: 장비, 방송 종류, 이벤트, SNS 문구, 엔딩 (내용 추가는 여기서)
+- `js/influencer/rules.js`: 시청자·구독자·수익 계산 (밸런스 조절)
+- `js/influencer/sns.js`: SNS 글·댓글 토론 생성
+- `js/influencer/room.js`: 아이소메트릭 도트 방 그리기 (캔버스)
+- `js/influencer/game.js`: 게임 진행과 화면
+- `css/influencer.css`: 스타일
+
+이벤트를 추가하려면 `data.js`의 `IF.EVENTS`에 항목을 넣으면 됩니다. 선택지마다 `fx`(수치 변화)와 `sns`(태그, 기사 제목, `tone`: -1 악플 위주 ~ 1 쉴드 위주, 진영별 문구)를 적습니다.
 
 ## 새 이야기(게임) 추가하기
 1. `js/stories/mansion.js`를 복사해 `js/stories/새이름.js`를 만들고 `id`, `title`, `intro`, `cover`, `start`, `scenes`를 고칩니다.

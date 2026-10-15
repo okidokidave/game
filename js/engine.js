@@ -60,6 +60,7 @@
       if (s === STORY) a.setAttribute("aria-current", "page");
       return a;
     });
+    links.push(el("a", { href: "influencer.html", className: "story-link", textContent: "인플루언서 시뮬레이터" }));
     links.push(el("span", { className: "story-link soon", textContent: "새 이야기 준비 중" }));
     $("story-nav").replaceChildren(...links);
   }
