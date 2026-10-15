@@ -183,8 +183,13 @@ class GameConfig {
   static const Duration maxBoostTime = Duration(minutes: 30);
 
   // ── 돌발상황 / 좋은 일 ──────────────────────────────
-  /// 평균 몇 초에 한 번 상황이 생기는지 (게임을 켜 둔 동안만).
-  static const double eventMeanInterval = 150;
+  /// 평균 몇 초에 한 번 상황이 생기는지 (소장이 직접 플레이하는 동안).
+  static const double eventMeanInterval = 100;
+
+  /// 마지막으로 화면을 만진 뒤 이만큼 지나면 "자리를 비운" 것으로 본다.
+  /// 그때부터는 귀찮은 상황(부상·침수·귀신·다이아)은 생기지 않고 금맥만 가끔.
+  /// 게임을 꺼 둔 동안에는 아무 상황도 생기지 않는다 (방치형).
+  static const Duration idleAfter = Duration(minutes: 2);
 
   /// 소장이 처리해야 하는 상황은 동시에 최대 몇 개까지.
   static const int maxManagerEvents = 2;

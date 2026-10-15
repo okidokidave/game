@@ -165,4 +165,27 @@ void main() {
     final loaded = GameController(SaveRepository(prefs), clock: () => now);
     expect(loaded.floorEvent(0)?.type, MineEventType.flood);
   });
+
+  test('화면을 한동안 안 만지면 귀찮은 상황 대신 금맥만 생긴다', () {
+    moveTo(2);
+    random.doubles.add(0.99);
+    game.updateEvents(GameConfig.idleAfter.inSeconds.toDouble());
+    expect(game.isIdle, isTrue);
+    random.ints.addAll([rollFor(MineEventType.ghost), 0]);
+    game.updateEvents(1);
+    expect(game.floorEvent(0)?.type, MineEventType.goldVein);
+
+    // 다시 만지면 직접 플레이 중
+    game.markActive();
+    expect(game.isIdle, isFalse);
+  });
+
+  test('게임을 꺼 둔 동안 침수와 귀신은 알아서 해결된다', () {
+    moveTo(1);
+    spawn(MineEventType.flood);
+    game.save();
+    now = now.add(const Duration(minutes: 30));
+    game.collectOfflineEarnings(now);
+    expect(game.floorEvent(0), isNull);
+  });
 }

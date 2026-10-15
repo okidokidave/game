@@ -792,19 +792,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListenableBuilder(
-                listenable: _game,
-                builder: (context, _) => _buildGame(),
+    // 화면을 만지는 동안만 "직접 플레이 중"으로 보고 돌발상황을 띄운다.
+    return Listener(
+      onPointerDown: (_) => _game.markActive(),
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListenableBuilder(
+                  listenable: _game,
+                  builder: (context, _) => _buildGame(),
+                ),
               ),
-            ),
-            // 배너는 0.1초마다 다시 그릴 필요가 없어서 밖에 둔다.
-            _ads.buildBanner(),
-          ],
+              // 배너는 0.1초마다 다시 그릴 필요가 없어서 밖에 둔다.
+              _ads.buildBanner(),
+            ],
+          ),
         ),
       ),
     );

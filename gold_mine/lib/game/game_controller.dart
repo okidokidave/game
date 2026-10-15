@@ -420,6 +420,15 @@ class GameController extends ChangeNotifier {
     return earned;
   }
 
+  /// 소장이 화면을 만진 뒤 흐른 (게임을 켜 둔) 시간.
+  double _idleSeconds = 0;
+
+  /// 소장이 화면을 만졌다. 직접 플레이하는 동안에만 돌발상황이 활발하다.
+  void markActive() => _idleSeconds = 0;
+
+  /// 화면을 한동안 안 만져서 자리를 비운 상태인지.
+  bool get isIdle => _idleSeconds >= GameConfig.idleAfter.inSeconds;
+
   /// [seconds]초만큼 상황을 진행한다: 끝난 상황 정리, 새 상황 발생.
   void updateEvents(double seconds) {
     final now = _clock();
@@ -429,6 +438,7 @@ class GameController extends ChangeNotifier {
         _random.nextDouble() < seconds / GameConfig.eventMeanInterval) {
       changed = _spawnEvent(now) || changed;
     }
+    if (seconds > 0) _idleSeconds += seconds;
     _findRareOres(seconds);
     if (changed) notifyListeners();
   }
@@ -486,7 +496,8 @@ class GameController extends ChangeNotifier {
   bool _spawnEvent(DateTime now) {
     if (managerEvents.length >= GameConfig.maxManagerEvents) return false;
 
-    final type = _pickEventType();
+    // 자리를 비운 동안에는 저절로 끝나는 좋은 일(금맥)만 생긴다.
+    final type = isIdle ? MineEventType.goldVein : _pickEventType();
     if (type.isFloorWide) {
       final floors = [
         for (var f = 0; f < _state.mineLevel; f++)
@@ -972,6 +983,17 @@ class GameController extends ChangeNotifier {
     final earned = steadyGoldPerSecond * seconds * GameConfig.offlineEfficiency;
     _state.lastSavedAt = now;
     _gainXp(seconds * GameConfig.offlineEfficiency, notify: false);
+    // 1분 넘게 비웠으면 남아 있던 침수·귀신은 인부들이 알아서 해결해 둔다.
+    if (seconds >= 60) {
+      _state.events.removeWhere(
+        (e) =>
+            e.type == MineEventType.flood ||
+            e.type == MineEventType.bailing ||
+            e.type == MineEventType.ghost ||
+            e.type == MineEventType.exorcism,
+      );
+    }
+    markActive();
     // 자리를 비운 동안 인부들은 쉬면서 체력을 채운다.
     for (var slot = 0; slot < _state.workers; slot++) {
       _setStamina(
