@@ -175,7 +175,7 @@ class GameController extends ChangeNotifier {
 
   /// 저장 데이터를 지우고 처음부터 다시 시작한다.
   Future<void> reset() async {
-    _state = GameState();
+    _state = GameState(lastSavedAt: _clock());
     await _repository.clear();
     notifyListeners();
   }

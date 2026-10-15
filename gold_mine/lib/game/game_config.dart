@@ -17,18 +17,20 @@ class GameConfig {
   static const int workersPerMineLevel = 3;
 
   // ── 비용 ────────────────────────────────────────────
-  static const double workerBaseCost = 10;
-  static const double workerCostGrowth = 1.15;
+  // 목표 속도 (부지런히 플레이할 때): B2층 약 2분, B3층 약 15분,
+  // B4층 약 45분, B5층 약 2시간, B6층 약 8시간.
+  static const double workerBaseCost = 25;
+  static const double workerCostGrowth = 1.3;
 
-  static const double mineBaseCost = 100;
-  static const double mineCostGrowth = 3.5;
+  static const double mineBaseCost = 800;
+  static const double mineCostGrowth = 7;
 
-  static const double pickaxeBaseCost = 15;
-  static const double pickaxeCostGrowth = 1.5;
+  static const double pickaxeBaseCost = 40;
+  static const double pickaxeCostGrowth = 2;
 
   // ── 오프라인 보상 ───────────────────────────────────
   /// 앱을 꺼 둔 시간 중 최대 몇 시간까지 보상하는지.
-  static const Duration maxOfflineTime = Duration(hours: 8);
+  static const Duration maxOfflineTime = Duration(hours: 4);
 
   /// 오프라인 동안은 실제 생산량의 몇 %를 주는지.
   static const double offlineEfficiency = 0.5;

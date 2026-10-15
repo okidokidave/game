@@ -128,6 +128,52 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _showSettings() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.restart_alt),
+              title: const Text('처음부터 다시 시작'),
+              subtitle: const Text('골드, 인부, 광산이 모두 초기화돼요'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _confirmReset();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmReset() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('처음부터 다시 시작할까요?'),
+        content: const Text('지금까지의 골드, 인부, 광산이 모두 사라지고 되돌릴 수 없어요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('다시 시작'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _game.reset();
+    await _game.save();
+    _showMessage('새 광산에서 다시 시작합니다!');
+  }
+
   void _showMessage(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -174,6 +220,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   adReady: ready,
                   onPressed: _watchAdForBoost,
                 ),
+              ),
+              IconButton(
+                tooltip: '설정',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.settings, color: Colors.white54),
+                onPressed: _showSettings,
               ),
             ],
           ),

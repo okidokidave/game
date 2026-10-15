@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gold_mine/ads/ad_service.dart';
+import 'package:gold_mine/game/game_config.dart';
 import 'package:gold_mine/game/game_controller.dart';
 import 'package:gold_mine/game/save_repository.dart';
 import 'package:gold_mine/main.dart';
@@ -44,14 +45,16 @@ void main() {
     expect(find.byType(MineScene), findsOneWidget);
     expect(find.text('인부 고용'), findsOneWidget);
 
+    // 첫 인부 값만큼 직접 캔다.
+    final taps = GameConfig.workerBaseCost.toInt();
     final before = game.gold;
-    for (var i = 0; i < 10; i++) {
+    for (var i = 0; i < taps; i++) {
       await tester.tap(find.byType(MineScene));
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 50));
     }
-    expect(game.gold - before, closeTo(10, 1e-9));
+    expect(game.gold - before, closeTo(taps, 1e-9));
 
-    final hireButton = find.widgetWithText(FilledButton, '10');
+    final hireButton = find.widgetWithText(FilledButton, '$taps');
     expect(tester.widget<FilledButton>(hireButton).onPressed, isNotNull);
     await tester.tap(hireButton);
     await tester.pump(const Duration(milliseconds: 300));
@@ -77,6 +80,31 @@ void main() {
     expect(game.isBoostActive, isTrue);
     expect(find.textContaining('분 연장'), findsOneWidget);
 
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('설정에서 처음부터 다시 시작할 수 있다', (tester) async {
+    final game = await newGame();
+    game.tick(10000);
+    game.upgradeMine();
+
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+    await tester.pumpWidget(GoldMineApp(controller: game, ads: NoAdService()));
+    game.stop();
+
+    // 화면이 계속 움직여서 pumpAndSettle 대신 시작 프레임과 애니메이션 시간을 따로 진행한다.
+    await tester.tap(find.byTooltip('설정'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.text('처음부터 다시 시작'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.widgetWithText(FilledButton, '다시 시작'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(game.gold, 0);
+    expect(game.mineLevel, 1);
+    expect(game.workers, 1);
     await tester.binding.setSurfaceSize(null);
   });
 
