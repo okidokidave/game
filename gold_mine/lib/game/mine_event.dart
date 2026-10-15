@@ -1,9 +1,9 @@
 /// 광산에서 일어나는 돌발상황과 좋은 일.
 ///
-/// 플레이어는 "작업 반장"이다. 피로·부상·다이아 발견은 반장이 직접 결정해야
+/// 플레이어는 "현장 소장"이다. 피로·부상·다이아 발견은 소장이 직접 결정해야
 /// 하고, 휴식·활력·금맥은 시간이 지나면 저절로 끝난다.
 enum MineEventType {
-  /// 인부가 지쳐서 절반 속도로 일한다. 반장이 휴식을 줄 때까지 계속된다.
+  /// 인부가 지쳐서 절반 속도로 일한다. 소장이 휴식을 줄 때까지 계속된다.
   fatigue,
 
   /// 인부가 다쳐서 일을 못 한다. 치료하거나 시간이 지나면 회복한다.
@@ -15,7 +15,7 @@ enum MineEventType {
   /// 푹 쉰 인부가 빨리 일한다.
   energized,
 
-  /// 인부가 다이아몬드를 찾았다. 반장이 받아야 골드가 된다.
+  /// 인부가 다이아몬드를 찾았다. 소장이 받아야 골드가 된다.
   diamond,
 
   /// 층 전체에 금맥이 드러나 생산량이 늘어난다.
@@ -23,8 +23,8 @@ enum MineEventType {
 }
 
 extension MineEventTypeInfo on MineEventType {
-  /// 반장이 눌러서 결정해야 하는 상황인지.
-  bool get needsForeman =>
+  /// 소장이 눌러서 결정해야 하는 상황인지.
+  bool get needsManager =>
       this == MineEventType.fatigue ||
       this == MineEventType.injury ||
       this == MineEventType.diamond;
@@ -60,7 +60,7 @@ class MineEvent {
 
   final DateTime startedAt;
 
-  /// 이 시각이 지나면 끝난다. null이면 반장이 처리할 때까지 계속.
+  /// 이 시각이 지나면 끝난다. null이면 소장이 처리할 때까지 계속.
   final DateTime? endsAt;
 
   /// 다이아몬드처럼 골드를 주는 상황의 보상.

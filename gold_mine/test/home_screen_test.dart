@@ -86,7 +86,7 @@ void main() {
     await tester.binding.setSurfaceSize(null);
   });
 
-  testWidgets('반장이 알림을 눌러 다이아몬드를 받는다', (tester) async {
+  testWidgets('소장이 알림을 눌러 다이아몬드를 받는다', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final random = ScriptedRandom();
@@ -100,7 +100,7 @@ void main() {
     random.doubles.add(0);
     random.ints.addAll([rollFor(MineEventType.diamond), 0]);
     game.updateEvents(1);
-    final diamond = game.foremanEvents.single;
+    final diamond = game.managerEvents.single;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -114,7 +114,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(game.gold, closeTo(before + diamond.reward, 1e-9));
-    expect(game.foremanEvents, isEmpty);
+    expect(game.managerEvents, isEmpty);
     await tester.binding.setSurfaceSize(null);
   });
 

@@ -87,10 +87,10 @@ void main() {
   });
 
   group('지친 인부', () {
-    test('절반 속도로 일하고 반장에게 보고된다', () {
+    test('절반 속도로 일하고 소장에게 보고된다', () {
       final e = spawn(MineEventType.fatigue);
       expect(e.type, MineEventType.fatigue);
-      expect(e.type.needsForeman, isTrue);
+      expect(e.type.needsManager, isTrue);
       expect(game.workerSpeed(0, 0), GameConfig.fatigueSpeed);
       expect(
         game.baseGoldPerSecond,
@@ -185,15 +185,15 @@ void main() {
     });
   });
 
-  test('반장이 처리할 상황은 동시에 최대 개수까지만 생긴다', () {
+  test('소장이 처리할 상황은 동시에 최대 개수까지만 생긴다', () {
     game.grantBonusGold(1e9);
     while (game.hireWorker()) {}
-    for (var k = 0; k < GameConfig.maxForemanEvents + 3; k++) {
+    for (var k = 0; k < GameConfig.maxManagerEvents + 3; k++) {
       random.doubles.add(0);
       random.ints.addAll([rollFor(MineEventType.injury), k]);
       game.updateEvents(1);
     }
-    expect(game.foremanEvents.length, GameConfig.maxForemanEvents);
+    expect(game.managerEvents.length, GameConfig.maxManagerEvents);
   });
 
   test('오프라인 보상은 돌발상황과 상관없이 계산한다', () async {

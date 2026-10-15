@@ -1,6 +1,6 @@
 import 'dart:math';
 
-/// 인부 등급. 일한 시간(경험치)이 차면 반장이 골드를 내고 승급시킨다.
+/// 인부 등급. 일한 시간(경험치)이 차면 소장이 골드를 내고 승급시킨다.
 class WorkerGrade {
   const WorkerGrade(
     this.name,
@@ -138,8 +138,8 @@ class GameConfig {
   /// 평균 몇 초에 한 번 상황이 생기는지 (게임을 켜 둔 동안만).
   static const double eventMeanInterval = 150;
 
-  /// 반장이 처리해야 하는 상황은 동시에 최대 몇 개까지.
-  static const int maxForemanEvents = 2;
+  /// 소장이 처리해야 하는 상황은 동시에 최대 몇 개까지.
+  static const int maxManagerEvents = 2;
 
   /// 이만큼 벌기 전까지는 상황이 생기지 않는다 (처음 배우는 동안).
   static const double eventsStartAfterEarned = 100;

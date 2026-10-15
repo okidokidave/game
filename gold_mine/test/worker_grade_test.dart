@@ -42,7 +42,7 @@ void main() {
     expect(game.isPromotionReady(0), isFalse);
   });
 
-  test('경험치는 다음 등급에 필요한 만큼까지만 차고, 반장에게 알린다', () {
+  test('경험치는 다음 등급에 필요한 만큼까지만 차고, 소장에게 알린다', () {
     game.tick(apprentice.xpToPromote! + 1000);
     expect(game.xpOf(0), apprentice.xpToPromote);
     expect(game.isPromotionReady(0), isTrue);

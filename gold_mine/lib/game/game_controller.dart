@@ -22,10 +22,10 @@ class GameController extends ChangeNotifier {
   final DateTime Function() _clock;
   final Random _random;
 
-  /// 상황이 생기거나 바뀔 때 화면에 알리는 함수 (반장에게 보고).
+  /// 상황이 생기거나 바뀔 때 화면에 알리는 함수 (소장에게 보고).
   void Function(MineEvent event, String message)? onEventNotice;
 
-  /// 그 밖의 소식 (예: 승급 준비 완료)을 반장에게 알리는 함수.
+  /// 그 밖의 소식 (예: 승급 준비 완료)을 소장에게 알리는 함수.
   void Function(String message)? onMessage;
   GameState _state;
   Timer? _ticker;
@@ -122,10 +122,10 @@ class GameController extends ChangeNotifier {
   // ── 돌발상황 / 좋은 일 ──────────────────────────────
   List<MineEvent> get events => List.unmodifiable(_state.events);
 
-  /// 반장이 결정해야 하는 상황 (오래된 것부터).
-  List<MineEvent> get foremanEvents => [
+  /// 소장이 결정해야 하는 상황 (오래된 것부터).
+  List<MineEvent> get managerEvents => [
     for (final e in _state.events)
-      if (e.type.needsForeman) e,
+      if (e.type.needsManager) e,
   ];
 
   /// 인부 한 명에게 걸린 상황 (없으면 null).
@@ -234,7 +234,7 @@ class GameController extends ChangeNotifier {
           MineEventType.injury,
           GameConfig.injuryHealTime,
         );
-        _notice(injury, '반장님, B${e.floor + 1} 인부가 무리하다 다쳤어요!');
+        _notice(injury, '소장님, B${e.floor + 1} 인부가 무리하다 다쳤어요!');
         changed = true;
         continue;
       }
@@ -264,7 +264,7 @@ class GameController extends ChangeNotifier {
   }
 
   bool _spawnEvent(DateTime now) {
-    if (foremanEvents.length >= GameConfig.maxForemanEvents) return false;
+    if (managerEvents.length >= GameConfig.maxManagerEvents) return false;
 
     final type = _pickEventType();
     if (type == MineEventType.goldVein) {
@@ -277,7 +277,7 @@ class GameController extends ChangeNotifier {
       if (floors.isEmpty) return false;
       final floor = floors[_random.nextInt(floors.length)];
       final e = _add(type, floor, -1, now, GameConfig.goldVeinDuration);
-      _notice(e, '반장님! B${floor + 1}에서 금맥이 드러났어요! 1분간 생산 3배!');
+      _notice(e, '소장님! B${floor + 1}에서 금맥이 드러났어요! 1분간 생산 3배!');
       return true;
     }
 
@@ -291,11 +291,11 @@ class GameController extends ChangeNotifier {
     final name = 'B${floor + 1} 인부';
     switch (type) {
       case MineEventType.fatigue:
-        _notice(_add(type, floor, worker, now, null), '반장님, $name가 많이 지쳤어요.');
+        _notice(_add(type, floor, worker, now, null), '소장님, $name가 많이 지쳤어요.');
       case MineEventType.injury:
         _notice(
           _add(type, floor, worker, now, GameConfig.injuryHealTime),
-          '반장님, $name가 다쳤어요!',
+          '소장님, $name가 다쳤어요!',
         );
       case MineEventType.diamond:
         final reward = max(
@@ -311,7 +311,7 @@ class GameController extends ChangeNotifier {
             GameConfig.diamondExpireTime,
             reward: reward,
           ),
-          '반장님! $name가 다이아몬드를 찾았어요!',
+          '소장님! $name가 다이아몬드를 찾았어요!',
         );
       case MineEventType.rest:
       case MineEventType.energized:
@@ -409,7 +409,7 @@ class GameController extends ChangeNotifier {
   bool canPromote(int slot) =>
       isPromotionReady(slot) && gold >= promotionCost(slot);
 
-  /// 반장이 인부를 다음 등급으로 올린다.
+  /// 소장이 인부를 다음 등급으로 올린다.
   bool promote(int slot) {
     if (!canPromote(slot)) return false;
     _state.gold -= promotionCost(slot);
@@ -432,7 +432,7 @@ class GameController extends ChangeNotifier {
       );
       if (notify && xpOf(slot) >= need) {
         onMessage?.call(
-          '반장님, ${workerLabel(slot)} ${gradeOf(slot).name} 인부가 '
+          '소장님, ${workerLabel(slot)} ${gradeOf(slot).name} 인부가 '
           '승급할 준비가 됐어요! ⬆',
         );
       }

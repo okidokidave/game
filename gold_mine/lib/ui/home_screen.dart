@@ -133,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  // ── 작업 반장의 결정 ────────────────────────────────
+  // ── 현장 소장의 결정 ────────────────────────────────
   void _onEventNotice(MineEvent event, String message) {
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       SnackBar(
         content: Text(message),
         duration: const Duration(seconds: 3),
-        action: stillOpen != null && stillOpen.type.needsForeman
+        action: stillOpen != null && stillOpen.type.needsManager
             ? SnackBarAction(
                 label: '확인',
                 onPressed: () {
@@ -163,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _decide(
           title: '💦 지친 인부',
           message:
-              '반장님, $floor 인부가 많이 지쳤어요.\n'
+              '소장님, $floor 인부가 많이 지쳤어요.\n'
               '지금은 절반 속도로 일하고 있어요.\n'
               '${GameConfig.fatigueToInjury.inMinutes}분 넘게 무리하면 다칠 수 있어요.',
           choices: [
@@ -187,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _decide(
           title: '🩹 다친 인부',
           message:
-              '반장님, $floor 인부가 다쳐서 일을 못 하고 있어요.\n'
+              '소장님, $floor 인부가 다쳐서 일을 못 하고 있어요.\n'
               '그냥 두면 약 $healIn분 뒤에 회복해요.',
           choices: [
             ('기다리기', false, () {}),
@@ -219,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _decide(
           title: '💎 다이아몬드 발견!',
           message:
-              '반장님! $floor 인부가 다이아몬드를 찾았어요!\n'
+              '소장님! $floor 인부가 다이아몬드를 찾았어요!\n'
               '${formatGold(event.reward)} 골드에 팔 수 있어요.',
           choices: [
             if (_ads.rewardedReady.value)
@@ -250,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// 반장에게 선택지를 보여 준다. (글자, 강조 여부, 누르면 할 일)
+  /// 소장에게 선택지를 보여 준다. (글자, 강조 여부, 누르면 할 일)
   void _decide({
     required String title,
     required String message,
@@ -402,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _decide(
       title: '⬆ 승급',
       message:
-          '반장님, ${GameController.workerLabel(slot)} ${grade.name} 인부가 '
+          '소장님, ${GameController.workerLabel(slot)} ${grade.name} 인부가 '
           '승급할 준비가 됐어요!\n\n'
           '${grade.name} → ${next.name}\n'
           '생산 ×${grade.multiplier} → ×${next.multiplier}',
@@ -592,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         title: Text('${tier.name} 도입!'),
         content: Text(
-          '반장님, 새 장비가 들어왔어요!\n'
+          '소장님, 새 장비가 들어왔어요!\n'
           '이제 인부들이 ${tier.name}(으)로 일해서\n'
           '생산량이 ${tier.multiplier}배가 돼요.',
           textAlign: TextAlign.center,

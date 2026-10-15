@@ -12,7 +12,7 @@ import 'mine_painter.dart';
 import 'sprites.dart';
 
 /// 움직이는 광산 단면도. 위아래로 스크롤되고, 누르면 직접 채굴한다.
-/// 인부 머리 위 말풍선이나 위쪽 알림을 누르면 반장이 상황을 처리한다.
+/// 인부 머리 위 말풍선이나 위쪽 알림을 누르면 소장이 상황을 처리한다.
 class MineScene extends StatefulWidget {
   const MineScene({
     super.key,
@@ -28,7 +28,7 @@ class MineScene extends StatefulWidget {
   /// 도트 그림. 없으면 (테스트 등) 배경색만 그린다.
   final Sprites? sprites;
 
-  /// 반장이 처리해야 하는 상황을 눌렀을 때.
+  /// 소장이 처리해야 하는 상황을 눌렀을 때.
   final void Function(MineEvent event)? onEventTap;
 
   /// 승급 준비가 된 인부(⬆)를 눌렀을 때. 인부 번호를 넘긴다.
@@ -137,9 +137,9 @@ class _MineSceneState extends State<MineScene>
     );
   }
 
-  /// 누른 곳 가까이에 반장을 부르는 인부가 있으면 그 상황.
+  /// 누른 곳 가까이에 소장을 부르는 인부가 있으면 그 상황.
   MineEvent? _eventAt(Offset pos) {
-    for (final e in _game.foremanEvents) {
+    for (final e in _game.managerEvents) {
       final look = _look(e.floor, e.worker);
       final sprite = MinerCycle.sprite(
         look,
@@ -263,7 +263,7 @@ class _EventBadges extends StatelessWidget {
   Widget build(BuildContext context) {
     final shown = [
       for (final e in events)
-        if (e.type.needsForeman || e.type == MineEventType.goldVein) e,
+        if (e.type.needsManager || e.type == MineEventType.goldVein) e,
     ];
     if (shown.isEmpty && promotionReady == 0) return const SizedBox.shrink();
     return Wrap(
@@ -298,7 +298,7 @@ class _EventBadges extends StatelessWidget {
     final timer = e.endsAt == null || e.type == MineEventType.injury
         ? ''
         : ' ${left.inMinutes}:${(left.inSeconds % 60).toString().padLeft(2, '0')}';
-    final tappable = e.type.needsForeman && onTap != null;
+    final tappable = e.type.needsManager && onTap != null;
     return _chip(
       '$icon $label$timer${tappable ? '  ›' : ''}',
       color,

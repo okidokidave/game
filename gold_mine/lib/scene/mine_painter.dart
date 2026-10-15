@@ -321,13 +321,13 @@ class MinePainter extends CustomPainter {
           };
     if (icon.isEmpty) return;
     final center = MinerCycle.bubbleCenter(floor, x, look);
-    // 반장을 부르는 말풍선은 살짝 통통 튄다.
-    final needsForeman =
+    // 소장을 부르는 말풍선은 살짝 통통 튄다.
+    final needsManager =
         promote ||
         look == WorkerLook.tired ||
         look == WorkerLook.injured ||
         look == WorkerLook.diamond;
-    final bob = needsForeman ? (sin(t * 6) > 0 ? -1.0 : 0.0) : 0.0;
+    final bob = needsManager ? (sin(t * 6) > 0 ? -1.0 : 0.0) : 0.0;
     final rect = Rect.fromCenter(
       center: center.translate(0, bob),
       width: 11,
