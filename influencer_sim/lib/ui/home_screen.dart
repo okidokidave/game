@@ -60,9 +60,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   SoundService? get _sound => widget.sound;
 
-  Future<void> _phone({bool trendTab = false, Trend? trend}) {
+  Future<void> _phone({bool trendTab = false, Trend? trend, bool dmTab = false}) {
     _sfx(Sfx.notify);
-    return showPhone(context, game, trendTab: trendTab, trend: trend);
+    return showPhone(context, game, trendTab: trendTab, trend: trend, dmTab: dmTab);
   }
 
   // 소리 켜기/끄기 (효과음·배경음악 함께)
@@ -159,10 +159,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         case 'upload':
           await _upload();
         case 'work':
-          game.work();
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-          await _advance();
-          if (s.ended == null && s.slot != 0) game.setMode('away');
+          await _work();
         case 'rest':
           game.rest();
           await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -174,6 +171,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// 알바: 그냥 일하기 또는 알바 브이로그 찍기
+  Future<void> _work() async {
+    final place = game.job;
+    final pay = s.slot == 2 ? (place.pay * 1.2).round() : place.pay;
+    final strikes = s.workStrikes;
+    final i = await ask(context, '${place.name} 알바', [
+      mutedText('오늘 알바비 ${shortWon(pay)} · 체력 -22', size: 14),
+      const SizedBox(height: 10),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(12)),
+        child: Text(
+          '🎥 알바 브이로그를 찍으면 구독자가 늘어요. 대신 점장님께 걸리면 경고! 3번 걸리면 잘려요.\n현재 경고 $strikes/3',
+          style: const TextStyle(color: Pal.text, fontSize: 13, height: 1.5),
+        ),
+      ),
+    ], const [
+      DialogButton('묵묵히 일만 한다', choice: true),
+      DialogButton('🎥 알바 브이로그를 찍는다', choice: true),
+      DialogButton('취소'),
+    ], icon: place.icon);
+    if (i == 2 || !mounted) return;
+    final out = game.work(vlog: i == 1);
+    _sfx(Sfx.coin);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    if (i == 1) {
+      if (out.fired) _sfx(Sfx.alert, Buzz.heavy);
+      await ask(
+        context,
+        out.fired ? '알바에서 잘렸다!' : (out.caught ? '점장님께 걸렸다…' : '알바 브이로그 완성'),
+        [
+          eventText(out.fired
+              ? '"이번이 세 번째죠? 내일부터 안 나와도 돼요." 해고 순간까지 카메라에 담겼다. 그런데 이 클립이 화제가 되고 있다…'
+              : out.caught
+                  ? '"근무 중에 촬영하면 안 된다고 했죠?" 점장님 눈빛이 싸늘하다. (경고 ${out.strikes}/3)'
+                  : '손님 몰래 찍은 알바 일상이 소소하게 반응을 얻었다.'),
+          changeChips([Change('알바비', '+${shortWon(out.pay)}', true), Change('구독자', '+${shortNum(out.gain)}', true)]),
+          if (out.fired) ...[const SizedBox(height: 8), mutedText('일주일 동안 알바를 할 수 없어요. 그 뒤 새 알바를 구할 수 있어요.')],
+        ],
+        [DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)],
+        icon: out.fired ? '🚫' : (out.caught ? '😬' : '🎥'),
+      );
+      if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
+    }
+    await _advance();
+    if (s.ended == null && s.slot != 0) game.setMode('away');
   }
 
   Future<void> _advance() async {
@@ -282,6 +328,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       icon: r.viral ? '🚀' : (r.flop ? '😓' : c.icon),
     );
     if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
+    // 방송을 보고 DM으로 제안이 왔다
+    final offer = out.offer;
+    if (offer != null && mounted) {
+      _sfx(Sfx.notify, Buzz.medium);
+      final open = await ask(
+        context,
+        '📩 새 DM',
+        [eventText('${offer.from}에게서 DM이 왔어요!'), mutedText('"${Sns.fill(offer.text(s), s)}"', size: 13)],
+        const [DialogButton('DM 열어 보기', primary: true), DialogButton('나중에')],
+        icon: '📩',
+      );
+      if (open == 0 && mounted) await _phone(dmTab: true);
+    }
     if (await _checkOver()) return;
     await _advance();
   }
@@ -999,7 +1058,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             height: 46,
             child: Center(child: Text('📱', style: TextStyle(fontSize: 22))),
           ),
-          if (s.unread > 0)
+          if (s.unread + game.dmUnread > 0)
             Positioned(
               top: -5,
               right: -5,
@@ -1013,7 +1072,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   border: Border.all(color: Colors.white, width: 1.5),
                 ),
                 child: Text(
-                  s.unread > 99 ? '99+' : '${s.unread}',
+                  s.unread + game.dmUnread > 99 ? '99+' : '${s.unread + game.dmUnread}',
                   style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w900),
                 ),
               ),

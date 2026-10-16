@@ -7,7 +7,8 @@ import 'palette.dart';
 
 /// 가상 SNS "버즈" 화면 (휴대폰 모양 팝업).
 /// [trend]를 주면 트렌드 탭에서 그 주제를 먼저 보여 준다.
-Future<void> showPhone(BuildContext context, GameController game, {bool trendTab = false, Trend? trend}) {
+/// [dmTab]이면 DM함을 먼저 연다.
+Future<void> showPhone(BuildContext context, GameController game, {bool trendTab = false, Trend? trend, bool dmTab = false}) {
   game.markRead();
   return showGeneralDialog<void>(
     context: context,
@@ -15,7 +16,7 @@ Future<void> showPhone(BuildContext context, GameController game, {bool trendTab
     barrierLabel: '닫기',
     barrierColor: const Color(0x990A0C18),
     transitionDuration: const Duration(milliseconds: 350),
-    pageBuilder: (ctx, _, _) => SafeArea(child: Center(child: _Phone(game: game, trendTab: trendTab, trend: trend))),
+    pageBuilder: (ctx, _, _) => SafeArea(child: Center(child: _Phone(game: game, trendTab: trendTab, trend: trend, dmTab: dmTab))),
     transitionBuilder: (ctx, anim, _, child) {
       final t = Curves.easeOutBack.transform(anim.value);
       return Opacity(
@@ -30,9 +31,10 @@ Future<void> showPhone(BuildContext context, GameController game, {bool trendTab
 }
 
 class _Phone extends StatefulWidget {
-  const _Phone({required this.game, required this.trendTab, this.trend});
+  const _Phone({required this.game, required this.trendTab, this.trend, this.dmTab = false});
   final GameController game;
   final bool trendTab;
+  final bool dmTab;
   final Trend? trend;
 
   @override
@@ -42,7 +44,35 @@ class _Phone extends StatefulWidget {
 class _PhoneState extends State<_Phone> {
   late bool _trendTab = widget.trendTab;
   late Trend? _topic = widget.trend;
+  late bool _dmTab = widget.dmTab;
   final _scroll = ScrollController();
+
+  // DM함을 열었을 때 멘탈 변화 (읽은 욕·응원 DM)
+  int? _dmMental;
+
+  // 제안 DM에 답장한 결과 (DM id → 글)
+  final _dmResult = <String, String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    // 빌드 중에 상태를 바꾸지 않도록 첫 프레임 뒤에 읽음 처리
+    if (_dmTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final delta = widget.game.readDms();
+        if (mounted && delta != 0) setState(() => _dmMental = delta);
+      });
+    }
+  }
+
+  void _showDm() {
+    final delta = widget.game.readDms();
+    setState(() {
+      _dmTab = true;
+      if (delta != 0) _dmMental = delta;
+    });
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
 
   // 방금 한 대응 결과 (트렌드 화면 위에 보여 준다)
   String? _result;
@@ -56,6 +86,7 @@ class _PhoneState extends State<_Phone> {
   void _show(bool trend, [Trend? topic]) {
     setState(() {
       _trendTab = trend;
+      _dmTab = false;
       _topic = topic;
     });
     if (_scroll.hasClients) _scroll.jumpTo(0);
@@ -111,26 +142,146 @@ class _PhoneState extends State<_Phone> {
             ),
             Container(
               decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _line))),
-              child: Row(children: [_tab('타임라인', !_trendTab, () => _show(false)), _tab('트렌드', _trendTab, () => _show(true))]),
+              child: Row(children: [
+                _tab('타임라인', !_trendTab && !_dmTab, () => _show(false)),
+                _tab('트렌드', _trendTab && !_dmTab, () => _show(true)),
+                _tab('DM', _dmTab, _showDm, badge: widget.game.dmUnread, key: const ValueKey('dm-tab')),
+              ]),
             ),
-            Expanded(child: _trendTab ? _trendBody() : _feedBody()),
+            Expanded(child: _dmTab ? _dmBody() : (_trendTab ? _trendBody() : _feedBody())),
           ],
         ),
       ),
     );
   }
 
-  Widget _tab(String label, bool active, VoidCallback onTap) => Expanded(
+  Widget _tab(String label, bool active, VoidCallback onTap, {int badge = 0, Key? key}) => Expanded(
         child: InkWell(
+          key: key,
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             alignment: Alignment.center,
             decoration: BoxDecoration(border: Border(bottom: BorderSide(color: active ? Pal.sns : Colors.transparent, width: 3))),
-            child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: active ? _text : _muted)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: active ? _text : _muted)),
+                if (badge > 0)
+                  Container(
+                    margin: const EdgeInsets.only(left: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(color: Pal.live, borderRadius: BorderRadius.circular(999)),
+                    child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w900)),
+                  ),
+              ],
+            ),
           ),
         ),
       );
+
+  // ───── DM함 ─────
+  Widget _dmBody() {
+    final dms = widget.game.s.dms;
+    if (dms.isEmpty) return _empty('아직 DM이 없어요. 방송을 하다 보면 팬도, 회사도 연락해 올 거예요.');
+    final m = _dmMental;
+    return ListView(
+      controller: _scroll,
+      children: [
+        if (m != null && m != 0)
+          Container(
+            margin: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: m < 0 ? const Color(0xFFFFEEF0) : const Color(0xFFEFFAF3), borderRadius: BorderRadius.circular(12)),
+            child: Text(
+              m < 0 ? '😣 욕 DM을 읽고 멘탈이 흔들렸다 (멘탈 $m)' : '🥹 응원 DM에 힘이 났다 (멘탈 +$m)',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: m < 0 ? Pal.hate : Pal.good),
+            ),
+          ),
+        for (final d in dms) _dm(d),
+      ],
+    );
+  }
+
+  Widget _dm(Dm d) {
+    final hate = d.kind == 'hate', offer = d.kind == 'offer';
+    final bubble = hate ? const Color(0xFFFFF1F2) : (offer ? const Color(0xFFF2F6FF) : const Color(0xFFF4F5F7));
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _line))),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: Color(d.color),
+            child: Text(offer ? '🏢' : d.nick.characters.first, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: d.nick, style: const TextStyle(fontWeight: FontWeight.w800, color: _text)),
+                    if (offer) const TextSpan(text: ' ✔', style: TextStyle(fontWeight: FontWeight.w900, color: Pal.sns)),
+                    TextSpan(text: ' · D${d.day}', style: const TextStyle(fontSize: 12, color: _muted)),
+                  ]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: bubble,
+                    borderRadius: const BorderRadius.only(topRight: Radius.circular(16), bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16), topLeft: Radius.circular(4)),
+                  ),
+                  child: Text(d.text, style: TextStyle(fontSize: 14, height: 1.45, color: hate ? const Color(0xFF9F1239) : _text)),
+                ),
+                if (offer) _offerBar(d),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _offerBar(Dm d) {
+    final game = widget.game;
+    if (d.status != 'open') {
+      final label = switch (d.status) { 'accepted' => '✅ 수락함', 'declined' => '🙅 거절함', _ => '⌛ 만료됨' };
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text('$label · ${_dmResult[d.id] ?? d.note ?? ''}', style: const TextStyle(fontSize: 12.5, color: _muted, fontWeight: FontWeight.w700, height: 1.4)),
+      );
+    }
+    final o = dmOfferOf(d.offer!);
+    void answer(bool accept) {
+      final (text, changes, _) = game.answerOffer(d, accept: accept);
+      setState(() => _dmResult[d.id] = [text, for (final c in changes) '${c.label} ${c.text}'].join('  '));
+    }
+
+    Widget btn(String label, bool accept) => Padding(
+          padding: const EdgeInsets.only(right: 6, top: 8),
+          child: Material(
+            color: accept ? Pal.sns : const Color(0xFFEFF3F4),
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              key: ValueKey('dm-${accept ? 'accept' : 'decline'}-${d.offer}'),
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => answer(accept),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: accept ? Colors.white : _text)),
+              ),
+            ),
+          ),
+        );
+    return Wrap(children: [btn(o.accept, true), btn('거절', false)]);
+  }
 
   Widget _empty(String text) => Padding(
         padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),

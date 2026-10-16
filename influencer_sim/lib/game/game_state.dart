@@ -155,6 +155,42 @@ class LedgerEntry {
   factory LedgerEntry.fromJson(Map<String, dynamic> j) => LedgerEntry(j['day'] as int, j['label'] as String, j['amount'] as int);
 }
 
+/// DM 한 통. kind: fan(응원) / hate(욕) / offer(제안)
+class Dm {
+  Dm({required this.id, required this.nick, required this.color, required this.text, required this.day, required this.kind, this.offer, this.status = 'open', this.read = false, this.note});
+  final String id;
+  final String nick;
+  final int color;
+  final String text;
+  final int day;
+  final String kind;
+
+  /// 제안 DM이면 data.dart의 dmOffers id
+  final String? offer;
+
+  /// 제안 상태: open / accepted / declined / expired
+  String status;
+  bool read;
+
+  /// 수락·거절한 뒤 보여 줄 결과 글
+  String? note;
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'nick': nick, 'color': color, 'text': text, 'day': day, 'kind': kind, 'offer': offer, 'status': status, 'read': read, 'note': note};
+  factory Dm.fromJson(Map<String, dynamic> j) => Dm(
+        id: j['id'] as String,
+        nick: j['nick'] as String,
+        color: j['color'] as int,
+        text: j['text'] as String,
+        day: j['day'] as int,
+        kind: j['kind'] as String,
+        offer: j['offer'] as String?,
+        status: j['status'] as String? ?? 'open',
+        read: j['read'] as bool? ?? false,
+        note: j['note'] as String?,
+      );
+}
+
 class GameState {
   GameState({
     required this.name,
@@ -194,7 +230,13 @@ class GameState {
     Map<String, int>? rivals,
     Map<String, int>? prevRanks,
     Map<String, int>? lastRanks,
-  })  : rivals = rivals ?? {},
+    this.workplace = 0,
+    this.workStrikes = 0,
+    this.firedUntil = 0,
+    List<String>? staff,
+    List<Dm>? dms,
+  })  : dms = dms ?? [],
+        staff = staff ?? [], rivals = rivals ?? {},
         prevRanks = prevRanks ?? {},
         lastRanks = lastRanks ?? {},
         ledger = ledger ?? [],
@@ -273,6 +315,17 @@ class GameState {
   /// 어젯밤 순위. 오늘 밤 순위 상승 알림 비교용
   Map<String, int> lastRanks;
 
+  /// 알바하는 곳 (data.dart의 workplaces), 점장 경고 횟수, 잘린 뒤 다시 일할 수 있는 날
+  int workplace;
+  int workStrikes;
+  int firedUntil;
+
+  /// 고용한 직원 id (editor, manager)
+  final List<String> staff;
+
+  /// 받은 DM (최신이 앞)
+  List<Dm> dms;
+
   Map<String, dynamic> toJson() => {
         'v': 1,
         'name': name,
@@ -310,6 +363,11 @@ class GameState {
         'rivals': rivals,
         'prevRanks': prevRanks,
         'lastRanks': lastRanks,
+        'workplace': workplace,
+        'workStrikes': workStrikes,
+        'firedUntil': firedUntil,
+        'staff': staff,
+        'dms': dms.map((d) => d.toJson()).toList(),
       };
 
   factory GameState.fromJson(Map<String, dynamic> j) => GameState(
@@ -349,5 +407,10 @@ class GameState {
         rivals: Map<String, int>.from(j['rivals'] as Map? ?? const {}),
         prevRanks: Map<String, int>.from(j['prevRanks'] as Map? ?? const {}),
         lastRanks: Map<String, int>.from(j['lastRanks'] as Map? ?? const {}),
+        workplace: j['workplace'] as int? ?? 0,
+        workStrikes: j['workStrikes'] as int? ?? 0,
+        firedUntil: j['firedUntil'] as int? ?? 0,
+        staff: List<String>.from(j['staff'] as List? ?? const []),
+        dms: (j['dms'] as List? ?? const []).map((d) => Dm.fromJson(d as Map<String, dynamic>)).toList(),
       );
 }

@@ -29,9 +29,12 @@ class EventOutcome {
 }
 
 class StreamOutcome {
-  const StreamOutcome(this.result, this.trend);
+  const StreamOutcome(this.result, this.trend, [this.offer]);
   final StreamResult result;
   final Trend? trend;
+
+  /// 방송 뒤 DM으로 온 제안 (없으면 null)
+  final DmOffer? offer;
 }
 
 class GaffeOutcome {
@@ -53,6 +56,19 @@ class HiatusReport {
   /// 자숙 중에 60일이 다 지났는지
   final bool seasonOver;
   final List<Change> changes;
+  final Trend? trend;
+}
+
+/// 알바 결과
+class WorkOutcome {
+  const WorkOutcome({required this.pay, this.gain = 0, this.caught = false, this.fired = false, this.strikes = 0, this.trend});
+  final int pay;
+
+  /// 브이로그로 늘어난 구독자
+  final int gain;
+  final bool caught;
+  final bool fired;
+  final int strikes;
   final Trend? trend;
 }
 
@@ -152,13 +168,14 @@ class GameController extends ChangeNotifier {
     final g = s.gear;
     switch (id) {
       case 'stream':
-        final need = contents.where((c) => canStream(s, c)).map((c) => c.energy).reduce(min);
+        final need = contents.where((c) => canStream(s, c)).map(energyCost).reduce(min);
         if (s.energy < need) return '체력 부족';
       case 'upload':
         if (g['pc']! < 1) return 'PC 필요';
         if (s.lastViewers == 0) return '방송 기록 없음';
         if (s.energy < 15) return '체력 부족';
       case 'work':
+        if (s.day < s.firedUntil) return '잘림 (D${s.firedUntil}부터)';
         if (s.energy < 22) return '체력 부족';
     }
     return null;
@@ -169,7 +186,7 @@ class GameController extends ChangeNotifier {
     if (!canStream(s, c)) {
       return c.need.entries.where((e) => s.gear[e.key]! < e.value).map((e) => '${gearOf(e.key).label}: ${gearOf(e.key).tiers[e.value].name} 필요').join(', ');
     }
-    if (s.energy < c.energy) return '체력 ${c.energy} 필요';
+    if (s.energy < energyCost(c)) return '체력 ${energyCost(c)} 필요';
     if (c.cost > 0 && s.money < c.cost) return '돈 부족';
     return null;
   }
@@ -269,6 +286,7 @@ class GameController extends ChangeNotifier {
     if (choice.sns != null) {
       trend = sns.topicFeed(s, choice.sns!);
       pushTrend(trend);
+      if (choice.sns!.tone <= -0.3) _hateDms(1 + rng.nextInt(2));
     }
     checkMilestones();
     save();
@@ -279,7 +297,7 @@ class GameController extends ChangeNotifier {
   // ───── 방송 ─────
   /// 방송 시작: 체력과 비용을 쓰고 결과를 미리 계산한다 (연출 중 시청자 수 표시용).
   StreamResult beginStream(Content c) {
-    s.energy -= c.energy;
+    s.energy -= energyCost(c);
     money(-c.cost, '${c.name} 재료비');
     final r = calcStream(s, c, rng);
     s.mode = 'live';
@@ -459,6 +477,9 @@ class GameController extends ChangeNotifier {
     );
     final trend = sns.topicFeed(s, topic);
     pushTrend(trend);
+    // 사과 없이 넘어가면 욕 DM이 더 많이 온다
+    _hateDms(apologize ? 2 : 4);
+    if (apologize) _dm(_pick(dmComfort), 'fan');
     save();
     notifyListeners();
     return GaffeOutcome(result, changes, trend);
@@ -479,8 +500,11 @@ class GameController extends ChangeNotifier {
     }
     // 자숙 중 순위 알림은 쌓지 않는다
     toasts.removeWhere((m) => m.startsWith('🏆 순위'));
-    final cost = days * rent;
-    money(-cost, '자숙 기간 생활비 ($days일)');
+    // 자숙 중에도 생활비와 직원 일당은 나간다
+    final wages = staffList.where((x) => hasStaff(x.id)).fold(0, (a, x) => a + x.wage);
+    final cost = days * (rent + wages);
+    money(-days * rent, '자숙 기간 생활비 ($days일)');
+    if (wages > 0) money(-days * wages, '자숙 기간 직원 일당 ($days일)');
     s.image = (s.image + 4).clamp(-100, 100);
     s.energy = 100;
     s.slot = 0;
@@ -489,7 +513,7 @@ class GameController extends ChangeNotifier {
 
     final changes = <Change>[
       _delta('팬 이탈', s.followers - fans0, shortNum),
-      _delta('생활비', -cost, shortWon),
+      _delta(wages > 0 ? '생활비·일당' : '생활비', -cost, shortWon),
       _delta('논란', s.heat - heat0, null, true),
       _delta('멘탈', s.mental - mental0),
       _delta('이미지', s.image - image0),
@@ -533,6 +557,7 @@ class GameController extends ChangeNotifier {
     s.mode = 'idle';
 
     pushFeed(sns.streamPosts(s, c, viral: r.viral, flop: r.flop));
+    final offer = _streamDms(c, r);
     log('${c.icon} ${c.name} · 시청자 ${shortNum(r.viewers)}명 · 구독자 +${shortNum(r.gain)}', r.viral ? 'viral' : (r.flop ? 'flop' : ''));
     checkMilestones();
     if (r.viral) emit('heart', 20);
@@ -555,7 +580,7 @@ class GameController extends ChangeNotifier {
     }
     save();
     notifyListeners();
-    return StreamOutcome(r, trend);
+    return StreamOutcome(r, trend, offer);
   }
 
   String hintFor(Content c) {
@@ -613,21 +638,52 @@ class GameController extends ChangeNotifier {
     return UploadOutcome(r, trend);
   }
 
-  static const _workText = [
-    '편의점 야간 알바를 했다. 폐기 삼각김밥이 오늘의 저녁.',
-    '편의점 알바를 했다. 진상 손님에게 시달렸다.',
-    '편의점 알바를 했다. 손님이 "혹시 방송하시는 분?"이라고 물었다… 착각이었다.',
-    '편의점 알바를 했다. 물건 정리하며 다음 방송 아이디어를 떠올렸다.',
-  ];
+  Workplace get job => workplaces[s.workplace % workplaces.length];
 
-  void work() {
+  /// 알바. [vlog]면 일하면서 브이로그를 찍는다: 구독자는 늘지만 점장 눈치가 쌓이고 3번 걸리면 잘린다.
+  WorkOutcome work({bool vlog = false}) {
+    final place = job;
     s.mode = 'away';
     s.energy -= 22;
     s.mental = (s.mental - 3).clamp(0, 100);
-    final pay = s.slot == 2 ? 72000 : 60000;
-    money(pay, '편의점 알바');
-    log('🏪 ${_pick(_workText)} +${shortWon(pay)}');
+    final pay = s.slot == 2 ? (place.pay * 1.2).round() : place.pay;
+    money(pay, '${place.name} 알바');
+    if (!vlog) {
+      log('${place.icon} ${place.name} 알바를 했다. ${_pick(place.texts)} +${shortWon(pay)}');
+      save();
+      notifyListeners();
+      return WorkOutcome(pay: pay);
+    }
+
+    // 브이로그: 알바 일상이 소소하게 인기를 끈다
+    final gain = max(2, ((6 + s.followers * 0.015) * sqrt(quality(s, null)) * (0.7 + rng.nextDouble() * 0.8)).round());
+    s.followers += gain;
+    pushFeed([for (var i = 0; i < 2; i++) sns.post(s, _pick(snsWorkVlog), 'fan', g: sns.fanGender(s))]);
+    var caught = false, fired = false;
+    Trend? trend;
+    if (rng.nextDouble() < 0.25 + 0.2 * s.workStrikes) {
+      caught = true;
+      s.workStrikes++;
+      if (s.workStrikes >= 3) {
+        fired = true;
+        s.workStrikes = 0;
+        s.firedUntil = s.day + 7;
+        s.workplace = (s.workplace + 1) % workplaces.length;
+        final bump = max(5, (s.followers * 0.04).round()); // 해고 클립이 화제가 된다
+        s.followers += bump;
+        trend = sns.topicFeed(s, snsFired);
+        pushTrend(trend);
+        log('🚫 ${place.name}에서 잘렸다! 해고 클립이 화제가 됐다. 일주일 뒤에 새 알바를 구할 수 있다.', 'event');
+      } else {
+        log('🎥 ${place.name} 알바 브이로그를 찍다가 점장님께 걸렸다. (경고 ${s.workStrikes}/3)', 'event');
+      }
+    } else {
+      log('🎥 ${place.name} 알바 브이로그를 찍었다. 구독자 +${shortNum(gain)}');
+    }
+    checkMilestones();
+    save();
     notifyListeners();
+    return WorkOutcome(pay: pay, gain: gain, caught: caught, fired: fired, strikes: s.workStrikes, trend: trend);
   }
 
   void rest() {
@@ -664,6 +720,7 @@ class GameController extends ChangeNotifier {
 
   DayReport endDay(int remaining) {
     money(-rent, '생활비 (${houseOf(s.house).name})');
+    _staffNight();
     final broke = s.money < 0;
     s.energy = (s.energy + 45 + remaining * 15).clamp(0, 100);
     s.mental = (s.mental + 5).clamp(0, 100);
@@ -671,6 +728,7 @@ class GameController extends ChangeNotifier {
     s.antis = (s.antis * 0.97).floor();
     _updateRanking();
     s.day++;
+    _expireOffers();
     s.slot = 0;
     s.mode = 'idle';
     if (s.day > seasonDays) return const DayReport(seasonOver: true);
@@ -690,16 +748,105 @@ class GameController extends ChangeNotifier {
       notes.add('이번 주 대세 콘텐츠는 ${c.icon} ${c.name}! 시청자 1.5배');
     }
     log('D+${s.day} 아침이 밝았다.', 'day');
+    if (s.firedUntil > 0 && s.day == s.firedUntil) notes.add('${job.icon} 새 알바를 구했다: ${job.name}');
     for (final n in notes) {
       log(n, 'note');
     }
     final over = overKey() != null;
     // 폭로될 일이 있거나 유명해질수록 아침 소식이 자주 온다
     final newsChance = s.flags.contains('hiddenAd') || s.flags.contains('lieDating') ? 0.2 : (s.followers >= 30000 ? 0.12 : 0.06);
-    final news = over ? null : rollEvent('news', newsChance);
+    // 순위표 상위권이면 순위 이벤트(CF·뉴스·공중파·1위)가 먼저 찾아온다
+    final news = over ? null : (rollEvent('rank', 0.45) ?? rollEvent('news', newsChance));
     save();
     notifyListeners();
     return DayReport(news: news);
+  }
+
+  // ───── DM ─────
+  int get dmUnread => s.dms.where((d) => !d.read).length;
+
+  void _dm(String text, String kind, {String? nick, int? color, String? offer}) {
+    final u = sns.user();
+    s.dms.insert(
+      0,
+      Dm(id: '${s.day}-${s.slot}-${rng.nextInt(1 << 30)}', nick: nick ?? u.nick, color: color ?? u.color, text: Sns.fill(text, s), day: s.day, kind: kind, offer: offer),
+    );
+    if (s.dms.length > 40) s.dms.removeRange(40, s.dms.length);
+  }
+
+  void _hateDms(int n) {
+    final pool = [...dmHate]..shuffle(rng);
+    for (final t in pool.take(n)) {
+      _dm(t, 'hate');
+    }
+    toasts.add('📩 DM이 $n통 왔어요… 열어 보기 무섭다');
+  }
+
+  /// 방송이 끝나면 응원 DM이나 제안 DM이 온다. 새 제안이 있으면 돌려준다
+  DmOffer? _streamDms(Content c, StreamResult r) {
+    if (s.heat < 40 && (r.viral || (!r.flop && rng.nextDouble() < 0.25))) _dm(_pick(dmFan), 'fan');
+    for (final o in dmOffers) {
+      if (o.after != null && o.after != c.id) continue;
+      if (s.followers < o.minFollowers) continue;
+      if (s.dms.any((d) => d.offer == o.id && d.status == 'open')) continue;
+      if (rng.nextDouble() >= o.chance) continue;
+      _dm(o.text(s), 'offer', nick: o.from, color: o.color, offer: o.id);
+      log('📩 ${o.from}에게서 DM이 왔다.', 'event');
+      return o;
+    }
+    return null;
+  }
+
+  /// 답장 안 한 제안은 4일 뒤 사라진다
+  void _expireOffers() {
+    for (final d in s.dms) {
+      if (d.kind == 'offer' && d.status == 'open' && s.day - d.day >= 4) {
+        d.status = 'expired';
+        d.note = '답장이 없어 제안이 다른 사람에게 넘어갔다.';
+      }
+    }
+  }
+
+  /// DM함을 열면 모두 읽음. 안 읽은 욕 DM은 멘탈을 깎고 (최대 -8), 응원 DM은 조금 채운다 (최대 +4)
+  int readDms() {
+    final unread = s.dms.where((d) => !d.read).toList();
+    if (unread.isEmpty) return 0;
+    final hate = unread.where((d) => d.kind == 'hate').length;
+    final fan = unread.where((d) => d.kind == 'fan').length;
+    final int delta = -min(hate * 2, 8) + min(fan, 4);
+    for (final d in unread) {
+      d.read = true;
+    }
+    s.mental = (s.mental + delta).clamp(0, 100);
+    save();
+    notifyListeners();
+    return delta;
+  }
+
+  /// 제안 DM에 답장한다. (결과 글, 변화, SNS 트렌드)
+  (String, List<Change>, Trend?) answerOffer(Dm d, {required bool accept}) {
+    final o = dmOfferOf(d.offer!);
+    if (d.status != 'open') return (d.note ?? '', const <Change>[], null);
+    if (!accept) {
+      d.status = 'declined';
+      d.note = Sns.fill(o.declined, s);
+      save();
+      notifyListeners();
+      return (d.note!, const <Change>[], null);
+    }
+    d.status = 'accepted';
+    d.note = Sns.fill(o.result, s);
+    final changes = applyFx(o.fx(s), o.from);
+    log('📩 ${o.from}의 제안을 수락했다.', 'event');
+    Trend? trend;
+    if (o.sns != null) {
+      trend = sns.topicFeed(s, o.sns!);
+      pushTrend(trend);
+    }
+    checkMilestones();
+    save();
+    notifyListeners();
+    return (d.note!, changes, trend);
   }
 
   // ───── 상점 ─────
@@ -729,6 +876,60 @@ class GameController extends ChangeNotifier {
     save();
     notifyListeners();
     return true;
+  }
+
+  // ───── 직원 ─────
+  bool hasStaff(String id) => s.staff.contains(id);
+
+  /// 방송에 드는 체력 (매니저가 있으면 20% 덜 든다)
+  int energyCost(Content c) => hasStaff('manager') ? (c.energy * 0.8).round() : c.energy;
+
+  String? hireBlock(Staff st) {
+    if (hasStaff(st.id)) return '고용 중';
+    if (s.followers < st.minFollowers) return '구독자 ${shortNum(st.minFollowers)} 필요';
+    if (s.money < st.wage * 3) return '돈 부족';
+    return null;
+  }
+
+  bool hire(Staff st) {
+    if (hireBlock(st) != null) return false;
+    s.staff.add(st.id);
+    log('${st.icon} ${st.name}를 고용했다! (일당 ${shortWon(st.wage)})', 'buy');
+    toasts.add('${st.icon} ${st.name} 고용 완료!');
+    pushFeed([sns.post(s, _pick(['{name} ${st.name} 뽑았대 ㄷㄷ 이제 기업이네', '{name} 팀 생겼다 축하해요', '{name} ${st.name}님 일 잘하시네']), 'fan', g: sns.fanGender(s))]);
+    save();
+    notifyListeners();
+    return true;
+  }
+
+  void dismiss(Staff st) {
+    if (!s.staff.remove(st.id)) return;
+    log('${st.icon} ${st.name}와 계약을 끝냈다.');
+    save();
+    notifyListeners();
+  }
+
+  /// 밤마다 직원이 하는 일과 일당
+  void _staffNight() {
+    for (final st in staffList.where((x) => hasStaff(x.id))) {
+      money(-st.wage, '${st.name} 일당');
+    }
+    if (hasStaff('editor')) {
+      final u = calcUpload(s, rng);
+      final gain = (u.gain * 0.6).round();
+      s.followers += gain;
+      money((u.ads * 0.6 / 100).round() * 100, '편집자 영상 광고 수익');
+      log('✂️ 편집자가 하이라이트 영상을 올렸다. 조회수 ${shortNum((u.views * 0.6).round())} · 구독자 +${shortNum(gain)}');
+    }
+    if (hasStaff('manager')) {
+      s.heat = (s.heat - 3).clamp(0, 100);
+      s.mental = (s.mental + 2).clamp(0, 100);
+      if (rng.nextDouble() < 0.12) {
+        final deal = scaleMoney(s, 100000);
+        money(deal, '매니저가 따 온 광고');
+        log('🧑‍💼 매니저가 광고 건을 따 왔다! +${shortWon(deal)}', 'event');
+      }
+    }
   }
 
   /// 이사할 수 없으면 이유, 할 수 있으면 null

@@ -285,7 +285,7 @@ Widget _contentCard(BuildContext ctx, GameController game, Content c) {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _tag('⚡${c.energy}', Pal.energy),
+              _tag('⚡${game.energyCost(c)}', Pal.energy),
               const SizedBox(width: 4),
               if (c.cost > 0) ...[_tag(shortWon(c.cost), Pal.gold), const SizedBox(width: 4)],
               _tag('Lv.$lv', Pal.trueEnd),
@@ -317,7 +317,7 @@ class _ShopSheet extends StatefulWidget {
 }
 
 class _ShopSheetState extends State<_ShopSheet> {
-  /// 0 장비, 1 꾸미기, 2 이사
+  /// 0 장비, 1 꾸미기, 2 이사, 3 직원
   int _tab = 0;
 
   @override
@@ -330,17 +330,8 @@ class _ShopSheetState extends State<_ShopSheet> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            sheetHeader(context, '🛒 상점'),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-              child: Row(
-                children: [
-                  Expanded(child: _segment()),
-                  const SizedBox(width: 10),
-                  Pill(icon: '💰', text: shortWon(s.money), color: Pal.gold),
-                ],
-              ),
-            ),
+            sheetHeader(context, '🛒 상점', sub: '💰 통장 ${s.money < 0 ? '-' : ''}${won(s.money)}'),
+            Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 10), child: _segment()),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
@@ -349,6 +340,8 @@ class _ShopSheetState extends State<_ShopSheet> {
                     ? [for (final g in gearTypes) _gearRow(game, g)]
                     : _tab == 2
                         ? [for (final h in houses) _houseRow(game, h)]
+                        : _tab == 3
+                        ? [for (final st in staffList) _staffRow(game, st)]
                         : [
                         for (final d in decos) _decoRow(game, d),
                         _row(
@@ -386,7 +379,7 @@ class _ShopSheetState extends State<_ShopSheet> {
   Widget _segment() => Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(999)),
-        child: Row(children: [_segBtn('장비', 0), _segBtn('꾸미기', 1), _segBtn('🏠 이사', 2)]),
+        child: Row(children: [_segBtn('장비', 0), _segBtn('꾸미기', 1), _segBtn('이사', 2), _segBtn('직원', 3)]),
       );
 
   Widget _segBtn(String label, int tab) {
@@ -404,6 +397,21 @@ class _ShopSheetState extends State<_ShopSheet> {
           ),
         ),
       );
+  }
+
+  Widget _staffRow(GameController game, Staff st) {
+    final hired = game.hasStaff(st.id);
+    final why = game.hireBlock(st);
+    return _row(
+      st.icon,
+      st.name,
+      '${st.desc}\n일당 ${shortWon(st.wage)} (매일 밤)',
+      hired
+          ? _buy('해고', () => game.dismiss(st), ValueKey('fire-${st.id}'))
+          : why != null && why != '돈 부족'
+              ? Text(why, textAlign: TextAlign.right, style: const TextStyle(color: Pal.muted, fontSize: 11.5, fontWeight: FontWeight.w700))
+              : _buy('고용', why == null ? () => game.hire(st) : null, ValueKey('hire-${st.id}')),
+    );
   }
 
   Widget _houseRow(GameController game, House h) {

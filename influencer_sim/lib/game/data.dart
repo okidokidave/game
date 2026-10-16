@@ -139,6 +139,57 @@ const rivals = [
 
 const snsOvertake = ['{name}, {rival} 제쳤다 ㄷㄷ', '{name} 순위 실화냐 {rival}보다 위네', '{rival} 팬인데 {name}도 보러 감 ㅋㅋ', '{name} 요즘 상승세 미쳤다'];
 
+// ───── 직원 ─────
+class Staff {
+  const Staff(this.id, this.name, this.icon, this.minFollowers, this.wage, this.desc);
+  final String id;
+  final String name;
+  final String icon;
+
+  /// 고용할 수 있는 구독자 수
+  final int minFollowers;
+
+  /// 하루 일당 (매일 밤 나간다)
+  final int wage;
+  final String desc;
+}
+
+const staffList = [
+  Staff('editor', '편집자', '✂️', 5000, 30000, '매일 밤 하이라이트 영상을 편집해서 올려 준다. 구독자와 광고 수익이 들어온다.'),
+  Staff('manager', '매니저', '🧑‍💼', 30000, 80000, '방송 체력 소모 -20%. 일정과 논란 대응을 맡아 매일 논란 -3, 멘탈 +2. 가끔 광고 건을 따 온다.'),
+];
+
+Staff staffOf(String id) => staffList.firstWhere((x) => x.id == id);
+
+// ───── 알바 ─────
+class Workplace {
+  const Workplace(this.name, this.icon, this.pay, this.texts);
+  final String name;
+  final String icon;
+
+  /// 한 번 일하면 받는 돈 (밤에는 1.2배)
+  final int pay;
+  final List<String> texts;
+}
+
+/// 잘리면 다음 알바로 넘어간다
+const workplaces = [
+  Workplace('편의점', '🏪', 60000, ['폐기 삼각김밥이 오늘의 저녁.', '진상 손님에게 시달렸다.', '손님이 "혹시 방송하시는 분?"이라고 물었다… 착각이었다.', '물건 정리하며 다음 방송 아이디어를 떠올렸다.']),
+  Workplace('카페', '☕', 65000, ['라테 아트 하트가 오늘은 잘 나왔다.', '단체 주문 20잔에 정신이 없었다.', '단골손님이 쿠키를 나눠 줬다.']),
+  Workplace('PC방', '🖥️', 62000, ['라면 주문이 끝없이 들어왔다.', '손님 자리 청소하다가 게임 공략을 배웠다.', '밤샘 손님들과 묘한 동지애가 생겼다.']),
+];
+
+const snsWorkVlog = ['{name} 알바 브이로그 너무 웃김 ㅋㅋㅋ', '알바하면서 방송 준비하는 거 리스펙', '{name} 알바복 잘 어울린다', '진상 손님 썰 레전드 ㅋㅋ', '{name} 현실 브이로그라 더 정감 감'];
+
+const snsFired = SnsTopic(
+  tag: '{name}_알바잘림',
+  headline: '{name}, 알바 브이로그 찍다가 결국 잘려… 해고 순간 클립 화제',
+  tone: 0.35,
+  hate: ['일하는 데서 촬영하면 당연히 잘리지', '사장님만 불쌍하네', '콘텐츠에 미쳤네 ㅋㅋ'],
+  shield: ['잘리는 것까지 콘텐츠 ㅋㅋㅋ 근성 인정', '{name} 힘내요 더 좋은 알바 구할 거예요', '해고 클립 보고 빵 터짐 ㅋㅋㅋ'],
+  neutral: ['점장님 표정 짤 돌고 있음', '알바 브이로그 시즌 2 기대'],
+);
+
 // ───── 방송 종류 ─────
 class Content {
   const Content({
@@ -450,7 +501,7 @@ class GameEvent {
 
   final String id;
 
-  /// 'live'(방송 중) 또는 'news'(아침에 터지는 소식)
+  /// 'live'(방송 중), 'news'(아침에 터지는 소식), 'rank'(순위 상위권일 때 아침 소식)
   final String where;
   final String title;
   final int weight;
@@ -460,6 +511,9 @@ class GameEvent {
 }
 
 Fx _none(GameState s) => const Fx();
+
+/// 어젯밤 기준 내 인기 순위 (아직 없으면 99)
+int rankNow(GameState s) => s.lastRanks['me'] ?? 99;
 
 final gameEvents = <GameEvent>[
   GameEvent(
@@ -1314,6 +1368,147 @@ final gameEvents = <GameEvent>[
       ),
     ],
   ),
+
+  // ───── 인기 순위 이벤트 (순위표 상위권이 되면 아침에 찾아온다) ─────
+  GameEvent(
+    id: 'cf_model',
+    where: 'rank',
+    title: '📺 CF 광고 모델 제안',
+    weight: 4,
+    when: (s) => rankNow(s) <= 6 && !s.flags.contains('cfDone'),
+    text: (s) => '인기 순위 ${rankNow(s)}위에 오르자 음료 회사에서 연락이 왔다. "{name}님을 이번 여름 광고 모델로 모시고 싶습니다!"',
+    choices: [
+      EventChoice(
+        label: '내 스타일대로 재밌게 찍는다',
+        result: '대본을 살짝 비틀어 애드리브를 넣었다. 광고가 "광고인데 끝까지 봄"으로 화제가 됐다.',
+        fx: (s) => Fx(money: scaleMoney(s, 3000000), followers: 0.05, image: 6, energy: -15, flag: 'cfDone'),
+        sns: const SnsTopic(
+          tag: '{name}_광고',
+          headline: '"광고인데 끝까지 봤다"… {name} 음료 CF 화제',
+          tone: 0.6,
+          hate: ['광고 찍더니 변했네', '저 음료 맛없던데'],
+          shield: ['광고마저 웃기네 ㅋㅋ', '편의점 갔다가 {name} 얼굴 보고 놀람', '광고 모델 할 만하다'],
+          neutral: ['모델료 얼마일까'],
+        ),
+      ),
+      EventChoice(
+        label: '모델료를 두 배로 부른다',
+        result: '회사는 고민 끝에 받아들였다. 대신 "갑질했다"는 소문이 업계에 돌았다.',
+        fx: (s) => Fx(money: scaleMoney(s, 6000000), image: -6, heat: 10, flag: 'cfDone'),
+        sns: const SnsTopic(
+          tag: '{name}_모델료',
+          headline: '{name}, 광고 모델료 두 배 요구설… "몸값 올랐다"',
+          tone: -0.3,
+          hate: ['벌써 돈맛 들었네', '갑질 아님?', '초심 어디 감'],
+          shield: ['몸값 올리는 게 프로지', '회사가 받아들였으면 끝', '소문일 뿐'],
+          neutral: ['광고 나오면 확인해 봄'],
+        ),
+      ),
+      EventChoice(
+        label: '팬들이 싫어할 것 같아 거절한다',
+        result: '"광고보다 방송이 먼저예요." 팬들은 의리 있다며 좋아했다.',
+        fx: (s) => const Fx(image: 4, mental: 3, flag: 'cfDone'),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'news_interview',
+    where: 'rank',
+    title: '📰 9시 뉴스 인터뷰',
+    weight: 4,
+    when: (s) => rankNow(s) <= 5 && !s.flags.contains('newsDone'),
+    text: (s) => '공중파 9시 뉴스 기자에게 연락이 왔다. "요즘 MZ세대가 가장 많이 보는 방송인"으로 {name}을(를) 인터뷰하고 싶다고 한다.',
+    choices: [
+      EventChoice(
+        label: '반지하 시절 이야기를 솔직하게 한다',
+        result: '"스마트폰 하나로 반지하에서 시작했어요." 짧은 인터뷰였지만 부모님 단톡방까지 퍼졌다.',
+        fx: (s) => const Fx(followers: 0.06, image: 10, mental: 6, flag: 'newsDone'),
+        sns: const SnsTopic(
+          tag: '{name}_9시뉴스',
+          headline: '9시 뉴스에 나온 {name}… "반지하에서 스마트폰 하나로"',
+          tone: 0.7,
+          hate: ['뉴스까지 나올 급?', '감성팔이 아님?'],
+          shield: ['엄마가 뉴스 보고 {name} 물어봄 ㅋㅋ', '진짜 자수성가네', '인터뷰 태도 좋더라'],
+          neutral: ['자막에 이름 틀렸던데'],
+        ),
+      ),
+      EventChoice(
+        label: '카메라 앞에서 방송 홍보만 한다',
+        result: '"구독 좋아요 알림 설정!" 기자의 표정이 굳었다. 인터뷰는 3초만 나갔다.',
+        fx: (s) => const Fx(followers: 0.02, image: -4, heat: 6, flag: 'newsDone'),
+        sns: const SnsTopic(
+          tag: '{name}_뉴스홍보',
+          headline: '9시 뉴스 인터뷰에서 구독 홍보한 {name}… "3초 출연"',
+          tone: -0.1,
+          hate: ['뉴스에서 구독 홍보라니', '방송이랑 뉴스 구분 못 함', '창피하다'],
+          shield: ['3초여도 웃겼음 ㅋㅋ', '그게 {name} 캐릭터지', '밈 됐네'],
+          neutral: ['그 3초 짤 돈다'],
+        ),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'idol_variety',
+    where: 'rank',
+    title: '📡 공중파 예능 고정 출연',
+    weight: 4,
+    when: (s) => rankNow(s) <= 4 && !s.flags.contains('varietyDone'),
+    text: (s) => '공중파 토요 예능 "아이돌 대작전" PD에게서 연락이 왔다. 아이돌들과 함께 고정 멤버로 출연해 달라고 한다!',
+    choices: [
+      EventChoice(
+        label: '고정 출연한다 (매주 촬영)',
+        result: '아이돌들과 게임 대결을 하며 예능감을 뽐냈다. 촬영은 힘들었지만 시청률이 올랐다.',
+        fx: (s) => Fx(money: scaleMoney(s, 2000000), followers: 0.12, image: 8, energy: -30, mental: -6, flag: 'varietyDone'),
+        sns: const SnsTopic(
+          tag: '{name}_공중파',
+          headline: '{name}, 공중파 예능 고정 발탁… "인터넷 방송인 최초"',
+          tone: 0.5,
+          oppositeTone: -0.15,
+          hate: ['아이돌 팬들 화났다', '분량 뺏지 마라', '공중파 수준 떨어짐'],
+          shield: ['{name} 예능감 공중파에서도 통함', '아이돌이랑 케미 좋더라', '본방 사수 중'],
+          neutral: ['시청률 몇 나옴?'],
+        ),
+      ),
+      EventChoice(
+        label: '한 번만 게스트로 나간다',
+        result: '부담 없이 한 회만 나갔다. 짧았지만 "다음에 또 나와 주세요" 반응이 많았다.',
+        fx: (s) => const Fx(followers: 0.05, image: 5, energy: -10, flag: 'varietyDone'),
+      ),
+      EventChoice(
+        label: '내 방송이 먼저라며 거절한다',
+        result: '"저는 제 방구석이 무대예요." 시청자들은 감동했지만 기회는 다른 스트리머에게 갔다.',
+        fx: (s) => const Fx(image: 3, mental: 4, flag: 'varietyDone'),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'rank1_crown',
+    where: 'rank',
+    title: '👑 실시간 인기 1위',
+    weight: 10,
+    when: (s) => rankNow(s) == 1 && !s.flags.contains('crownDone'),
+    text: (s) => '드디어 스트리머 인기 순위 1위! 포털 실시간 검색어에 "{name}"이(가) 올랐다. 기념 방송을 해야 할 것 같다.',
+    choices: [
+      EventChoice(
+        label: '팬들과 밤새 1위 기념 방송',
+        result: '"여러분이 만든 1위예요!" 기념 방송 동시 시청자가 역대 최고를 찍었다.',
+        fx: (s) => Fx(money: scaleMoney(s, 1500000), followers: 0.05, image: 6, mental: 12, energy: -25, flag: 'crownDone'),
+        sns: const SnsTopic(
+          tag: '{name}_1위',
+          headline: '{name}, 스트리머 인기 순위 1위 등극',
+          tone: 0.6,
+          hate: ['1위 할 정도는 아닌데', '조작 아님?', '거품 곧 빠짐'],
+          shield: ['반지하부터 본 사람 울고 있음', '1위 축하해!!', '받을 사람이 받았다'],
+          neutral: ['2위랑 차이 얼마 안 남'],
+        ),
+      ),
+      EventChoice(
+        label: '조용히 감사 글만 올린다',
+        result: '"아직 부족해요. 더 열심히 할게요." 겸손한 글에 칭찬이 쏟아졌다.',
+        fx: (s) => const Fx(image: 10, mental: 6, flag: 'crownDone'),
+      ),
+    ],
+  ),
 ];
 
 // ───── 결말 ─────
@@ -1336,3 +1531,155 @@ const endings = <String, Ending>{
   'small': Ending('소소한 방송인', 'normal', '구독자는 많지 않지만, 매일 찾아오는 고정 시청자들이 있다. 방송은 계속된다.'),
   'zero': Ending('방구석 방송인', 'bad', '60일이 지났지만 방송을 보는 사람은 손에 꼽는다. 스마트폰을 내려놓고 이력서를 열었다.'),
 };
+
+// ───── DM ─────
+/// DM으로 오는 제안. [after]는 이 콘텐츠로 방송한 뒤에 온다 (null이면 아무 방송 뒤)
+class DmOffer {
+  const DmOffer({
+    required this.id,
+    required this.from,
+    required this.color,
+    required this.after,
+    required this.minFollowers,
+    required this.chance,
+    required this.text,
+    required this.accept,
+    required this.fx,
+    required this.result,
+    required this.declined,
+    this.sns,
+  });
+  final String id;
+  final String from;
+  final int color;
+  final String? after;
+  final int minFollowers;
+  final double chance;
+  final String Function(GameState s) text;
+
+  /// 수락 버튼 글
+  final String accept;
+  final Fx Function(GameState s) fx;
+  final String result;
+  final String declined;
+  final SnsTopic? sns;
+}
+
+final dmOffers = <DmOffer>[
+  DmOffer(
+    id: 'idol_collab',
+    from: '스타라이트 엔터테인먼트',
+    color: 0xFF8B5CF6,
+    after: 'sing',
+    minFollowers: 3000,
+    chance: 0.25,
+    text: (s) => '안녕하세요, 아이돌 그룹 "루미너스" 소속사입니다 🙂 방금 노래 방송 잘 봤어요! 이번 컴백 신곡 커버 콜라보 영상을 함께 찍고 싶은데 가능하실까요? 출연료 ${won(scaleMoney(s, 300000))} 드립니다.',
+    accept: '콜라보 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 300000), followers: 0.06, energy: -15, image: 3),
+    result: '아이돌 멤버들과 신곡 커버 영상을 찍었다. 영상이 올라가자마자 아이돌 팬들이 몰려왔다.',
+    declined: '"다음에 기회가 되면 꼭 함께해요!" 소속사는 정중히 답장했다.',
+    sns: const SnsTopic(
+      tag: '{name}_루미너스',
+      headline: '{name}, 아이돌 "루미너스"와 신곡 커버 콜라보',
+      tone: 0.4,
+      oppositeTone: -0.3,
+      hate: ['우리 오빠들 옆에 왜 저 사람이', '아이돌 인기에 숟가락 얹기', '콜라보 각도 너무 가깝다'],
+      shield: ['{name} 노래 아이돌이랑 붙어도 안 밀림', '케미 좋더라', '{name} 덕분에 루미너스 입덕함'],
+      neutral: ['소속사가 먼저 연락했대'],
+    ),
+  ),
+  DmOffer(
+    id: 'game_company',
+    from: '넥스트플레이 게임즈',
+    color: 0xFF0EA5E9,
+    after: 'game',
+    minFollowers: 2000,
+    chance: 0.2,
+    text: (s) => '안녕하세요! 게임 방송 재밌게 보고 있어요 🎮 이번에 나온 신작 "던전 오브 레전드" 방송 한 번 해 주시면 ${won(scaleMoney(s, 200000))} 드릴게요. "유료 광고" 표시는 꼭 부탁드려요!',
+    accept: '광고 방송 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 200000), energy: -10, followers: 0.01),
+    result: '"유료 광고 포함" 표시를 달고 신작 게임을 했다. 생각보다 재밌어서 시청자들도 좋아했다.',
+    declined: '"아쉽지만 다음 기회에!" 게임 회사는 쿠폰 코드만 보내왔다.',
+  ),
+  DmOffer(
+    id: 'restaurant',
+    from: '할매손 국밥집',
+    color: 0xFFF97316,
+    after: 'mukbang',
+    minFollowers: 1000,
+    chance: 0.2,
+    text: (s) => '먹방 너무 맛있게 드셔서 연락드려요 ㅎㅎ 저희 가게 와서 한 번 드셔 주시면 음식값은 당연히 무료고 ${won(scaleMoney(s, 100000))} 사례할게요!',
+    accept: '방문 먹방 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 100000), followers: 0.02, energy: -10, mental: 3),
+    result: '국밥 세 그릇을 비웠다. 영상이 나간 뒤 가게 앞에 줄이 생겼다는 소식이 들려왔다.',
+    declined: '"언제든 놀러 오세요~" 사장님이 웃는 이모티콘을 보냈다.',
+  ),
+  DmOffer(
+    id: 'brand_deal',
+    from: '글로우업 코스메틱',
+    color: 0xFFEC4899,
+    after: null,
+    minFollowers: 10000,
+    chance: 0.07,
+    text: (s) => '{name}님 이미지가 저희 브랜드와 딱 맞아서요! 신제품 협찬 영상 한 편에 ${won(scaleMoney(s, 400000))} 제안드립니다 ✨',
+    accept: '협찬 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 400000), image: 1, energy: -10),
+    result: '협찬 영상을 올렸다. "광고인데 솔직해서 좋다"는 댓글이 많았다.',
+    declined: '"다음 시즌에 다시 연락드릴게요!"',
+  ),
+  DmOffer(
+    id: 'rival_collab',
+    from: '찐텐형',
+    color: 0xFF22C55E,
+    after: null,
+    minFollowers: 500,
+    chance: 0.05,
+    text: (s) => '{name}님 요즘 방송 잘 보고 있어요 ㅋㅋ 다음 주에 같이 합방 한 번 하실래요? 시청자들 좋아할 것 같은데!',
+    accept: '합방 수락',
+    fx: (s) => const Fx(followers: 0.05, energy: -15, mental: 4),
+    result: '찐텐형과 합방을 했다. 서로의 시청자들이 오가며 채팅창이 터졌다.',
+    declined: '"ㅇㅋㅇㅋ 언제든 연락 줘요!"',
+    sns: const SnsTopic(
+      tag: '{name}_찐텐형_합방',
+      headline: '{name} × 찐텐형 깜짝 합방… 시청자 폭주',
+      tone: 0.5,
+      hate: ['찐텐형 버스 탔네', '합방 텐션 따라가느라 힘들어 보임'],
+      shield: ['둘이 케미 미쳤다', '합방 정규 편성 가자', '{name} 안 밀리던데'],
+      neutral: ['다음 합방 언제?'],
+    ),
+  ),
+];
+
+DmOffer dmOfferOf(String id) => dmOffers.firstWhere((o) => o.id == id);
+
+/// 말실수·논란 뒤에 오는 욕 DM
+const dmHate = [
+  '야 너 방송에서 그런 말 해도 되냐?',
+  '진짜 실망이다. 구독 취소함',
+  '사과문 쓸 시간에 반성이나 해라',
+  '너 같은 게 무슨 방송을 함',
+  '그 말 캡처해 뒀다 평생 박제할 거임',
+  '팬이었는데 이제 안티 됨',
+  '방송 접어라 진심으로',
+  '돈 벌더니 사람이 변했네',
+  '니 방송 보는 애들 다 수준 알겠다',
+  '이번 일 절대 안 잊음',
+];
+
+/// 좋은 방송 뒤에 오는 응원 DM
+const dmFan = [
+  '{name}님 방송 보고 하루가 행복해졌어요 ㅠㅠ',
+  '힘든 시기였는데 {name} 덕분에 많이 웃었어요',
+  '오늘 방송 레전드였어요!! 다음 방송 기다릴게요',
+  '처음 들어왔는데 바로 구독했어요 ㅎㅎ',
+  '항상 응원해요! 아프지 말고 오래 방송해 주세요',
+  '{name}님 보고 저도 방송 시작했어요!',
+  '시험 끝나고 {name} 방송 보는 게 유일한 낙이에요',
+];
+
+/// 자숙 중에 오는 응원 DM
+const dmComfort = [
+  '실수할 수도 있죠. 기다릴게요',
+  '반성하는 모습 보기 좋았어요. 꼭 돌아와 주세요',
+  '{name}님 없으니까 허전해요 ㅠ',
+];
