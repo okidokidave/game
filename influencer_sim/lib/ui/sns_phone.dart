@@ -44,6 +44,10 @@ class _PhoneState extends State<_Phone> {
   late Trend? _topic = widget.trend;
   final _scroll = ScrollController();
 
+  // 방금 한 대응 결과 (트렌드 화면 위에 보여 준다)
+  String? _result;
+  Trend? _resultFor;
+
   static const _bg = Colors.white;
   static const _text = Color(0xFF0F1419);
   static const _muted = Color(0xFF536471);
@@ -139,6 +143,74 @@ class _PhoneState extends State<_Phone> {
     return ListView(controller: _scroll, children: [for (final p in feed.take(40)) _post(p)]);
   }
 
+  static const _responseNames = {
+    'explain_ok': '✍️ 해명 글 (먹혔다)',
+    'explain_bad': '✍️ 해명 글 (역풍)',
+    'sue': '⚖️ 악플러 고소',
+    'pin': '📌 팬 댓글 고정',
+    'ignore': '🤐 무대응',
+  };
+
+  // 내 계정으로 대응하기
+  Widget _responseBar(Trend t) {
+    final game = widget.game;
+    if (_result != null && identical(_resultFor, t)) {
+      return Container(
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: const Color(0xFFF2F6FF), borderRadius: BorderRadius.circular(12)),
+        child: Text(_result!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _text, height: 1.4)),
+      );
+    }
+    if (t.response != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Text('내 대응: ${_responseNames[t.response] ?? t.response}', style: const TextStyle(fontSize: 12.5, color: _muted, fontWeight: FontWeight.w700)),
+      );
+    }
+    if (!game.canRespond(t)) return const SizedBox.shrink();
+    Widget chip(String kind, String label, {bool enabled = true}) => Padding(
+          padding: const EdgeInsets.only(right: 6, bottom: 6),
+          child: Material(
+            color: enabled ? const Color(0xFFEFF3F4) : const Color(0xFFF7F9F9),
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              key: ValueKey('respond-$kind'),
+              borderRadius: BorderRadius.circular(999),
+              onTap: enabled
+                  ? () {
+                      final (summary, changes) = game.respond(t, kind);
+                      setState(() {
+                        _resultFor = t;
+                        _result = [summary, for (final c in changes) '${c.label} ${c.text}'].join('\n');
+                      });
+                    }
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: enabled ? _text : _muted)),
+              ),
+            ),
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('내 계정으로 대응하기 (한 번만)', style: TextStyle(fontSize: 12, color: _muted, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Wrap(children: [
+            chip('explain', '✍️ 해명 글'),
+            chip('sue', game.s.money >= game.lawyerFee ? '⚖️ 고소 (${shortWon(game.lawyerFee)})' : '⚖️ 고소 (돈 부족)', enabled: game.s.money >= game.lawyerFee),
+            chip('pin', '📌 팬 댓글 고정'),
+            chip('ignore', '🤐 무대응'),
+          ]),
+        ],
+      ),
+    );
+  }
+
   Widget _trendBody() {
     final list = widget.game.s.trends.reversed.toList();
     final t = _topic ?? (list.isEmpty ? null : list.first);
@@ -162,12 +234,17 @@ class _PhoneState extends State<_Phone> {
               // 여론 막대: 쉴드 vs 비난
               ClipRRect(
                 borderRadius: BorderRadius.circular(999),
-                child: SizedBox(
+                child: Container(
                   height: 10,
-                  child: Row(children: [
-                    Expanded(flex: sp, child: Container(color: Pal.shield)),
-                    Expanded(flex: 100 - sp, child: Container(color: Pal.hate)),
-                  ]),
+                  color: Pal.hate,
+                  alignment: Alignment.centerLeft,
+                  // 대응하면 여론 막대가 움직인다
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: sp / 100),
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, v, _) => FractionallySizedBox(widthFactor: v.clamp(0.0, 1.0), child: Container(color: Pal.shield)),
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -178,6 +255,7 @@ class _PhoneState extends State<_Phone> {
                   Text('💢 비난 ${100 - sp}%', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Pal.hate)),
                 ],
               ),
+              _responseBar(t),
             ],
           ),
         ),
@@ -237,6 +315,7 @@ class _PhoneState extends State<_Phone> {
                 Text.rich(
                   TextSpan(children: [
                     TextSpan(text: p.nick, style: const TextStyle(fontWeight: FontWeight.w800, color: _text)),
+                    if (p.side == 'me') const TextSpan(text: ' ✔', style: TextStyle(fontWeight: FontWeight.w900, color: Pal.sns)),
                     if (p.g.isNotEmpty)
                       TextSpan(
                         text: p.g == 'm' ? ' ♂' : ' ♀',

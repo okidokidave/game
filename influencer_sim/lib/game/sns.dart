@@ -157,6 +157,15 @@ class Sns {
     );
   }
 
+  /// 내 공식 계정 글 (side: 'me')
+  Post myPost(GameState s, String text) => post(s, text, 'me', boost: 3, as: SnsUser(s.name, 'official_${s.name.hashCode.abs() % 1000}', 0xFFFF4D8D));
+
+  /// 어떤 글에 달리는 반응 [n]개
+  List<Post> reactions(GameState s, SnsTopic topic, int n) {
+    final used = <String>{};
+    return [for (var i = 0; i < n; i++) _voice(s, topic, used, boost: 0.5)];
+  }
+
   /// 평범한 방송 후 올라오는 글 몇 개
   List<Post> streamPosts(GameState s, Content c, {bool viral = false, bool flop = false}) {
     final out = <Post>[];

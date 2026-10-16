@@ -73,6 +73,72 @@ const decos = [
   Deco('figure', '피규어 진열장', 350000),
 ];
 
+// ───── 집 (이사) ─────
+class House {
+  const House(this.id, this.name, this.icon, this.minFollowers, this.deposit, this.rent, this.bonus, this.wall, this.desc);
+  final String id;
+  final String name;
+  final String icon;
+
+  /// 이사할 수 있는 구독자 수
+  final int minFollowers;
+
+  /// 이사할 때 내는 보증금·이사비
+  final int deposit;
+
+  /// 하루 생활비 (월세·식비)
+  final int rent;
+
+  /// 시청자 보너스 (방이 좋을수록)
+  final double bonus;
+
+  /// 이사 직후 벽 색
+  final int wall;
+  final String desc;
+}
+
+const houses = [
+  House('banjiha', '반지하', '🕳️', 0, 0, 7000, 0, 0xA9A69E, '눅눅한 벽, 천장 근처 작은 창. 그래도 내 첫 방송실.'),
+  House('oneroom', '원룸', '🏠', 1000, 500000, 10000, 0.05, 0xE9DCCB, '햇빛 드는 창문이 생겼다. 시청자 +5%'),
+  House('officetel', '오피스텔', '🏢', 10000, 3000000, 25000, 0.10, 0xF2F2F0, '깔끔한 벽, 큰 창 너머 도시 풍경. 시청자 +10%'),
+  House('apartment', '아파트', '🏘️', 100000, 15000000, 60000, 0.15, 0xEFE6D6, '몰딩 벽과 헤링본 바닥. 시청자 +15%'),
+  House('penthouse', '펜트하우스', '🌆', 500000, 80000000, 150000, 0.25, 0x22252E, '통유리 너머 야경. 성공한 방송인의 상징. 시청자 +25%'),
+];
+
+House houseOf(String id) => houses.firstWhere((h) => h.id == id, orElse: () => houses.first);
+
+const snsMoving = ['{name} 이사했네?? 방 미쳤다', '{name} 새 집 투어 해주세요', '{name} 성공했구나 ㅠㅠ 감동', '{name} 이사 축하해요!!', '{name} 방송 배경 달라져서 깜짝 놀람'];
+
+// ───── 라이벌 스트리머 (인기 순위) ─────
+class Rival {
+  const Rival(this.id, this.name, this.icon, this.start, this.growth);
+  final String id;
+  final String name;
+
+  /// 주력 콘텐츠
+  final String icon;
+
+  /// 시즌 시작 때 구독자
+  final int start;
+
+  /// 하루 평균 성장률
+  final double growth;
+}
+
+const rivals = [
+  Rival('sua', '새벽감성 수아', '🎤', 120, 0.06),
+  Rival('tori', '고양이집사 토리', '🐱', 900, 0.05),
+  Rival('gombear', '롤하는 곰돌이', '🎮', 4000, 0.045),
+  Rival('minji', '공부하는 민지', '📚', 15000, 0.035),
+  Rival('mukbo', '먹보대장', '🍜', 60000, 0.03),
+  Rival('jjin', '찐텐형', '💬', 300000, 0.02),
+  Rival('minsu', '갓겜민수', '🎮', 800000, 0.015),
+  Rival('hana', '대식가 하나', '🍜', 1200000, 0.012),
+  Rival('kimpd', '레전드 김피디', '🎬', 2500000, 0.008),
+];
+
+const snsOvertake = ['{name}, {rival} 제쳤다 ㄷㄷ', '{name} 순위 실화냐 {rival}보다 위네', '{rival} 팬인데 {name}도 보러 감 ㅋㅋ', '{name} 요즘 상승세 미쳤다'];
+
 // ───── 방송 종류 ─────
 class Content {
   const Content({
@@ -168,6 +234,9 @@ const chatLines = <String, List<String>>{
   'lowmic': ['소리 지직거려요', '마이크 너무 웅웅거림', '소리 작아요'],
   'dark': ['얼굴이 너무 어두워요', '조명 좀 켜주세요'],
 };
+
+/// 방송 중 후원 메시지
+const donationMsgs = ['오늘 텐션 미쳤다', '치킨 사 드세요 ㅋㅋ', '첫 후원입니다!', '목소리 너무 좋아요', '맨날 보러 올게요', '이거 보고 힘내요', '노래 한 곡만!', '장비 바꾸는 데 보태세요', '퇴근길에 보는 낙', '사랑해요 ❤'];
 
 // ───── SNS 공통 문구 ─────
 const snsPool = <String, List<String>>{
@@ -290,6 +359,15 @@ const snsGaffeApology = SnsTopic(
   shield: ['바로 사과한 건 인정', '사과까지 했는데 그만 까자', '진정성 느껴졌음', '실수 인정하는 게 쉬운 일 아님'],
   neutral: ['크로마키 사과 방송 밈 되겠다', '사과 방송 시청자 더 많았다던데'],
 );
+
+// ───── SNS 대응 (내 계정으로) ─────
+const myExplain = ['해명드립니다. 오해가 생긴 부분에 대해 솔직하게 말씀드릴게요.', '제 입장을 정리해서 올립니다. 끝까지 읽어 주세요.', '많은 분들이 걱정해 주셔서 직접 설명드리려 합니다.'];
+const mySue = ['도를 넘은 악성 댓글과 허위 사실 유포에 대해 법적 대응을 시작합니다.', '선처 없습니다. 악플 자료 모두 수집해 고소 진행합니다.'];
+const myPin = ['이 댓글 보고 힘냈어요. 고마워요 ❤', '늘 응원해 주셔서 감사합니다 ❤'];
+
+const snsExplainOk = SnsTopic(tag: '', headline: '', tone: 0.6, shield: ['해명 깔끔하네', '이제 오해 풀렸다', '역시 {name}', '이 정도면 충분히 설명했음'], hate: ['그래도 좀 찝찝함', '해명이 길다'], neutral: ['해명문 정독함']);
+const snsExplainBad = SnsTopic(tag: '', headline: '', tone: -0.6, hate: ['해명이 아니라 변명이네', '불난 데 기름 붓기', '가만히 있었으면 중간이라도 가지', '읽을수록 더 별로'], shield: ['그래도 입장 밝힌 건 용기임', '말꼬리 잡지 마요'], neutral: ['해명문 박제됨']);
+const snsSue = SnsTopic(tag: '', headline: '', tone: 0.2, shield: ['고소 잘했다', '악플러들 이제 조용해지겠네', '선처 없이 가자'], hate: ['고소는 좀 과한 듯', '비판도 악플 취급하네', '입막음 아님?'], neutral: ['고소 공지 떴다 ㄷㄷ']);
 
 /// 자숙을 마치고 복귀할 때 SNS
 const snsComeback = SnsTopic(

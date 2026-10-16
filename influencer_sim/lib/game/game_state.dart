@@ -91,13 +91,23 @@ class Post {
 
 /// 실시간 트렌드에 오른 주제 (토론 피드)
 class Trend {
-  Trend({required this.tag, required this.headline, required this.shield, required this.hate, required this.day, required this.posts});
+  Trend({required this.tag, required this.headline, required this.shield, required this.hate, required this.day, required this.posts, this.response});
   final String tag;
   final String headline;
-  final int shield;
-  final int hate;
+  int shield;
+  int hate;
   final int day;
   final List<Post> posts;
+
+  /// 내가 한 대응 (explain / sue / pin / ignore, 성공·실패는 explain_ok / explain_bad). 안 했으면 null
+  String? response;
+
+  /// 글과 답글을 다시 세어 여론을 갱신한다 (내 글은 빼고)
+  void recount() {
+    final all = [...posts, for (final p in posts) ...p.replies];
+    shield = all.where((p) => p.side == 'shield' || p.side == 'fan').length;
+    hate = all.where((p) => p.side == 'hate').length;
+  }
 
   Map<String, dynamic> toJson() => {
         'tag': tag,
@@ -106,6 +116,7 @@ class Trend {
         'hate': hate,
         'day': day,
         'posts': posts.map((p) => p.toJson()).toList(),
+        'response': response,
       };
 
   factory Trend.fromJson(Map<String, dynamic> j) => Trend(
@@ -115,6 +126,7 @@ class Trend {
         hate: j['hate'] as int,
         day: j['day'] as int,
         posts: (j['posts'] as List).map((p) => Post.fromJson(p as Map<String, dynamic>)).toList(),
+        response: j['response'] as String?,
       );
 }
 
@@ -178,7 +190,14 @@ class GameState {
     double? maleFans,
     this.antis = 0,
     List<LedgerEntry>? ledger,
-  })  : ledger = ledger ?? [],
+    this.house = 'banjiha',
+    Map<String, int>? rivals,
+    Map<String, int>? prevRanks,
+    Map<String, int>? lastRanks,
+  })  : rivals = rivals ?? {},
+        prevRanks = prevRanks ?? {},
+        lastRanks = lastRanks ?? {},
+        ledger = ledger ?? [],
         maleFans = maleFans ?? (look.male ? 0.35 : 0.72),
         gear = gear ?? {'camera': 0, 'mic': 0, 'light': 0, 'pc': 0},
         deco = deco ?? [],
@@ -242,6 +261,18 @@ class GameState {
   /// 통장 내역 (최신이 앞)
   List<LedgerEntry> ledger;
 
+  /// 사는 집 (data.dart의 houses)
+  String house;
+
+  /// 라이벌 스트리머 구독자 (id → 구독자)
+  Map<String, int> rivals;
+
+  /// 그저께 밤 순위 (id → 순위, 나는 'me'). 순위표의 ▲▼ 표시용
+  Map<String, int> prevRanks;
+
+  /// 어젯밤 순위. 오늘 밤 순위 상승 알림 비교용
+  Map<String, int> lastRanks;
+
   Map<String, dynamic> toJson() => {
         'v': 1,
         'name': name,
@@ -275,6 +306,10 @@ class GameState {
         'maleFans': maleFans,
         'antis': antis,
         'ledger': ledger.map((l) => l.toJson()).toList(),
+        'house': house,
+        'rivals': rivals,
+        'prevRanks': prevRanks,
+        'lastRanks': lastRanks,
       };
 
   factory GameState.fromJson(Map<String, dynamic> j) => GameState(
@@ -309,5 +344,10 @@ class GameState {
         maleFans: (j['maleFans'] as num?)?.toDouble(),
         antis: j['antis'] as int? ?? 0,
         ledger: (j['ledger'] as List? ?? const []).map((l) => LedgerEntry.fromJson(l as Map<String, dynamic>)).toList(),
+        // 이사 기능 전에 시작한 게임은 원룸에 살고 있었다
+        house: j['house'] as String? ?? 'oneroom',
+        rivals: Map<String, int>.from(j['rivals'] as Map? ?? const {}),
+        prevRanks: Map<String, int>.from(j['prevRanks'] as Map? ?? const {}),
+        lastRanks: Map<String, int>.from(j['lastRanks'] as Map? ?? const {}),
       );
 }

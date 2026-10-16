@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ads/ad_service.dart';
+import 'audio/sound_service.dart';
 import 'game/game_controller.dart';
 import 'game/save_repository.dart';
 import 'ui/home_screen.dart';
@@ -23,17 +24,20 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final game = GameController(SaveRepository(prefs));
   final ads = AdMobService();
+  final sound = GameSoundService(prefs);
 
-  runApp(InfluencerApp(game: game, ads: ads));
+  runApp(InfluencerApp(game: game, ads: ads, sound: sound));
+  sound.initialize();
   // 동의 창은 화면이 뜬 뒤에 띄워야 하므로 runApp 다음에 시작한다.
   ads.initialize();
 }
 
 class InfluencerApp extends StatelessWidget {
-  const InfluencerApp({super.key, required this.game, required this.ads, this.liveDuration = const Duration(milliseconds: 2600)});
+  const InfluencerApp({super.key, required this.game, required this.ads, this.sound, this.liveDuration = const Duration(milliseconds: 4200)});
 
   final GameController game;
   final AdService ads;
+  final SoundService? sound;
 
   /// 방송 연출 길이 (테스트에서 줄인다)
   final Duration liveDuration;
@@ -78,6 +82,7 @@ class _RootState extends State<_Root> {
               key: ValueKey('home-$_run'),
               game: app.game,
               ads: app.ads,
+              sound: app.sound,
               showIntro: _isNew,
               liveDuration: app.liveDuration,
               onExit: () => setState(() {

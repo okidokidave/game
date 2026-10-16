@@ -106,7 +106,7 @@ void main() {
     expect(h.days, 21);
     expect(g.s.day, 31);
     expect(g.s.slot, 0);
-    expect(g.s.money, money - 21 * GameController.livingCost);
+    expect(g.s.money, money - 21 * g.rent);
     expect(g.s.heat, 0);
     expect(h.seasonOver, isFalse);
     expect(h.trend!.tag, '도트왕_복귀');
@@ -128,12 +128,12 @@ void main() {
     g.newGame('도트왕', const Look(hair: 0, shirt: 0));
     g.work();
     g.endDay(0);
-    expect(g.s.money, 30000 + 60000 - GameController.livingCost);
-    expect(g.s.ledger.map((l) => l.label), containsAll(['편의점 알바', '생활비 (방세·식비)']));
+    expect(g.s.money, 30000 + 60000 - g.rent);
+    expect(g.s.ledger.map((l) => l.label), containsAll(['편의점 알바', '생활비 (반지하)']));
     g.s.money = 0;
     final mental = g.s.mental;
     g.endDay(0);
-    expect(g.s.money, -GameController.livingCost);
+    expect(g.s.money, -g.rent);
     expect(g.s.mental, lessThan(mental + 5)); // 마이너스 통장이면 멘탈이 깎인다
   });
 

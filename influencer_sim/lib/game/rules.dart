@@ -9,7 +9,7 @@ import 'game_state.dart';
 double quality(GameState s, Content? c) {
   final g = s.gear;
   final q = g['camera']! + g['light']! * 0.8 + g['mic']! * (c?.mic ?? 1) + g['pc']! * (c?.pc ?? 0.4);
-  return 1 + q * 0.13 + s.deco.length * 0.03;
+  return 1 + q * 0.13 + s.deco.length * 0.03 + houseOf(s.house).bonus;
 }
 
 bool canStream(GameState s, Content c) => c.need.entries.every((e) => s.gear[e.key]! >= e.value);

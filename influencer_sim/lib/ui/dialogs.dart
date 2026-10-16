@@ -317,7 +317,8 @@ class _ShopSheet extends StatefulWidget {
 }
 
 class _ShopSheetState extends State<_ShopSheet> {
-  bool _deco = false;
+  /// 0 장비, 1 꾸미기, 2 이사
+  int _tab = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -344,9 +345,11 @@ class _ShopSheetState extends State<_ShopSheet> {
               child: ListView(
                 shrinkWrap: true,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                children: !_deco
+                children: _tab == 0
                     ? [for (final g in gearTypes) _gearRow(game, g)]
-                    : [
+                    : _tab == 2
+                        ? [for (final h in houses) _houseRow(game, h)]
+                        : [
                         for (final d in decos) _decoRow(game, d),
                         _row(
                           '🎨',
@@ -383,12 +386,15 @@ class _ShopSheetState extends State<_ShopSheet> {
   Widget _segment() => Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(999)),
-        child: Row(children: [_segBtn('장비', !_deco, false), _segBtn('꾸미기', _deco, true)]),
+        child: Row(children: [_segBtn('장비', 0), _segBtn('꾸미기', 1), _segBtn('🏠 이사', 2)]),
       );
 
-  Widget _segBtn(String label, bool active, bool deco) => Expanded(
+  Widget _segBtn(String label, int tab) {
+    final active = _tab == tab;
+    return Expanded(
         child: GestureDetector(
-          onTap: () => setState(() => _deco = deco),
+          key: ValueKey('shop-tab-$tab'),
+          onTap: () => setState(() => _tab = tab),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -398,6 +404,25 @@ class _ShopSheetState extends State<_ShopSheet> {
           ),
         ),
       );
+  }
+
+  Widget _houseRow(GameController game, House h) {
+    final here = game.s.house == h.id;
+    final why = game.moveBlock(h);
+    final sub = '${h.desc}\n하루 생활비 ${shortWon(h.rent)}${h.deposit > 0 ? ' · 보증금 ${shortWon(h.deposit)}' : ''}';
+    return _row(
+      h.icon,
+      h.name,
+      sub,
+      here
+          ? const Text('거주 중', style: TextStyle(color: Pal.good, fontWeight: FontWeight.w800))
+          : why == '이미 지나온 집'
+              ? const Text('지나옴', style: _owned)
+              : why != null && why != '돈 부족'
+                  ? Text(why, textAlign: TextAlign.right, style: const TextStyle(color: Pal.muted, fontSize: 11.5, fontWeight: FontWeight.w700))
+                  : _buy('이사', why == null ? () => game.moveHouse(h) : null, ValueKey('move-${h.id}')),
+    );
+  }
 
   Widget _row(String icon, String title, String sub, Widget trailing, {Widget? extra}) => Container(
         margin: const EdgeInsets.only(bottom: 8),

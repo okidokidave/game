@@ -57,7 +57,7 @@ class _RoomViewState extends State<RoomView> with SingleTickerProviderStateMixin
   // 방 모양을 바꾸는 값들. 이 값이 그대로면 다시 그리지 않는다.
   String _sig(GameState s) {
     final trophies = s.followers >= 1000000 ? 3 : (s.followers >= 100000 ? 2 : (s.followers >= 10000 ? 1 : 0));
-    return '${s.gear.values.join(',')}|${s.deco.join(',')}|$trophies|${min(s.slot, 2)}|${s.wallColor}|${widget.mode == 'apology'}';
+    return '${s.gear.values.join(',')}|${s.deco.join(',')}|$trophies|${min(s.slot, 2)}|${s.wallColor}|${widget.mode == 'apology'}|${s.house}';
   }
 
   void _redrawIfNeeded() {
@@ -78,7 +78,7 @@ class _RoomViewState extends State<RoomView> with SingleTickerProviderStateMixin
     if (widget.mode == 'live' && _tick % 4 == 0) {
       _particles.addAll(burstParticles(_rng.nextDouble() < 0.7 ? 'heart' : 'chat', 1, _rng));
     }
-    if (widget.mode == 'sleep' && _tick % 10 == 0) _particles.add(sleepParticle());
+    if (widget.mode == 'sleep' && _tick % 10 == 0) _particles.add(sleepParticle(widget.state));
     for (final p in _particles) {
       p.y += p.vy;
       p.x += sin((p.life + p.y) / 4) * 0.3;

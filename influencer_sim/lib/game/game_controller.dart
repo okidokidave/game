@@ -110,6 +110,8 @@ class GameController extends ChangeNotifier {
   void newGame(String name, Look look, {int wallColor = 0xE9DCCB}) {
     _state = GameState(name: name, look: look, wallColor: wallColor, trend: _pick(['talk', 'mukbang', 'sing']));
     log('📱 스마트폰 하나로 방송을 시작했다. 목표: 60일 안에 셀럽 되기!', 'day');
+    s.prevRanks = _ranks();
+    s.lastRanks = s.prevRanks;
     save();
     notifyListeners();
   }
@@ -123,8 +125,8 @@ class GameController extends ChangeNotifier {
     s.log = [LogEntry(text, kind, s.day, min(s.slot, 2)), ...s.log].take(30).toList();
   }
 
-  /// 하루 생활비 (방세·식비)
-  static const livingCost = 10000;
+  /// 하루 생활비 (방세·식비): 사는 집에 따라 다르다
+  int get rent => houseOf(s.house).rent;
 
   /// 자숙 기간 (일)
   static const hiatusDays = 21;
@@ -285,8 +287,128 @@ class GameController extends ChangeNotifier {
     return r;
   }
 
+  /// 채팅 반응을 성공한 만큼 방송 결과를 키운다 (한 번에 시청자 +8%, 구독자 +10%, 후원 +15%)
+  StreamResult boostStream(StreamResult r, int hits) {
+    if (hits <= 0) return r;
+    return StreamResult(
+      viewers: (r.viewers * (1 + 0.08 * hits)).round(),
+      gain: (r.gain * (1 + 0.10 * hits)).round(),
+      donation: ((r.donation * (1 + 0.15 * hits)) / 100).round() * 100,
+      ads: r.ads,
+      viral: r.viral,
+      flop: r.flop,
+    );
+  }
+
   /// 방송 중 사건이 생길 확률
   double liveEventChance(Content c) => 0.38 + (c.risky ? 0.15 : 0) - (c.calm ? 0.15 : 0);
+
+  // ───── 인기 순위 ─────
+  /// 라이벌 구독자 (처음이면 시작 값)
+  int rivalFollowers(Rival r) => s.rivals[r.id] ?? r.start;
+
+  /// 순위표: (id, 이름, 아이콘, 구독자) 를 구독자 순으로. 나는 id 'me'
+  List<(String, String, String, int)> ranking() {
+    final rows = [
+      for (final r in rivals) (r.id, r.name, r.icon, rivalFollowers(r)),
+      ('me', s.name, '⭐', s.followers),
+    ]..sort((a, b) => b.$4.compareTo(a.$4));
+    return rows;
+  }
+
+  int get myRank => ranking().indexWhere((r) => r.$1 == 'me') + 1;
+
+  /// 하루가 지나면 라이벌도 성장한다. 내가 누군가를 제쳤으면 알림과 SNS 글
+  Map<String, int> _ranks() => {for (final (i, row) in ranking().indexed) row.$1: i + 1};
+
+  void _updateRanking() {
+    // 어젯밤 순위와 비교한다 (처음이면 지금 순위)
+    final before = s.lastRanks.isEmpty ? _ranks() : s.lastRanks;
+    for (final r in rivals) {
+      final f = rivalFollowers(r);
+      final rate = r.growth * (0.3 + rng.nextDouble() * 1.4);
+      s.rivals[r.id] = (f * (1 + rate)).round();
+    }
+    final after = ranking();
+    final rankNow = after.indexWhere((r) => r.$1 == 'me') + 1;
+    final rankBefore = before['me'] ?? rankNow;
+    s.prevRanks = before;
+    s.lastRanks = _ranks();
+    if (rankNow < rankBefore) {
+      // 바로 아래로 내려간 라이벌 = 방금 제친 사람
+      final passed = after[rankNow];
+      toasts.add('🏆 순위 상승! $rankBefore위 → $rankNow위');
+      log('🏆 인기 순위 $rankNow위! ${passed.$2}을(를) 제쳤다.', 'milestone');
+      pushFeed([sns.post(s, _pick(snsOvertake).replaceAll('{rival}', passed.$2), 'fan', g: sns.fanGender(s), boost: 2)]);
+    }
+  }
+
+  // ───── SNS 대응 ─────
+  /// 고소에 드는 변호사비
+  int get lawyerFee => scaleMoney(s, 200000);
+
+  /// 가장 최근 트렌드에, 이틀 안에, 한 번만 대응할 수 있다
+  bool canRespond(Trend t) => s.ended == null && s.trends.isNotEmpty && identical(t, s.trends.last) && t.response == null && s.day - t.day <= 2;
+
+  /// 트렌드에 내 계정으로 대응한다. 결과 한 줄 설명과 수치 변화를 돌려준다.
+  (String, List<Change>) respond(Trend t, String kind) {
+    if (!canRespond(t)) return ('', const []);
+    final changes = <Change>[];
+    String summary;
+    switch (kind) {
+      case 'explain':
+        // 여론이 내 편일수록 해명이 잘 먹힌다
+        final share = t.shield / max(1, t.shield + t.hate);
+        final ok = share >= 0.5 || rng.nextDouble() < share + 0.2;
+        final me = sns.myPost(s, _pick(myExplain));
+        me.replies.addAll(sns.reactions(s, ok ? snsExplainOk : snsExplainBad, 4));
+        t.posts.insert(1, me);
+        pushFeed([me]);
+        t.response = ok ? 'explain_ok' : 'explain_bad';
+        changes.addAll(applyFx(ok ? const Fx(image: 3, heat: -6) : const Fx(image: -3, heat: 8)));
+        summary = ok ? '해명이 먹혔다! 여론이 돌아서고 있다.' : '해명이 역풍을 맞았다… 오히려 불이 붙었다.';
+        log(ok ? '✍️ 해명 글이 통했다.' : '✍️ 해명 글이 역풍을 맞았다.', 'event');
+      case 'sue':
+        money(-lawyerFee, '변호사 선임비');
+        changes.add(_delta('돈', -lawyerFee, shortWon));
+        final gone = (s.antis * 0.5).round();
+        s.antis -= gone;
+        if (gone > 0) changes.add(_delta('안티', -gone, shortNum, true));
+        changes.addAll(applyFx(const Fx(heat: -10, image: -1)));
+        final me = sns.myPost(s, _pick(mySue));
+        me.replies.addAll(sns.reactions(s, snsSue, 4));
+        t.posts.insert(1, me);
+        pushFeed([me]);
+        t.response = 'sue';
+        summary = '고소 공지를 올렸다. 악플이 눈에 띄게 줄었지만, 과하다는 말도 나온다.';
+        log('⚖️ 악플러 고소를 진행했다.', 'event');
+      case 'pin':
+        // 가장 좋아요가 많은 쉴드 글을 고정하고 답글을 단다
+        final fans = t.posts.where((p) => p.side == 'shield' || p.side == 'fan').toList()..sort((a, b) => b.likes.compareTo(a.likes));
+        // 쉴드 글이 하나도 없으면 응원 글을 하나 불러온다
+        if (fans.isEmpty) fans.addAll(sns.reactions(s, const SnsTopic(tag: '', headline: '', tone: 1, shield: ['{name} 항상 응원해요', '우리는 {name} 편이에요']), 1));
+        if (fans.isNotEmpty) {
+          final top = fans.first;
+          t.posts.remove(top);
+          t.posts.insert(1, top);
+          top.text = '📌 ${top.text}';
+          top.replies.insert(0, sns.myPost(s, _pick(myPin)));
+        }
+        // 고정 글을 보고 팬들이 모여든다
+        t.posts.addAll(sns.reactions(s, const SnsTopic(tag: '', headline: '', tone: 0.8, shield: ['고정 댓글 보고 울컥함', '{name} 팬들 화력 보여주자', '우리가 지킨다']), 2));
+        changes.addAll(applyFx(const Fx(mental: 8, image: 1)));
+        t.response = 'pin';
+        summary = '팬 댓글을 고정했다. 팬들이 힘을 모으기 시작했다.';
+        log('📌 응원 댓글을 고정했다.', 'event');
+      default:
+        t.response = 'ignore';
+        summary = '아무 대응도 하지 않았다. 시간이 지나면 잊히겠지…';
+    }
+    t.recount();
+    save();
+    notifyListeners();
+    return (summary, changes);
+  }
 
   // ───── 방송 중 말실수 ─────
   double gaffeChance(Content c) => 0.07 + (c.risky ? 0.04 : 0) - (c.calm ? 0.03 : 0);
@@ -352,9 +474,12 @@ class GameController extends ChangeNotifier {
       s.heat = (s.heat - 7).clamp(0, 100);
       s.antis = (s.antis * 0.97).floor();
       s.mental = (s.mental + 3).clamp(0, 100);
+      _updateRanking();
       s.day++;
     }
-    final cost = days * livingCost;
+    // 자숙 중 순위 알림은 쌓지 않는다
+    toasts.removeWhere((m) => m.startsWith('🏆 순위'));
+    final cost = days * rent;
     money(-cost, '자숙 기간 생활비 ($days일)');
     s.image = (s.image + 4).clamp(-100, 100);
     s.energy = 100;
@@ -538,12 +663,13 @@ class GameController extends ChangeNotifier {
   }
 
   DayReport endDay(int remaining) {
-    money(-livingCost, '생활비 (방세·식비)');
+    money(-rent, '생활비 (${houseOf(s.house).name})');
     final broke = s.money < 0;
     s.energy = (s.energy + 45 + remaining * 15).clamp(0, 100);
     s.mental = (s.mental + 5).clamp(0, 100);
     s.heat = (s.heat - 7).clamp(0, 100);
     s.antis = (s.antis * 0.97).floor();
+    _updateRanking();
     s.day++;
     s.slot = 0;
     s.mode = 'idle';
@@ -600,6 +726,31 @@ class GameController extends ChangeNotifier {
     s.deco.add(d.id);
     log('🛒 ${d.name} 구입! (-${shortWon(d.price)})', 'buy');
     toasts.add('${d.name}을(를) 방에 놓았어요');
+    save();
+    notifyListeners();
+    return true;
+  }
+
+  /// 이사할 수 없으면 이유, 할 수 있으면 null
+  String? moveBlock(House h) {
+    final cur = houses.indexWhere((x) => x.id == s.house);
+    final idx = houses.indexOf(h);
+    if (idx <= cur) return '이미 지나온 집';
+    if (idx > cur + 1) return '${houses[idx - 1].name}부터';
+    if (s.followers < h.minFollowers) return '구독자 ${shortNum(h.minFollowers)} 필요';
+    if (s.money < h.deposit) return '돈 부족';
+    return null;
+  }
+
+  bool moveHouse(House h) {
+    if (moveBlock(h) != null) return false;
+    money(-h.deposit, '${h.name} 보증금·이사비');
+    s.house = h.id;
+    s.wallColor = h.wall;
+    log('${h.icon} ${h.name}(으)로 이사했다!', 'milestone');
+    pushFeed([for (var i = 0; i < 3; i++) sns.post(s, _pick(snsMoving), 'fan', g: sns.fanGender(s), boost: 2)]);
+    toasts.add('${h.icon} ${h.name}(으)로 이사 완료!');
+    emit('heart', 16);
     save();
     notifyListeners();
     return true;

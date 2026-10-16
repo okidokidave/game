@@ -189,7 +189,8 @@ const _seatX = 30.0;
 const _seatY = 40.0;
 const _pillowX = 70.0;
 const _pillowY = 13.0;
-const _pillowZ = 14.0;
+/// 베개 높이 (반지하는 바닥 매트리스라 낮다)
+double _pillowZ(GameState s) => s.house == 'banjiha' ? 6 : 14;
 const _deskX = 42.0;
 
 class _Sky {
@@ -207,25 +208,34 @@ const _skies = [
 
 int _g(GameState s, String k) => s.gear[k]!;
 
-/// 캐릭터 뒤에 그려지는 것 (바닥, 벽, 침대, 의자 등)
-ui.Image drawBack(GameState s, {bool apology = false}) {
-  final r = Raster();
-  final deco = s.deco.toSet();
-  final wall = argb(s.wallColor);
-  final wallR = shade(wall, -0.08);
-  const trim = 0xFFB58A62;
-  final slot = min(s.slot, 2);
+// ───── 집마다 다른 바닥·벽·창문 ─────
+int _hash(double a, double b) => ((a.floor() * 92837 + b.floor() * 1237 + 17) % 101).abs();
 
-  // 바닥 판
+void _shell(Raster r, GameState s, int slot, int wall, int wallR) {
+  final sky = _skies[slot];
+  switch (s.house) {
+    case 'banjiha':
+      _banjiha(r, slot, sky);
+    case 'officetel':
+      _modern(r, slot, sky, wall, wallR, floorA: 0xFFE0C49A, floorB: 0xFFD9BC90, seam: 0xFFC7A77A, trim: 0xFFCFCFCF, apartment: false);
+    case 'apartment':
+      _modern(r, slot, sky, wall, wallR, floorA: 0xFFB8875A, floorB: 0xFFAA7A50, seam: 0xFF8E6440, trim: 0xFFE8E0D2, apartment: true);
+    case 'penthouse':
+      _penthouse(r, slot);
+    default:
+      _oneroom(r, slot, sky, wall, wallR);
+  }
+}
+
+// 원룸 (처음 만든 방)
+void _oneroom(Raster r, int slot, _Sky sky, int wall, int wallR) {
+  const trim = 0xFFB58A62;
   _box(r, 0, 0, -6, _rw, _rw, 6, 0xFF8A6040);
   _top(r, 0, 0, _rw, _rw, 0, (x, y) {
     final row = (y / 8).floor();
     final seam = (x + row * 13) % 32 < 0.6 || y % 8 < 0.6;
-    final tone = row.isOdd ? 0xFFC99A6B : 0xFFC49364;
-    return seam ? 0xFFA8784D : tone;
+    return seam ? 0xFFA8784D : (row.isOdd ? 0xFFC99A6B : 0xFFC49364);
   });
-
-  // 벽 (두께 포함)
   _box(r, -4, 0, -6, 4, _rw, _rh + 6, trim);
   _box(r, -4, -4, -6, _rw + 4, 4, _rh + 6, trim);
   _sideX(r, 0, 0, _rw, 0, _rh, (y, z) {
@@ -240,9 +250,6 @@ ui.Image drawBack(GameState s, {bool apology = false}) {
     if (z < 17) return shade(trim, -0.1);
     return (x / 6).floor().isOdd ? wallR : shade(wallR, -0.04);
   });
-
-  // 창문 (왼쪽 벽)
-  final sky = _skies[slot];
   _sideX(r, 0, 52, 84, 28, 58, (y, z) {
     if (y < 2 || y >= 30 || z < 2 || z >= 28 || (y - 16).abs() < 1) return 0xFFF4EDE2;
     if (slot == 2 && (y * 7 + z * 13) % 37 < 0.6) return 0xFFFFFFFF;
@@ -251,6 +258,147 @@ ui.Image drawBack(GameState s, {bool apology = false}) {
   });
   _sideX(r, 0.5, 49, 53, 24, 60, solid(0xFFD97F8F));
   _sideX(r, 0.5, 83, 87, 24, 60, solid(0xFFD97F8F));
+}
+
+// 반지하: 콘크리트 벽과 곰팡이, 장판, 천장 근처 창문으로 지나가는 발
+void _banjiha(Raster r, int slot, _Sky sky) {
+  const trim = 0xFF7D7A72;
+  _box(r, 0, 0, -6, _rw, _rw, 6, 0xFF6E6A5E);
+  _top(r, 0, 0, _rw, _rw, 0, (x, y) {
+    if (x % 12 < 0.6 || y % 12 < 0.6) return 0xFF8F8968;
+    return ((x / 12).floor() + (y / 12).floor()).isOdd ? 0xFFB7B08A : 0xFFADA680;
+  });
+  _box(r, -4, 0, -6, 4, _rw, _rh + 6, trim);
+  _box(r, -4, -4, -6, _rw + 4, 4, _rh + 6, trim);
+  int? concrete(double u, double z, int base) {
+    if (z < 2) return shade(base, -0.35);
+    if (u % 24 < 0.6) return shade(base, -0.12);
+    // 바닥 근처와 위쪽 구석에 곰팡이
+    final h = _hash(u / 2, z / 2);
+    if ((z < 14 && h < 9) || (z > _rh - 10 && u < 20 && h < 14)) return h.isOdd ? 0xFF5E6B52 : 0xFF6F7A5F;
+    return (z / 3).floor().isOdd ? base : shade(base, -0.03);
+  }
+
+  _sideX(r, 0, 0, _rw, 0, _rh, (y, z) => concrete(y, z, 0xFFA9A69E));
+  _sideY(r, 0, 0, _rw, 0, _rh, (x, z) => concrete(x, z, 0xFF9C998F));
+  // 천장 근처 작은 창: 아래는 길바닥과 지나가는 발, 위는 하늘, 쇠창살
+  _sideX(r, 0, 56, 84, 50, 66, (y, z) {
+    if (y < 2 || y >= 26 || z < 2 || z >= 14) return 0xFF6B6F73;
+    if ((y - 2) % 5 < 0.8) return 0xFF3A3D40;
+    if (z < 6) {
+      final foot = (y > 7 && y < 10) || (y > 17 && y < 20);
+      if (foot && z > 2.5 && z < 5) return 0xFF2A2230;
+      return 0xFF8E8E8E;
+    }
+    return slot == 2 ? sky.sky : sky.sky2;
+  });
+  // 천장을 지나는 배관
+  _box(r, 0, 1, _rh - 8, _rw, 3, 3, 0xFF8A8F94);
+}
+
+// 오피스텔·아파트: 깔끔한 벽, 큰 창 너머 도시
+void _modern(Raster r, int slot, _Sky sky, int wall, int wallR, {required int floorA, required int floorB, required int seam, required int trim, required bool apartment}) {
+  _box(r, 0, 0, -6, _rw, _rw, 6, shade(floorA, -0.35));
+  _top(r, 0, 0, _rw, _rw, 0, (x, y) {
+    if (apartment) {
+      // 헤링본 무늬
+      final row = (y / 4).floor();
+      final shift = row.isOdd ? 4.0 : 0.0;
+      final col = ((x + shift) / 8).floor();
+      if ((x + shift) % 8 < 0.6 || y % 4 < 0.5) return seam;
+      return (col + row).isOdd ? floorA : floorB;
+    }
+    final row = (y / 6).floor();
+    if ((x + row * 17) % 40 < 0.6 || y % 6 < 0.5) return seam;
+    return row.isOdd ? floorA : floorB;
+  });
+  _box(r, -4, 0, -6, 4, _rw, _rh + 6, trim);
+  _box(r, -4, -4, -6, _rw + 4, 4, _rh + 6, trim);
+  int? paint(double u, double z, int base) {
+    if (z < 3) return 0xFFDADADA;
+    if (apartment) {
+      if (z < 22) {
+        // 아래쪽 몰딩 패널
+        final pu = u % 16;
+        if ((pu < 1 || pu > 15 || z < 5 || z > 20) && z > 4) return shade(base, 0.08);
+        return shade(base, -0.05);
+      }
+      if (z < 23) return shade(base, 0.12);
+      if (z > _rh - 3) return shade(base, 0.1);
+    } else if (u % 24 < 0.5) {
+      return shade(base, -0.03);
+    }
+    return base;
+  }
+
+  _sideX(r, 0, 0, _rw, 0, _rh, (y, z) => paint(y, z, wall));
+  _sideY(r, 0, 0, _rw, 0, _rh, (x, z) => paint(x, z, wallR));
+  final y0 = apartment ? 46.0 : 40.0, y1 = apartment ? 86.0 : 90.0;
+  final z0 = apartment ? 26.0 : 18.0, z1 = apartment ? 62.0 : 62.0;
+  final w = y1 - y0;
+  _sideX(r, 0, y0, y1, z0, z1, (y, z) {
+    if (y < 2 || y >= w - 2 || z < 2 || z >= z1 - z0 - 2 || (y - w / 2).abs() < 1) return 0xFF4A4F57;
+    // 건물 실루엣
+    final b = (y / 5).floor();
+    final height = 6 + (_hash(b.toDouble(), 3) % (apartment ? 14 : 24));
+    if (z < height) {
+      final lit = slot == 2 && (y % 5 > 1.5 && y % 5 < 3.5) && (z % 4 > 1.5) && _hash(y, z) % 3 == 0;
+      if (lit) return 0xFFFFE08A;
+      return switch (slot) { 0 => 0xFF8FA3B8, 1 => 0xFF7A6A80, _ => 0xFF1E2238 };
+    }
+    if (apartment && z < height + 3 && slot != 2) return 0xFF5E9B5A; // 나무
+    if (slot == 2 && _hash(y * 3, z * 5) % 41 == 0) return 0xFFFFFFFF;
+    return z > 18 ? sky.sky : sky.sky2;
+  });
+  if (apartment) {
+    _sideX(r, 0.5, y0 - 3, y0 + 2, z0 - 4, z1 + 4, solid(0xFFE6D9C3));
+    _sideX(r, 0.5, y1 - 2, y1 + 3, z0 - 4, z1 + 4, solid(0xFFE6D9C3));
+  }
+}
+
+// 펜트하우스: 대리석 바닥, 통유리 야경, 금색 장식
+void _penthouse(Raster r, int slot) {
+  const gold = 0xFFC9A44C;
+  _box(r, 0, 0, -6, _rw, _rw, 6, 0xFF1A1C22);
+  _top(r, 0, 0, _rw, _rw, 0, (x, y) {
+    if (x % 24 < 0.5 || y % 24 < 0.5) return 0xFF3A3E48;
+    final vein = ((x * 0.7 + y * 1.3) % 19 < 0.6) && _hash(x / 6, y / 6) < 50;
+    if (vein) return 0xFF5A5F6B;
+    return ((x / 24).floor() + (y / 24).floor()).isOdd ? 0xFF2B2E36 : 0xFF30333C;
+  });
+  _box(r, -4, 0, -6, 4, _rw, _rh + 6, 0xFF15171D);
+  _box(r, -4, -4, -6, _rw + 4, 4, _rh + 6, 0xFF15171D);
+  _sideY(r, 0, 0, _rw, 0, _rh, (x, z) {
+    if (z < 2) return 0xFF101116;
+    if ((z - 20).abs() < 0.6 || (z - _rh + 3).abs() < 0.6) return gold;
+    return (x / 12).floor().isOdd ? 0xFF22252E : 0xFF262934;
+  });
+  // 왼쪽 벽 전체가 통유리
+  final day = slot != 2;
+  _sideX(r, 0, 0, _rw, 0, _rh, (y, z) {
+    if (z < 3 || z > _rh - 3 || y % 30 < 1) return gold;
+    final b = (y / 4).floor();
+    final height = 8 + (_hash(b.toDouble(), 7) % 36);
+    if (z < height) {
+      final lit = !day && (y % 4 > 1 && y % 4 < 3) && (z % 3 > 1.2) && _hash(y, z) % 3 == 0;
+      if (lit) return 0xFFFFD27A;
+      return day ? (slot == 0 ? 0xFF8494A8 : 0xFF6E5A78) : 0xFF141830;
+    }
+    if (!day && _hash(y * 3, z * 7) % 37 == 0) return 0xFFFFFFFF;
+    return switch (slot) { 0 => 0xFFAED8F2, 1 => 0xFFF2A97A, _ => 0xFF0D1030 };
+  });
+}
+
+/// 캐릭터 뒤에 그려지는 것 (바닥, 벽, 침대, 의자 등)
+ui.Image drawBack(GameState s, {bool apology = false}) {
+  final r = Raster();
+  final deco = s.deco.toSet();
+  final wall = argb(s.wallColor);
+  final wallR = shade(wall, -0.08);
+  final slot = min(s.slot, 2);
+
+  // 바닥, 벽, 창문은 사는 집에 따라 다르다
+  _shell(r, s, slot, wall, wallR);
 
   // 네온사인 (왼쪽 벽, 캐릭터 뒤)
   if (deco.contains('neon')) {
@@ -315,12 +463,20 @@ ui.Image drawBack(GameState s, {bool apology = false}) {
     });
   }
 
-  // 침대 (오른쪽 벽)
-  _box(r, 62, 0, 0, 32, 28, 8, 0xFF8A6040);
-  _box(r, 62, 0, 8, 32, 28, 4, 0xFFF5F2EC);
-  _box(r, 64, 3, 12, 8, 20, 3, 0xFFFFFFFF);
-  _box(r, 74, 1, 12, 20, 26, 2, 0xFF7FB3D5);
-  _box(r, 60, 0, 0, 2, 28, 18, 0xFF7A5236);
+  // 침대 (오른쪽 벽). 반지하는 바닥에 매트리스만
+  if (s.house == 'banjiha') {
+    _box(r, 62, 0, 0, 32, 28, 4, 0xFFE8E4DA);
+    _box(r, 64, 3, 4, 8, 20, 3, 0xFFF4F1EA);
+    _box(r, 74, 1, 4, 20, 26, 2, 0xFF8C9AA8);
+  } else {
+    final frame = switch (s.house) { 'penthouse' => 0xFF3A3A44, 'officetel' => 0xFFB89A74, _ => 0xFF8A6040 };
+    final blanket = switch (s.house) { 'penthouse' => 0xFFE9E6F0, 'apartment' => 0xFFD9A7B0, _ => 0xFF7FB3D5 };
+    _box(r, 62, 0, 0, 32, 28, 8, frame);
+    _box(r, 62, 0, 8, 32, 28, 4, 0xFFF5F2EC);
+    _box(r, 64, 3, 12, 8, 20, 3, 0xFFFFFFFF);
+    _box(r, 74, 1, 12, 20, 26, 2, blanket);
+    _box(r, 60, 0, 0, 2, 28, s.house == 'penthouse' || s.house == 'apartment' ? 24 : 18, shade(frame, -0.1));
+  }
 
   // 소프트박스 (뒤쪽 하나)
   if (_g(s, 'light') >= 3) _sprite(r, at(6, 30), _spr['softbox']!, {'k': 0xFF333333, 'w': 0xFFFFFBE8});
@@ -480,7 +636,7 @@ class RoomPainter extends CustomPainter {
     final pal = _charPalette(s.look, blink: tick % 40 == 0 || tick % 40 == 1, talk: live && (tick ~/ 2) % 3 != 0);
 
     if (mode == 'sleep') {
-      final h = at(_pillowX, _pillowY, _pillowZ);
+      final h = at(_pillowX, _pillowY, _pillowZ(s));
       _rows(canvas, _headRows(s.look, true).take(10).toList(), pal, h.dx - 6, h.dy - 9);
     } else if (mode == 'apology') {
       // 일어서서 고개 숙여 사과 (몇 박자마다 꾸벅)
@@ -578,7 +734,7 @@ List<Particle> burstParticles(String kind, int n, Random rng) {
   ];
 }
 
-Particle sleepParticle() {
-  final p = at(_pillowX, _pillowY, _pillowZ + 10);
+Particle sleepParticle(GameState s) {
+  final p = at(_pillowX, _pillowY, _pillowZ(s) + 10);
   return Particle('z', p.dx + 2, p.dy - 6, -0.4, 26);
 }
