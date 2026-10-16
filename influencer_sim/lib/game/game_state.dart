@@ -132,6 +132,17 @@ class LogEntry {
       LogEntry(j['text'] as String, j['kind'] as String, j['day'] as int, j['slot'] as int);
 }
 
+/// 통장 내역 한 줄 (+수입 / -지출)
+class LedgerEntry {
+  const LedgerEntry(this.day, this.label, this.amount);
+  final int day;
+  final String label;
+  final int amount;
+
+  Map<String, dynamic> toJson() => {'day': day, 'label': label, 'amount': amount};
+  factory LedgerEntry.fromJson(Map<String, dynamic> j) => LedgerEntry(j['day'] as int, j['label'] as String, j['amount'] as int);
+}
+
 class GameState {
   GameState({
     required this.name,
@@ -166,7 +177,9 @@ class GameState {
     this.ended,
     double? maleFans,
     this.antis = 0,
-  })  : maleFans = maleFans ?? (look.male ? 0.35 : 0.72),
+    List<LedgerEntry>? ledger,
+  })  : ledger = ledger ?? [],
+        maleFans = maleFans ?? (look.male ? 0.35 : 0.72),
         gear = gear ?? {'camera': 0, 'mic': 0, 'light': 0, 'pc': 0},
         deco = deco ?? [],
         skills = skills ?? {},
@@ -226,6 +239,9 @@ class GameState {
   /// 안티 수 (사과 없이 넘어간 사고 등으로 생김)
   int antis;
 
+  /// 통장 내역 (최신이 앞)
+  List<LedgerEntry> ledger;
+
   Map<String, dynamic> toJson() => {
         'v': 1,
         'name': name,
@@ -258,6 +274,7 @@ class GameState {
         'uploads': uploads,
         'maleFans': maleFans,
         'antis': antis,
+        'ledger': ledger.map((l) => l.toJson()).toList(),
       };
 
   factory GameState.fromJson(Map<String, dynamic> j) => GameState(
@@ -291,5 +308,6 @@ class GameState {
         uploads: j['uploads'] as int,
         maleFans: (j['maleFans'] as num?)?.toDouble(),
         antis: j['antis'] as int? ?? 0,
+        ledger: (j['ledger'] as List? ?? const []).map((l) => LedgerEntry.fromJson(l as Map<String, dynamic>)).toList(),
       );
 }

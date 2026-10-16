@@ -43,6 +43,19 @@ class GaffeOutcome {
   final Trend trend;
 }
 
+/// 자숙 결과
+class HiatusReport {
+  const HiatusReport(this.days, this.lostFans, this.cost, this.seasonOver, this.changes, this.trend);
+  final int days;
+  final int lostFans;
+  final int cost;
+
+  /// 자숙 중에 60일이 다 지났는지
+  final bool seasonOver;
+  final List<Change> changes;
+  final Trend? trend;
+}
+
 class UploadOutcome {
   const UploadOutcome(this.result, this.trend);
   final UploadResult result;
@@ -110,6 +123,20 @@ class GameController extends ChangeNotifier {
     s.log = [LogEntry(text, kind, s.day, min(s.slot, 2)), ...s.log].take(30).toList();
   }
 
+  /// 하루 생활비 (방세·식비)
+  static const livingCost = 10000;
+
+  /// 자숙 기간 (일)
+  static const hiatusDays = 21;
+
+  /// 돈이 오갈 때는 모두 여기로: 통장 내역에 남긴다
+  void money(int amount, String label) {
+    if (amount == 0) return;
+    s.money += amount;
+    if (amount > 0) s.earned += amount;
+    s.ledger = [LedgerEntry(s.day, label, amount), ...s.ledger].take(80).toList();
+  }
+
   void setMode(String mode) {
     s.mode = mode;
     notifyListeners();
@@ -146,7 +173,7 @@ class GameController extends ChangeNotifier {
   }
 
   // ───── 수치 적용 ─────
-  List<Change> applyFx(Fx fx) {
+  List<Change> applyFx(Fx fx, [String moneyLabel = '사건']) {
     final changes = <Change>[];
     if (fx.followers != 0) {
       var d = (s.followers * fx.followers).round();
@@ -155,8 +182,7 @@ class GameController extends ChangeNotifier {
       changes.add(_delta('구독자', d, shortNum));
     }
     if (fx.money != 0) {
-      s.money += fx.money;
-      if (fx.money > 0) s.earned += fx.money;
+      money(fx.money, moneyLabel);
       changes.add(_delta('돈', fx.money, shortWon));
     }
     if (fx.image != 0) {
@@ -235,7 +261,7 @@ class GameController extends ChangeNotifier {
     s.seen.add(ev.id);
     if (s.seen.length > 10) s.seen.removeAt(0);
     final choice = ev.choices[index];
-    final changes = applyFx(choice.fx(s));
+    final changes = applyFx(choice.fx(s), ev.title);
     log('${ev.title}: ${choice.label}', 'event');
     Trend? trend;
     if (choice.sns != null) {
@@ -252,7 +278,7 @@ class GameController extends ChangeNotifier {
   /// 방송 시작: 체력과 비용을 쓰고 결과를 미리 계산한다 (연출 중 시청자 수 표시용).
   StreamResult beginStream(Content c) {
     s.energy -= c.energy;
-    s.money -= c.cost;
+    money(-c.cost, '${c.name} 재료비');
     final r = calcStream(s, c, rng);
     s.mode = 'live';
     notifyListeners();
@@ -282,10 +308,11 @@ class GameController extends ChangeNotifier {
     final StreamResult result;
     final SnsTopic base;
     if (apologize) {
+      // 방송을 바로 접고 사과한다: 이 방송의 수입과 새 팬은 없다. (이후 3주 자숙 → startHiatus)
       changes.addAll(applyFx(const Fx(image: -2, heat: 4, mental: -6)));
-      result = scaled(0.85, 0.5, 0.5);
+      result = StreamResult(viewers: max(1, (r.viewers * 0.85).round()), gain: 0, donation: 0, ads: 0, viral: false, flop: r.flop);
       base = snsGaffeApology;
-      log('🙇 말실수 후 바로 사과 방송을 했다.', 'event');
+      log('🙇 말실수 후 방송을 중단하고 사과했다. 3주간 자숙에 들어간다.', 'event');
     } else {
       final lost = max(1, (s.followers * 0.06).round());
       s.followers = max(0, s.followers - lost);
@@ -315,6 +342,46 @@ class GameController extends ChangeNotifier {
     return GaffeOutcome(result, changes, trend);
   }
 
+  /// 사과 후 3주 자숙. 방송·수입은 없고 생활비는 나간다. 팬은 서서히 조금 떠나고 논란은 가라앉는다.
+  HiatusReport startHiatus() {
+    final fans0 = s.followers, heat0 = s.heat, mental0 = s.mental, image0 = s.image;
+    var days = 0;
+    while (days < hiatusDays && s.day <= seasonDays) {
+      days++;
+      s.followers = (s.followers * 0.9988).floor(); // 3주에 약 2.5%
+      s.heat = (s.heat - 7).clamp(0, 100);
+      s.antis = (s.antis * 0.97).floor();
+      s.mental = (s.mental + 3).clamp(0, 100);
+      s.day++;
+    }
+    final cost = days * livingCost;
+    money(-cost, '자숙 기간 생활비 ($days일)');
+    s.image = (s.image + 4).clamp(-100, 100);
+    s.energy = 100;
+    s.slot = 0;
+    s.mode = 'idle';
+    final over = s.day > seasonDays;
+
+    final changes = <Change>[
+      _delta('팬 이탈', s.followers - fans0, shortNum),
+      _delta('생활비', -cost, shortWon),
+      _delta('논란', s.heat - heat0, null, true),
+      _delta('멘탈', s.mental - mental0),
+      _delta('이미지', s.image - image0),
+    ].where((c) => c.good != null).toList();
+
+    Trend? trend;
+    if (!over) {
+      s.trend = _pick(contents.where((c) => c.id != s.trend).toList()).id;
+      log('🎬 $days일간의 자숙을 마치고 복귀했다.', 'day');
+      trend = sns.topicFeed(s, snsComeback);
+      pushTrend(trend);
+    }
+    save();
+    notifyListeners();
+    return HiatusReport(days, fans0 - s.followers, cost, over, changes, trend);
+  }
+
   // 콘텐츠마다 새로 들어오는 팬의 성비가 조금씩 다르다
   static const _contentLean = {'game': 0.12, 'react': 0.05, 'sing': -0.08, 'asmr': -0.06, 'vlog': -0.08};
 
@@ -329,8 +396,8 @@ class GameController extends ChangeNotifier {
     _shiftFans(c, r.gain);
     s.followers += r.gain;
     final income = r.donation + r.ads;
-    s.money += income;
-    s.earned += income;
+    money(r.donation, '${c.name} 후원');
+    money(r.ads, '${c.name} 광고 수익');
     s.streams++;
     s.peak = max(s.peak, r.viewers);
     s.skills[c.id] = (s.skills[c.id] ?? 0) + 1;
@@ -394,8 +461,7 @@ class GameController extends ChangeNotifier {
     s.mode = 'idle';
     final r = calcUpload(s, rng);
     s.followers += r.gain;
-    s.money += r.ads;
-    s.earned += r.ads;
+    money(r.ads, '영상 광고 수익');
     s.uploads++;
     s.mental = (s.mental - 1).clamp(0, 100);
     final c = contentOf(s.lastContent ?? 'talk');
@@ -434,7 +500,7 @@ class GameController extends ChangeNotifier {
     s.energy -= 22;
     s.mental = (s.mental - 3).clamp(0, 100);
     final pay = s.slot == 2 ? 72000 : 60000;
-    s.money += pay;
+    money(pay, '편의점 알바');
     log('🏪 ${_pick(_workText)} +${shortWon(pay)}');
     notifyListeners();
   }
@@ -472,6 +538,8 @@ class GameController extends ChangeNotifier {
   }
 
   DayReport endDay(int remaining) {
+    money(-livingCost, '생활비 (방세·식비)');
+    final broke = s.money < 0;
     s.energy = (s.energy + 45 + remaining * 15).clamp(0, 100);
     s.mental = (s.mental + 5).clamp(0, 100);
     s.heat = (s.heat - 7).clamp(0, 100);
@@ -482,6 +550,10 @@ class GameController extends ChangeNotifier {
     if (s.day > seasonDays) return const DayReport(seasonOver: true);
 
     final notes = <String>[];
+    if (broke) {
+      s.mental = (s.mental - 3).clamp(0, 100);
+      notes.add('통장이 마이너스다… 멘탈 -3');
+    }
     if (s.heat >= 60) {
       s.mental = (s.mental - 8).clamp(0, 100);
       notes.add('밤새 악플 알림이 울렸다. 멘탈 -8');
@@ -511,7 +583,7 @@ class GameController extends ChangeNotifier {
     if (lv + 1 >= g.tiers.length) return false;
     final next = g.tiers[lv + 1];
     if (s.money < next.price) return false;
-    s.money -= next.price;
+    money(-next.price, next.name);
     s.gear[key] = lv + 1;
     log('🛒 ${next.name} 구입! (-${shortWon(next.price)})', 'buy');
     pushFeed([sns.post(s, _pick(['{name} 장비 바꿨나? ${g.label} 확 좋아짐', '{name} 새 ${g.label} 플렉스 ㅋㅋ', '{name} 방송 퀄 점점 올라가네']), 'fan', g: sns.fanGender(s))]);
@@ -524,7 +596,7 @@ class GameController extends ChangeNotifier {
 
   bool buyDeco(Deco d) {
     if (s.deco.contains(d.id) || s.money < d.price) return false;
-    s.money -= d.price;
+    money(-d.price, d.name);
     s.deco.add(d.id);
     log('🛒 ${d.name} 구입! (-${shortWon(d.price)})', 'buy');
     toasts.add('${d.name}을(를) 방에 놓았어요');

@@ -291,6 +291,16 @@ const snsGaffeApology = SnsTopic(
   neutral: ['크로마키 사과 방송 밈 되겠다', '사과 방송 시청자 더 많았다던데'],
 );
 
+/// 자숙을 마치고 복귀할 때 SNS
+const snsComeback = SnsTopic(
+  tag: '{name}_복귀',
+  headline: '{name}, 3주 자숙 끝내고 복귀 방송',
+  tone: 0.25,
+  hate: ['벌써 복귀?', '자숙이 아니라 휴가였네', '반성한 거 맞음?'],
+  shield: ['기다렸어요 ㅠㅠ', '반성했으면 됐지', '복귀 축하해요!!', '이제 실수하지 말자'],
+  neutral: ['복귀 방송 시청자 몇 명이었음?', '자숙 3주면 적당한 듯'],
+);
+
 /// 구독자에 따라 돈 단위가 커지도록
 int scaleMoney(GameState s, int base) => ((base * pow(1 + s.followers / 4000, 0.55)) / 1000).round() * 1000;
 

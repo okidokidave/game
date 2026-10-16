@@ -181,8 +181,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (gaffe != null) {
       await Future<void>.delayed(widget.liveDuration ~/ 2);
       if (!mounted) return;
-      r = await _handleGaffe(gaffe, r);
+      final kept = await _handleGaffe(gaffe, r);
       if (!mounted || await _checkOver()) return;
+      // 사과했다면 방송은 여기서 끝나고 3주 자숙
+      if (kept == null) {
+        _stopLive();
+        await _hiatus();
+        return;
+      }
+      r = kept;
     } else {
       await Future<void>.delayed(widget.liveDuration);
       if (!mounted) return;
@@ -266,7 +273,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// 말실수 → 대처 선택 → (사과 방송 / 강행) → SNS 반응. 사고 영향을 반영한 결과를 돌려준다.
-  Future<StreamResult> _handleGaffe(Gaffe g, StreamResult r) async {
+  /// 방송을 강행하면 줄어든 방송 결과를, 사과하면 null(방송 중단 → 자숙)을 돌려준다.
+  Future<StreamResult?> _handleGaffe(Gaffe g, StreamResult r) async {
     // 채팅창이 술렁인다
     _stopChat();
     setState(() {
@@ -298,11 +306,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 10),
         mutedText('채팅창이 얼어붙었다. 어떻게 할까?'),
+        const SizedBox(height: 10),
+        _tradeoff('🔥 방송 강행', '수입은 줄어도 조금은 남는다. 대신 팬이 떠나고 안티가 생긴다.'),
+        const SizedBox(height: 6),
+        _tradeoff('🙇 사과 후 자숙', '방송을 접고 3주간 자숙한다. 그동안 수입 0, 생활비는 나간다. 팬은 덜 떠난다.'),
       ],
-      const [DialogButton('사과 없이 방송을 이어간다', choice: true), DialogButton('바로 사과 방송을 한다', choice: true)],
+      const [DialogButton('사과 없이 방송을 이어간다', choice: true), DialogButton('사과하고 3주간 자숙한다', choice: true)],
       icon: '😱',
     );
-    if (!mounted) return r;
+    if (!mounted) return null;
     final apologize = idx == 1;
 
     // 연출: 사과 방송(크로마키 + 자막) 또는 싸늘해진 방송
@@ -313,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _startLive((r.viewers * 0.55).round(), () => _crowd(chatGaffe), keepChat: true);
     }
     await Future<void>.delayed(widget.liveDuration);
-    if (!mounted) return r;
+    if (!mounted) return null;
     _stopChat();
 
     final out = game.resolveGaffe(g, r, apologize: apologize);
@@ -321,12 +333,52 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await ask(
       context,
       apologize ? '사과 방송을 마쳤다' : '분위기가 싸해졌다',
-      [eventText(apologize ? '"제 경솔한 발언으로 상처받으신 분들께 진심으로 사과드립니다." 시청자는 줄었지만, 사과를 받아 주는 사람도 많았다.' : '아무 일 없었다는 듯 방송을 이어갔다. 채팅창은 싸늘해졌고, 하나둘 방을 나갔다. 커뮤니티에 클립이 돌기 시작했다.'), changeChips(out.changes)],
+      [eventText(apologize ? '"제 경솔한 발언으로 상처받으신 분들께 진심으로 사과드립니다. 당분간 방송을 쉬며 반성의 시간을 갖겠습니다." 방송을 종료했다.' : '아무 일 없었다는 듯 방송을 이어갔다. 채팅창은 싸늘해졌고, 하나둘 방을 나갔다. 커뮤니티에 클립이 돌기 시작했다.'), changeChips(out.changes)],
       const [DialogButton('📱 SNS 반응 보러 가기', primary: true)],
       icon: apologize ? '🙇' : '😶',
     );
     if (mounted) await showPhone(context, game, trendTab: true, trend: out.trend);
-    return out.result;
+    return apologize ? null : out.result;
+  }
+
+  Widget _tradeoff(String title, String text) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(12)),
+        child: Text.rich(
+          TextSpan(children: [
+            TextSpan(text: '$title  ', style: const TextStyle(fontWeight: FontWeight.w800, color: Pal.text)),
+            TextSpan(text: text, style: const TextStyle(color: Pal.muted)),
+          ]),
+          style: const TextStyle(fontSize: 12.5, height: 1.5),
+        ),
+      );
+
+  /// 3주 자숙: 검은 화면에서 날짜가 흐르고, 결과와 복귀 반응을 보여 준다
+  Future<void> _hiatus() async {
+    final from = s.day;
+    final report = game.startHiatus();
+    if (!mounted) return;
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black,
+      transitionDuration: const Duration(milliseconds: 500),
+      pageBuilder: (ctx, _, _) => HiatusOverlay(from: from, to: from + report.days, duration: widget.liveDuration * 1.2, onDone: () => Navigator.pop(ctx)),
+    );
+    if (!mounted) return;
+    if (report.seasonOver) return _finish(game.seasonEndingKey());
+    await ask(
+      context,
+      '${report.days ~/ 7}주 후…',
+      [
+        eventText('자숙 기간이 끝났다. 쉬는 동안 논란은 가라앉았지만, 기다리다 지친 팬도 있었다. 조심스럽게 복귀 방송을 켠다.'),
+        changeChips(report.changes),
+      ],
+      [DialogButton(report.trend != null ? '📱 복귀 반응 보기' : '확인', primary: true)],
+      icon: '🌙',
+    );
+    if (report.trend != null && mounted) await showPhone(context, game, trendTab: true, trend: report.trend);
+    await _checkOver();
   }
 
   void _stopChat() {
@@ -454,7 +506,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               Pill(icon: '👥', text: shortNum(s.followers)),
               const SizedBox(width: 6),
-              Pill(icon: '💰', text: shortWon(s.money), color: Pal.gold),
+              GestureDetector(
+                key: const ValueKey('money-pill'),
+                onTap: _showLedger,
+                child: Pill(icon: '💰', text: shortWon(s.money), color: s.money < 0 ? Pal.bad : Pal.gold),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -827,6 +883,77 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _ => Pal.text,
   };
 
+  // 통장 내역: 날짜별 수입·지출
+  void _showLedger() {
+    final today = s.ledger.where((l) => l.day == s.day);
+    final week = s.ledger.where((l) => l.day > s.day - 7);
+    int sum(Iterable<LedgerEntry> xs, bool income) => xs.where((l) => income ? l.amount > 0 : l.amount < 0).fold(0, (a, l) => a + l.amount);
+    Widget box(String label, int v, Color color) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(color: Pal.muted, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                FittedBox(child: Text('${v > 0 ? '+' : ''}${shortWon(v)}', style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w900))),
+              ],
+            ),
+          ),
+        );
+    final days = <int>[];
+    for (final l in s.ledger) {
+      if (!days.contains(l.day)) days.add(l.day);
+    }
+    showSheet<void>(
+      context,
+      (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          sheetHeader(ctx, '💰 통장', sub: '잔고 ${s.money < 0 ? '-' : ''}${won(s.money)} · 매일 밤 생활비 ${shortWon(GameController.livingCost)}'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Row(children: [
+              box('오늘 수입', sum(today, true), Pal.good),
+              const SizedBox(width: 8),
+              box('최근 7일 수입', sum(week, true), Pal.good),
+              const SizedBox(width: 8),
+              box('최근 7일 지출', sum(week, false), Pal.bad),
+            ]),
+          ),
+          Flexible(
+            child: s.ledger.isEmpty
+                ? Padding(padding: const EdgeInsets.all(24), child: mutedText('아직 내역이 없어요'))
+                : ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    children: [
+                      for (final d in days) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10, bottom: 4),
+                          child: Text('DAY $d', style: const TextStyle(color: Pal.muted, fontSize: 12, fontWeight: FontWeight.w800)),
+                        ),
+                        for (final l in s.ledger.where((l) => l.day == d))
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(l.label, style: const TextStyle(color: Pal.text, fontSize: 14, fontWeight: FontWeight.w600))),
+                                Text('${l.amount > 0 ? '+' : '-'}${won(l.amount)}',
+                                    style: TextStyle(color: l.amount > 0 ? Pal.good : Pal.bad, fontSize: 14, fontWeight: FontWeight.w800)),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showLog() {
     showSheet<void>(
       context,
@@ -968,4 +1095,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ],
     ),
   );
+}
+
+/// 자숙 화면: 검은 바탕에서 날짜가 빠르게 넘어간다
+class HiatusOverlay extends StatelessWidget {
+  const HiatusOverlay({super.key, required this.from, required this.to, required this.duration, required this.onDone});
+
+  final int from;
+  final int to;
+  final Duration duration;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black,
+      child: Center(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: duration,
+          onEnd: () => Future<void>.delayed(const Duration(milliseconds: 600), onDone),
+          builder: (context, v, _) {
+            final day = (from + (to - from) * Curves.easeInOut.transform(v)).round().clamp(from, seasonDays);
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('자숙 기간', style: TextStyle(color: Color(0xFF6B6F8A), fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 4)),
+                const SizedBox(height: 14),
+                Text('DAY $day', style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 14),
+                Opacity(
+                  opacity: v,
+                  child: Text('${(to - from) ~/ 7}주 후…', style: const TextStyle(color: Color(0xFFB9BCD6), fontSize: 18, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
