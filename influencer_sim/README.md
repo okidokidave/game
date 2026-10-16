@@ -42,8 +42,9 @@ influencer_sim/
 │   │   ├── home_screen.dart      게임 화면 (상태판, 방, 행동 버튼, 기록)
 │   │   ├── sns_phone.dart        SNS "버즈" 휴대폰 화면
 │   │   ├── dialogs.dart          사건·결과·콘텐츠·상점 팝업
-│   │   └── palette.dart          색
+│   │   └── palette.dart          색, 공용 버튼 (그라데이션 버튼, 카드, 알약 표시)
 │   └── ads/                      광고 (AdMob, 골드 광산과 같은 코드)
+├── assets/fonts/                프리텐다드 글꼴 (SIL Open Font License, LICENSE.txt 동봉)
 ├── test/                         자동 테스트 (밸런스, 규칙, SNS, 60일 끝까지 플레이)
 ├── tool/                         아이콘 생성, 가상 폰 실행 확인 스크립트
 └── android/                      안드로이드 빌드 설정

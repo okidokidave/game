@@ -10,93 +10,118 @@ class DialogButton {
   final String label;
   final bool primary;
 
-  /// 선택지 버튼 (왼쪽 정렬, 테두리)
+  /// 선택지 버튼 (왼쪽 정렬, 화살표)
   final bool choice;
 }
 
-/// 제목 + 내용 + 버튼 목록. 누른 버튼의 번호를 돌려준다. (뒤로 가기로 닫을 수 없음)
-Future<int> ask(BuildContext context, String title, List<Widget> body, List<DialogButton> buttons) async {
-  final r = await showDialog<int>(
+/// 가운데 팝업. 아이콘 + 제목 + 내용 + 버튼. 누른 버튼의 번호를 돌려준다. (뒤로 가기로 닫을 수 없음)
+Future<int> ask(BuildContext context, String title, List<Widget> body, List<DialogButton> buttons, {String? icon}) async {
+  final r = await showGeneralDialog<int>(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => PopScope(
+    barrierColor: const Color(0xB3060814),
+    transitionDuration: const Duration(milliseconds: 260),
+    pageBuilder: (ctx, _, _) => PopScope(
       canPop: false,
-      child: Sheet(
+      child: GameCard(
+        icon: icon,
+        title: title,
         children: [
-          Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Pal.text)),
-          const SizedBox(height: 10),
           ...body,
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           for (var i = 0; i < buttons.length; i++)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: _button(buttons[i], () => Navigator.pop(ctx, i)),
+              padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+              child: _button(buttons[i], () => Navigator.pop(ctx, i), ValueKey('dlg-$i')),
             ),
         ],
       ),
     ),
+    transitionBuilder: (ctx, anim, _, child) {
+      final t = Curves.easeOutBack.transform(anim.value);
+      return Opacity(opacity: anim.value, child: Transform.scale(scale: 0.88 + 0.12 * t, child: child));
+    },
   );
   return r ?? 0;
 }
 
-Widget _button(DialogButton b, VoidCallback onTap) {
-  if (b.choice) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Pal.text,
-        side: const BorderSide(color: Pal.border),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600),
-      ),
-      child: Text(b.label),
-    );
-  }
-  return SizedBox(
-    width: double.infinity,
-    child: FilledButton(
-      onPressed: onTap,
-      style: FilledButton.styleFrom(
-        backgroundColor: b.primary ? Pal.accent : Pal.surface,
-        foregroundColor: b.primary ? Pal.accentText : Pal.text,
-        side: b.primary ? null : const BorderSide(color: Pal.border),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
-      ),
-      child: Text(b.label),
-    ),
-  );
+Widget _button(DialogButton b, VoidCallback onTap, Key key) {
+  if (b.primary) return GradientButton(key: key, label: b.label, onTap: onTap);
+  return GhostButton(key: key, label: b.label, onTap: onTap, alignLeft: b.choice);
 }
 
-/// 흰 카드 모양 팝업 틀
-class Sheet extends StatelessWidget {
-  const Sheet({super.key, required this.children});
+/// 팝업 카드 틀 (위에 동그란 아이콘)
+class GameCard extends StatelessWidget {
+  const GameCard({super.key, required this.title, required this.children, this.icon});
+  final String title;
+  final String? icon;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Pal.surface,
-      insetPadding: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Pal.border)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: children),
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Material(
+              color: Colors.transparent,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(top: icon != null ? 30 : 0),
+                    decoration: BoxDecoration(
+                      color: Pal.surface,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: Pal.stroke),
+                      boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 40, offset: Offset(0, 16))],
+                    ),
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(20, icon != null ? 42 : 22, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(title, textAlign: icon != null ? TextAlign.center : TextAlign.start, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Pal.text)),
+                          const SizedBox(height: 12),
+                          ...children,
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (icon != null)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: Pal.brand,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Pal.surface, width: 4),
+                            boxShadow: [BoxShadow(color: Pal.pink.withValues(alpha: 0.5), blurRadius: 18)],
+                          ),
+                          child: Text(icon!, style: const TextStyle(fontSize: 26)),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-Widget eventText(String text) => Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(text, style: const TextStyle(fontSize: 15.5, height: 1.6, color: Pal.text)),
-    );
+Widget eventText(String text) => Text(text, style: const TextStyle(fontSize: 15.5, height: 1.65, color: Pal.text));
 
 Widget mutedText(String text, {double size = 13.5}) => Text(text, style: TextStyle(fontSize: size, color: Pal.muted, height: 1.5));
 
@@ -104,17 +129,20 @@ Widget mutedText(String text, {double size = 13.5}) => Text(text, style: TextSty
 Widget changeChips(List<Change> changes) {
   if (changes.isEmpty) return const SizedBox.shrink();
   return Padding(
-    padding: const EdgeInsets.only(top: 6),
+    padding: const EdgeInsets.only(top: 12),
     child: Wrap(
       spacing: 6,
       runSpacing: 6,
       children: [
         for (final c in changes)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(999)),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: (c.good == null ? Pal.muted : (c.good! ? Pal.good : Pal.bad)).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
             child: Text.rich(TextSpan(children: [
-              TextSpan(text: '${c.label} ', style: const TextStyle(color: Pal.text)),
+              TextSpan(text: '${c.label} ', style: const TextStyle(color: Pal.muted, fontWeight: FontWeight.w600)),
               TextSpan(
                 text: c.text,
                 style: TextStyle(fontWeight: FontWeight.w800, color: c.good == null ? Pal.text : (c.good! ? Pal.good : Pal.bad)),
@@ -134,18 +162,19 @@ Widget resultGrid(List<(String, String)> cells) {
     physics: const NeverScrollableScrollPhysics(),
     mainAxisSpacing: 8,
     crossAxisSpacing: 8,
-    childAspectRatio: 2.5,
+    childAspectRatio: 2.3,
     children: [
       for (final (label, value) in cells)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(16)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Pal.muted)),
-              FittedBox(child: Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Pal.text))),
+              Text(label, style: const TextStyle(fontSize: 12, color: Pal.muted, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              FittedBox(child: Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Pal.text))),
             ],
           ),
         ),
@@ -153,20 +182,71 @@ Widget resultGrid(List<(String, String)> cells) {
   );
 }
 
+// ───── 아래에서 올라오는 시트 ─────
+Future<T?> showSheet<T>(BuildContext context, Widget Function(BuildContext) builder) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Pal.surface,
+    barrierColor: const Color(0x99060814),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+    constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88),
+    builder: (ctx) => SafeArea(child: builder(ctx)),
+  );
+}
+
+/// 시트 머리 (손잡이, 제목, 닫기)
+Widget sheetHeader(BuildContext ctx, String title, {String? sub}) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 12, 8),
+      child: Column(
+        children: [
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Pal.stroke, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Pal.text)),
+                    if (sub != null) Padding(padding: const EdgeInsets.only(top: 2), child: mutedText(sub, size: 13)),
+                  ],
+                ),
+              ),
+              Pressable(
+                key: const ValueKey('sheet-close'),
+                onTap: () => Navigator.pop(ctx),
+                radius: 999,
+                color: Pal.surface2,
+                padding: const EdgeInsets.all(8),
+                child: const Icon(Icons.close_rounded, color: Pal.muted, size: 20),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
 // ───── 콘텐츠 고르기 ─────
 Future<Content?> chooseContent(BuildContext context, GameController game) {
   final s = game.s;
-  return showDialog<Content>(
-    context: context,
-    builder: (ctx) => Sheet(
+  return showSheet<Content>(
+    context,
+    (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text('📡 ${slotNames[s.slot]} 방송', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Pal.text)),
-        const SizedBox(height: 4),
-        mutedText(s.slot == 2 ? '밤 방송은 시청자가 가장 많아요.' : (s.slot == 0 ? '오전 방송은 시청자가 적어요.' : '오후 방송은 무난해요.')),
-        const SizedBox(height: 10),
-        for (final c in contents) _contentCard(ctx, game, c),
-        const SizedBox(height: 8),
-        _button(const DialogButton('취소'), () => Navigator.pop(ctx)),
+        sheetHeader(ctx, '오늘은 어떤 방송?', sub: '${slotNames[s.slot]} · ${s.slot == 2 ? '밤 방송은 시청자가 가장 많아요' : (s.slot == 0 ? '오전 방송은 시청자가 적어요' : '오후 방송은 무난해요')}'),
+        Flexible(
+          child: GridView.count(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.2,
+            children: [for (final c in contents) _contentCard(ctx, game, c)],
+          ),
+        ),
       ],
     ),
   );
@@ -177,51 +257,56 @@ Widget _contentCard(BuildContext ctx, GameController game, Content c) {
   final lack = game.contentBlock(c);
   final hot = s.trend == c.id;
   final lv = s.skills[c.id] ?? 0;
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Opacity(
-      opacity: lack == null ? 1 : 0.45,
-      child: Material(
-        color: hot ? const Color(0xFFFEF6EA) : Pal.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: hot ? const Color(0xFFF59E0B) : Pal.border)),
-        child: InkWell(
-          key: ValueKey('content-${c.id}'),
-          borderRadius: BorderRadius.circular(10),
-          onTap: lack == null ? () => Navigator.pop(ctx, c) : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                Text(c.icon, style: const TextStyle(fontSize: 26)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${c.name}${hot ? ' 🔥' : ''}${s.lastContent == c.id ? ' · 연속' : ''}', style: const TextStyle(fontWeight: FontWeight.w800, color: Pal.text)),
-                      Text(lack ?? c.desc, style: const TextStyle(fontSize: 12.5, color: Pal.muted, height: 1.4)),
-                      Text('체력 ${c.energy}${c.cost > 0 ? ' · 비용 ${shortWon(c.cost)}' : ''} · 숙련 Lv.$lv', style: const TextStyle(fontSize: 11.5, color: Pal.muted)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+  return Pressable(
+    key: ValueKey('content-${c.id}'),
+    onTap: lack == null ? () => Navigator.pop(ctx, c) : null,
+    radius: 20,
+    color: Pal.surface2,
+    border: Border.all(color: hot ? Pal.pink : Pal.stroke, width: hot ? 1.5 : 1),
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(c.icon, style: const TextStyle(fontSize: 28)),
+            const Spacer(),
+            if (hot) _tag('🔥 대세', Pal.pink) else if (s.lastContent == c.id) _tag('연속', Pal.muted),
+          ],
+        ),
+        const Spacer(),
+        Text(c.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: Pal.text)),
+        const SizedBox(height: 2),
+        Text(lack ?? c.desc, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: lack != null ? Pal.bad : Pal.muted, height: 1.35)),
+        const SizedBox(height: 6),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _tag('⚡${c.energy}', Pal.energy),
+              const SizedBox(width: 4),
+              if (c.cost > 0) ...[_tag(shortWon(c.cost), Pal.gold), const SizedBox(width: 4)],
+              _tag('Lv.$lv', Pal.trueEnd),
+            ],
           ),
         ),
-      ),
+      ],
     ),
   );
 }
 
+Widget _tag(String text, Color color) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(999)),
+      child: Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
+    );
+
 // ───── 상점 ─────
 const wallColors = [0xE9DCCB, 0xDFE8F0, 0xF3DDE2, 0xE2EFDC, 0xECE4F5];
 
-Future<void> openShop(BuildContext context, GameController game) {
-  return showDialog<void>(
-    context: context,
-    builder: (ctx) => _ShopSheet(game: game),
-  );
-}
+Future<void> openShop(BuildContext context, GameController game) => showSheet<void>(context, (ctx) => _ShopSheet(game: game));
 
 class _ShopSheet extends StatefulWidget {
   const _ShopSheet({required this.game});
@@ -237,87 +322,105 @@ class _ShopSheetState extends State<_ShopSheet> {
   @override
   Widget build(BuildContext context) {
     final game = widget.game;
-    final s = game.s;
     return ListenableBuilder(
       listenable: game,
-      builder: (context, _) => Sheet(
-        children: [
-          const Text('🛒 장비 쇼핑', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Pal.text)),
-          const SizedBox(height: 4),
-          mutedText('통장 잔고 ${won(s.money)}'),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _tab('장비', !_deco, () => setState(() => _deco = false)),
-              const SizedBox(width: 6),
-              _tab('방 꾸미기', _deco, () => setState(() => _deco = true)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (!_deco)
-            for (final g in gearTypes) _gearRow(game, g)
-          else ...[
-            for (final d in decos) _decoRow(game, d),
-            _row(
-              '🎨',
-              '벽지 색 바꾸기',
-              '무료',
-              Wrap(
-                spacing: 6,
+      builder: (context, _) {
+        final s = game.s;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            sheetHeader(context, '🛒 상점'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Row(
                 children: [
-                  for (final w in wallColors)
-                    GestureDetector(
-                      onTap: () => game.setWall(w),
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: Color(0xFF000000 | w),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: s.wallColor == w ? Pal.text : Pal.border, width: 2),
-                        ),
-                      ),
-                    ),
+                  Expanded(child: _segment()),
+                  const SizedBox(width: 10),
+                  Pill(icon: '💰', text: shortWon(s.money), color: Pal.gold),
                 ],
               ),
             ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                children: !_deco
+                    ? [for (final g in gearTypes) _gearRow(game, g)]
+                    : [
+                        for (final d in decos) _decoRow(game, d),
+                        _row(
+                          '🎨',
+                          '벽지 색 바꾸기',
+                          '무료',
+                          Wrap(
+                            spacing: 6,
+                            children: [
+                              for (final w in wallColors)
+                                GestureDetector(
+                                  onTap: () => game.setWall(w),
+                                  child: Container(
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFF000000 | w),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: s.wallColor == w ? Pal.pink : Pal.stroke, width: s.wallColor == w ? 3 : 1),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+              ),
+            ),
           ],
-          const SizedBox(height: 10),
-          _button(const DialogButton('닫기'), () => Navigator.pop(context)),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _tab(String label, bool active, VoidCallback onTap) => Expanded(
+  Widget _segment() => Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(999)),
+        child: Row(children: [_segBtn('장비', !_deco, false), _segBtn('꾸미기', _deco, true)]),
+      );
+
+  Widget _segBtn(String label, bool active, bool deco) => Expanded(
         child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 9),
+          onTap: () => setState(() => _deco = deco),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: active ? Pal.accent : Pal.bg,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: active ? Pal.accent : Pal.border),
-            ),
-            child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: active ? Pal.accentText : Pal.text)),
+            decoration: BoxDecoration(gradient: active ? Pal.brand : null, borderRadius: BorderRadius.circular(999)),
+            child: Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: active ? Colors.white : Pal.muted)),
           ),
         ),
       );
 
-  Widget _row(String icon, String title, String sub, Widget trailing) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Pal.border))),
+  Widget _row(String icon, String title, String sub, Widget trailing, {Widget? extra}) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(18)),
         child: Row(
           children: [
-            Text(icon, style: const TextStyle(fontSize: 22)),
-            const SizedBox(width: 10),
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(14)),
+              child: Text(icon, style: const TextStyle(fontSize: 22)),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: const TextStyle(fontWeight: FontWeight.w800, color: Pal.text)),
-                  Text(sub, style: const TextStyle(fontSize: 12.5, color: Pal.muted)),
+                  const SizedBox(height: 2),
+                  Text(sub, style: const TextStyle(fontSize: 12, color: Pal.muted)),
+                  ?extra,
                 ],
               ),
             ),
@@ -327,20 +430,32 @@ class _ShopSheetState extends State<_ShopSheet> {
         ),
       );
 
-  Widget _buy(String label, VoidCallback? onTap, Key key) => FilledButton(
+  Widget _buy(String label, VoidCallback? onTap, Key key) => Pressable(
         key: key,
-        onPressed: onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: Pal.accent,
-          foregroundColor: Pal.accentText,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          minimumSize: const Size(0, 36),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+        onTap: onTap,
+        gradient: onTap != null ? Pal.brand : null,
+        color: Pal.bg,
+        radius: 999,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white, fontSize: 13.5)),
       );
 
   static const _owned = TextStyle(color: Pal.muted, fontWeight: FontWeight.w800);
+
+  Widget _levelDots(int lv, int max) => Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          children: [
+            for (var i = 1; i <= max; i++)
+              Container(
+                width: 18,
+                height: 4,
+                margin: const EdgeInsets.only(right: 3),
+                decoration: BoxDecoration(gradient: i <= lv ? Pal.brand : null, color: i <= lv ? null : Pal.bg, borderRadius: BorderRadius.circular(2)),
+              ),
+          ],
+        ),
+      );
 
   Widget _gearRow(GameController game, GearType g) {
     final lv = game.s.gear[g.key]!;
@@ -348,11 +463,10 @@ class _ShopSheetState extends State<_ShopSheet> {
     final next = lv + 1 < g.tiers.length ? g.tiers[lv + 1] : null;
     return _row(
       g.icon,
-      '${g.label} · Lv.$lv',
-      next != null ? '${cur.name} → ${next.name}' : '${cur.name} (최고 단계)',
-      next != null
-          ? _buy(shortWon(next.price), game.s.money >= next.price ? () => game.buyGear(g.key) : null, ValueKey('buy-${g.key}'))
-          : const Text('MAX', style: _owned),
+      '${g.label} · ${cur.name}',
+      next != null ? '다음: ${next.name}' : '최고 단계',
+      next != null ? _buy(shortWon(next.price), game.s.money >= next.price ? () => game.buyGear(g.key) : null, ValueKey('buy-${g.key}')) : const Text('MAX', style: _owned),
+      extra: _levelDots(lv, g.tiers.length - 1),
     );
   }
 
@@ -369,21 +483,24 @@ class _ShopSheetState extends State<_ShopSheet> {
 
 /// 게임 시작 안내
 List<Widget> introBody() => [
-      eventText('가진 건 스마트폰 한 대와 작은 원룸뿐. 방송으로 돈을 벌어 장비를 하나씩 맞춰 가세요.'),
-      const SizedBox(height: 8),
-      for (final t in const [
-        '하루는 오전·오후·밤 세 번 행동할 수 있어요. 밤 방송이 시청자가 가장 많아요.',
-        '돈이 없으면 편의점 알바! 장비를 사면 화질과 음질이 좋아져요.',
-        "당신의 모든 행동은 SNS '버즈'에서 토론거리가 돼요. 📱를 눌러 반응을 확인하세요.",
-        '논란이 100이 되거나 멘탈이 0이 되면 게임 오버예요.',
+      mutedText('가진 건 스마트폰 한 대와 작은 원룸뿐. 방송으로 돈을 벌어 장비를 하나씩 맞춰 가세요.', size: 14.5),
+      const SizedBox(height: 12),
+      for (final (icon, t) in const [
+        ('🌙', '하루는 오전·오후·밤 세 번 행동할 수 있어요. 밤 방송이 시청자가 가장 많아요.'),
+        ('🏪', '돈이 없으면 편의점 알바! 장비를 사면 화질과 음질이 좋아져요.'),
+        ('📱', "모든 행동은 SNS '버즈'에서 토론거리가 돼요. 오른쪽 위 폰을 눌러 반응을 확인하세요."),
+        ('⚠️', '논란이 100이 되거나 멘탈이 0이 되면 게임 오버예요.'),
       ])
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(14)),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('•  ', style: TextStyle(color: Pal.text)),
-              Expanded(child: Text(t, style: const TextStyle(fontSize: 14, height: 1.5, color: Pal.text))),
+              Text(icon, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 10),
+              Expanded(child: Text(t, style: const TextStyle(fontSize: 13.5, height: 1.5, color: Pal.text))),
             ],
           ),
         ),

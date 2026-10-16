@@ -12,6 +12,13 @@ import 'ui/title_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  // 상태 표시줄을 어두운 화면에 맞게 (흰 글씨, 투명 배경)
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Pal.surface,
+    systemNavigationBarIconBrightness: Brightness.light,
+  ));
 
   final prefs = await SharedPreferences.getInstance();
   final game = GameController(SaveRepository(prefs));
@@ -37,9 +44,10 @@ class InfluencerApp extends StatelessWidget {
       title: '인플루언서 시뮬레이터',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Pal.accent, surface: Pal.surface),
+        fontFamily: 'Pretendard',
+        colorScheme: ColorScheme.fromSeed(seedColor: Pal.pink, brightness: Brightness.dark, surface: Pal.surface),
         scaffoldBackgroundColor: Pal.bg,
-        dialogTheme: const DialogThemeData(backgroundColor: Pal.surface),
+        textSelectionTheme: const TextSelectionThemeData(cursorColor: Pal.pink, selectionColor: Color(0x55FF4D8D), selectionHandleColor: Pal.pink),
       ),
       home: _Root(app: this),
     );

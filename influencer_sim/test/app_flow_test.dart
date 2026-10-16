@@ -30,12 +30,23 @@ Future<void> wait(WidgetTester tester, [int ms = 300]) async {
 
 Future<void> startNewGame(WidgetTester tester) async {
   await tester.enterText(find.byKey(const ValueKey('name-field')), '도트왕');
+  await tester.scrollUntilVisible(find.byKey(const ValueKey('new-game')), 200, scrollable: find.byType(Scrollable).first);
   await tester.tap(find.byKey(const ValueKey('new-game')));
   await wait(tester, 800);
   expect(find.text('도트왕의 방송 데뷔'), findsOneWidget);
   await tester.tap(find.text('방송 시작!'));
   await wait(tester);
 }
+
+/// 키 이름이 [prefix]로 시작하는 버튼들 (누를 수 있는 것만)
+List<Element> buttons(String prefix) => find
+    .byWidgetPredicate((w) => w.key is ValueKey && '${(w.key as ValueKey).value}'.startsWith(prefix) && (w is Pressable || w is GradientButton || w is GhostButton))
+    .evaluate()
+    .where((e) => switch (e.widget) {
+          Pressable(:final onTap) || GradientButton(:final onTap) || GhostButton(:final onTap) => onTap != null,
+          _ => false,
+        })
+    .toList();
 
 /// 떠 있는 팝업을 하나 처리한다. 처리했으면 true.
 Future<bool> handlePopup(WidgetTester tester, Random rng) async {
@@ -45,46 +56,29 @@ Future<bool> handlePopup(WidgetTester tester, Random rng) async {
     await wait(tester, 500);
     return true;
   }
-  final dialog = find.byType(Dialog);
-  if (dialog.evaluate().isEmpty) return false;
-  final content = find.descendant(of: dialog, matching: find.byWidgetPredicate((w) => w is InkWell && w.key is ValueKey && '${(w.key as ValueKey).value}'.startsWith('content-') && w.onTap != null));
-  if (content.evaluate().isNotEmpty) {
-    await tester.tap(content.at(rng.nextInt(content.evaluate().length)));
-    await wait(tester);
+  Future<bool> tapOne(List<Element> list, {bool random = true}) async {
+    if (list.isEmpty) return false;
+    await tester.tap(find.byWidget(list[random ? rng.nextInt(list.length) : 0].widget));
+    await wait(tester, 400);
     return true;
   }
-  final choices = find.descendant(of: dialog, matching: find.byType(OutlinedButton));
-  if (choices.evaluate().isNotEmpty) {
-    await tester.tap(choices.at(rng.nextInt(choices.evaluate().length)));
-    await wait(tester);
-    return true;
-  }
-  final buttons = find.descendant(of: dialog, matching: find.byType(FilledButton));
-  final enabled = buttons.evaluate().where((e) => (e.widget as FilledButton).onPressed != null).toList();
+
+  if (await tapOne(buttons('content-'))) return true;
+  if (await tapOne(buttons('dlg-'))) return true;
   // 상점: 살 수 있는 게 있으면 사고, 아니면 닫기
-  final buy = enabled.where((e) => e.widget.key is ValueKey && '${(e.widget.key as ValueKey).value}'.startsWith('buy-')).toList();
-  if (buy.isNotEmpty) {
-    await tester.tap(find.byWidget(buy.first.widget));
-    await wait(tester, 100);
-    return true;
-  }
-  await tester.tap(find.byWidget(enabled.last.widget));
-  await wait(tester);
-  return true;
+  if (await tapOne(buttons('buy-'), random: false)) return true;
+  if (await tapOne(buttons('sheet-close'))) return true;
+  return false;
 }
 
-bool enabled(WidgetTester tester, String id) {
-  final f = find.byKey(ValueKey('act-$id'));
-  if (f.evaluate().isEmpty) return false;
-  return tester.widget<ChunkyButton>(f).onTap != null;
-}
+bool enabled(WidgetTester tester, String id) => buttons('act-$id').isNotEmpty;
 
 void main() {
   testWidgets('시작 화면 → 새 게임 → 방송 한 번', (tester) async {
     final game = await pumpApp(tester);
     expect(find.text('인플루언서 시뮬레이터'), findsOneWidget);
     await startNewGame(tester);
-    expect(find.textContaining('D+1', findRichText: true), findsOneWidget);
+    expect(find.text('DAY 1'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('act-stream')));
     await wait(tester);
@@ -156,6 +150,8 @@ void main() {
     // 새 게임을 누르면 시작 화면으로
     await tester.tap(find.text('새 게임').last);
     await wait(tester, 800);
+    expect(find.text('인플루언서 시뮬레이터'), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const ValueKey('new-game')), 200, scrollable: find.byType(Scrollable).first);
     expect(find.byKey(const ValueKey('new-game')), findsOneWidget);
   });
 
@@ -167,7 +163,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(InfluencerApp(game: game, ads: NoAdService()));
     await wait(tester, 500);
-    expect(find.textContaining('이어하기 · 도트왕 D+1'), findsOneWidget);
+    expect(find.textContaining('도트왕 · DAY 1'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('continue')));
     await wait(tester, 800);
     expect(find.text('4,321'), findsOneWidget);
