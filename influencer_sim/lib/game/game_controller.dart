@@ -161,7 +161,7 @@ class GameController extends ChangeNotifier {
 
   void newGame(String name, Look look, {int wallColor = 0xE9DCCB}) {
     _state = GameState(name: name, look: look, wallColor: wallColor, trend: _pick(['talk', 'mukbang', 'sing']));
-    log('📱 스마트폰 하나로 방송을 시작했다. 목표: 60일 안에 셀럽 되기!', 'day');
+    log('📱 스마트폰 하나로 방송을 시작했다. 목표: 60일 안에 최고의 스트리머 되기!', 'day');
     _applyPerks();
     _newMissions();
     s.prevRanks = _ranks();

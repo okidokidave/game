@@ -1,6 +1,6 @@
-# 인플루언서 시뮬레이터
+# 스트리머 키우기
 
-스마트폰 하나로 방송을 시작해서, 돈을 벌어 장비를 맞추고, 60일 안에 셀럽이 되는 도트 방송 시뮬레이션입니다.
+스마트폰 하나로 방송을 시작해서, 돈을 벌어 장비를 맞추고, 60일 안에 최고의 스트리머가 되는 도트 방송 시뮬레이션입니다.
 Flutter로 만들었고 안드로이드 출시를 목표로 합니다. (골드 광산 키우기와 같은 방식)
 
 ## 1. 게임 규칙
@@ -94,12 +94,12 @@ influencer_sim/
 ```
 
 **APK 다운로드 주소 (항상 최신 빌드):**
-https://github.com/okidokidave/game/releases/download/influencer-build/influencer-sim.apk
+https://github.com/okidokidave/game/releases/download/influencer-build/streamer.apk
 
 (골드 광산 APK 주소와 따로라서 서로 덮어쓰지 않아요.)
 
 ### 처음 설치할 때
-1. 휴대폰 브라우저에서 위 주소를 엽니다 → `influencer-sim.apk`가 내려받아집니다.
+1. 휴대폰 브라우저에서 위 주소를 엽니다 → `streamer.apk`가 내려받아집니다.
 2. 알림창이나 "내 파일 → 다운로드"에서 파일을 누릅니다.
 3. "출처를 알 수 없는 앱 설치" 경고가 뜨면 **설정 → 이 출처 허용**을 켜고 **설치**를 누릅니다.
 4. Play 프로텍트 경고가 뜨면 **세부정보 → 무시하고 설치**를 누릅니다.
@@ -108,7 +108,7 @@ https://github.com/okidokidave/game/releases/download/influencer-build/influence
 같은 주소에서 새 APK를 받아 설치하면 덮어 설치되고, 게임 저장 데이터는 그대로 유지됩니다.
 
 ### 빌드 상태 확인
-https://github.com/okidokidave/game/actions 에서 "인플루언서 시뮬레이터 APK 빌드"를 봅니다.
+https://github.com/okidokidave/game/actions 에서 "스트리머 키우기 APK 빌드"를 봅니다.
 실패하면 Claude에게 "빌드 실패했어"라고 말하면 됩니다.
 
 ## 4. 출시 준비

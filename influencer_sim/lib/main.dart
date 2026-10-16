@@ -45,7 +45,7 @@ class InfluencerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '인플루언서 시뮬레이터',
+      title: '스트리머 키우기',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: 'Pretendard',

@@ -1,10 +1,11 @@
-# 인플루언서 시뮬레이터 APK를 GitHub 서버에서 빌드한다. (PC 없이 개발하기)
+# 스트리머 키우기 APK를 GitHub 서버에서 빌드한다. (PC 없이 개발하기)
 #
 # - influencer_sim/ 폴더가 바뀌어 push되면 자동으로 실행된다.
 # - 가상 안드로이드 폰에서 앱이 열리는지 확인한 뒤, APK를 아래 고정 주소에 올린다. 휴대폰에서 열면 바로 내려받을 수 있다.
-#   https://github.com/okidokidave/game/releases/download/influencer-build/influencer-sim.apk
+#   https://github.com/okidokidave/game/releases/download/influencer-build/streamer.apk
+#   (예전 주소 influencer-sim.apk 에도 같은 파일을 올린다)
 # - 저장소 Secrets에 출시용 키(KEYSTORE_BASE64 등)가 있으면 그 키로, 없으면 테스트 키로 서명한다.
-name: 인플루언서 시뮬레이터 APK 빌드
+name: 스트리머 키우기 APK 빌드
 
 on:
   push:
@@ -147,16 +148,17 @@ jobs:
           SIGNED_WITH: ${{ needs.build.outputs.signed_with }}
         run: |
           gh release delete influencer-build --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
-          files="influencer-sim.apk screenshot.png"
+          cp influencer-sim.apk streamer.apk
+          files="streamer.apk influencer-sim.apk screenshot.png"
           [ -f preview.gif ] && files="$files preview.gif"
           gh release create influencer-build $files \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \
-            --title "인플루언서 시뮬레이터 테스트 빌드 #${{ github.run_number }}" \
+            --title "스트리머 키우기 테스트 빌드 #${{ github.run_number }}" \
             --notes "브랜치: ${GITHUB_REF_NAME}
           커밋: ${GITHUB_SHA::7}
           서명: ${SIGNED_WITH}
           가상 폰 실행 확인: 통과 (screenshot.png, 움직이는 모습: preview.gif)
 
-          휴대폰에서 influencer-sim.apk를 눌러 내려받고 설치하세요."
+          휴대폰에서 streamer.apk를 눌러 내려받고 설치하세요."

@@ -1,5 +1,5 @@
 name: influencer_sim
-description: "인플루언서 시뮬레이터 - 스마트폰 하나로 시작하는 도트 방송 시뮬레이션"
+description: "스트리머 키우기 - 스마트폰 하나로 시작하는 도트 방송 시뮬레이션"
 publish_to: 'none'
 
 # 앱 버전. +뒤 숫자(versionCode)는 스토어에 업데이트를 올릴 때마다 1 이상 올려야 한다.

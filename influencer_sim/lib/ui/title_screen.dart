@@ -107,14 +107,14 @@ class _TitleScreenState extends State<TitleScreen> {
               ShaderMask(
                 shaderCallback: (r) => const LinearGradient(colors: [Colors.white, Color(0xFFFFC2DA), Color(0xFFC9B5FF)]).createShader(r),
                 child: const Text(
-                  '인플루언서 시뮬레이터',
+                  '스트리머 키우기',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 34, height: 1.15, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1),
                 ),
               ),
               const SizedBox(height: 10),
               const Text(
-                '스마트폰 하나로 시작해 60일 안에 셀럽이 되어 보세요.\n당신의 모든 행동은 SNS에서 토론거리가 됩니다.',
+                '스마트폰 하나로 시작해 60일 안에 최고의 스트리머가 되어 보세요.\n당신의 모든 행동은 SNS에서 토론거리가 됩니다.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Pal.muted, height: 1.6, fontSize: 14),
               ),

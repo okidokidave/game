@@ -31,6 +31,9 @@ Future<void> wait(WidgetTester tester, [int ms = 300]) async {
 Future<void> startNewGame(WidgetTester tester) async {
   await tester.enterText(find.byKey(const ValueKey('name-field')), '도트왕');
   await tester.scrollUntilVisible(find.byKey(const ValueKey('new-game')), 200, scrollable: find.byType(Scrollable).first);
+  // 버튼이 화면 끝에 걸쳐 있으면 조금 더 올린다
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+  await tester.pump(const Duration(milliseconds: 300));
   await tester.tap(find.byKey(const ValueKey('new-game')));
   await wait(tester, 800);
   expect(find.text('도트왕의 방송 데뷔'), findsOneWidget);
@@ -76,7 +79,7 @@ bool enabled(WidgetTester tester, String id) => buttons('act-$id').isNotEmpty;
 void main() {
   testWidgets('시작 화면 → 새 게임 → 방송 한 번', (tester) async {
     final game = await pumpApp(tester);
-    expect(find.text('인플루언서 시뮬레이터'), findsOneWidget);
+    expect(find.text('스트리머 키우기'), findsOneWidget);
     await startNewGame(tester);
     expect(find.text('DAY 1'), findsOneWidget);
 
@@ -150,7 +153,7 @@ void main() {
     // 새 게임을 누르면 시작 화면으로
     await tester.tap(find.text('새 게임').last);
     await wait(tester, 800);
-    expect(find.text('인플루언서 시뮬레이터'), findsOneWidget);
+    expect(find.text('스트리머 키우기'), findsOneWidget);
     await tester.scrollUntilVisible(find.byKey(const ValueKey('new-game')), 200, scrollable: find.byType(Scrollable).first);
     expect(find.byKey(const ValueKey('new-game')), findsOneWidget);
   });

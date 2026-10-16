@@ -1,4 +1,4 @@
-"""인플루언서 시뮬레이터의 8비트 효과음과 배경음악을 코드로 합성해 WAV로 저장한다.
+"""스트리머 키우기의 8비트 효과음과 배경음악을 코드로 합성해 WAV로 저장한다.
 
 실행: python3 tool/generate_sounds.py   (influencer_sim 폴더에서, numpy 필요)
 결과: assets/sounds/*.wav

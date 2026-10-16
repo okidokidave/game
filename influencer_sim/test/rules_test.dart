@@ -93,8 +93,8 @@ void main() {
 
   test('등급 이름', () {
     expect(rankOf(0).name, '방구석 방송인');
-    expect(rankOf(12000).name, '중소 인플루언서');
-    expect(rankOf(2000000).name, '셀럽');
+    expect(rankOf(12000).name, '중소 스트리머');
+    expect(rankOf(2000000).name, '레전드 스트리머');
   });
 
   test('밸런스: 보통 플레이는 수십만, 100만은 잘해야 가능', () {
