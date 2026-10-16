@@ -27,7 +27,8 @@ class _TitleScreenState extends State<TitleScreen> {
   final _name = TextEditingController();
   int _hair = hairs[0];
   int _shirt = shirts[1];
-  bool _long = false;
+  bool _long = true;
+  String _gender = 'f';
   GameState? _saved;
 
   @override
@@ -44,7 +45,7 @@ class _TitleScreenState extends State<TitleScreen> {
 
   GameState get _preview => GameState(
         name: '',
-        look: Look(hair: _hair, shirt: _shirt, long: _long),
+        look: Look(hair: _hair, shirt: _shirt, long: _long, gender: _gender),
         wallColor: 0xE9DCCB,
         trend: 'talk',
         slot: 2,
@@ -61,7 +62,7 @@ class _TitleScreenState extends State<TitleScreen> {
       if (i != 0) return;
     }
     final name = _name.text.trim();
-    widget.game.newGame(name.isEmpty ? '방구석스타' : (name.length > 10 ? name.substring(0, 10) : name), Look(hair: _hair, shirt: _shirt, long: _long));
+    widget.game.newGame(name.isEmpty ? '방구석스타' : (name.length > 10 ? name.substring(0, 10) : name), Look(hair: _hair, shirt: _shirt, long: _long, gender: _gender));
     widget.onStart(true);
   }
 
@@ -156,15 +157,23 @@ class _TitleScreenState extends State<TitleScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    _label('성별'),
+                    _segments([
+                      // 성별을 바꾸면 머리 길이 기본값도 바꾼다 (나중에 따로 바꿀 수 있음)
+                      _seg('🙋‍♀️ 여자', _gender == 'f', () => _setGender('f'), const ValueKey('gender-f')),
+                      _seg('🙋‍♂️ 남자', _gender == 'm', () => _setGender('m'), const ValueKey('gender-m')),
+                    ]),
+                    const SizedBox(height: 6),
+                    mutedText(_gender == 'f' ? '여자 방송인은 남자 팬이 더 많이 모여요.' : '남자 방송인은 여자 팬이 더 많이 모여요.', size: 12),
+                    const SizedBox(height: 14),
                     _label('머리 색'),
                     _swatches(hairs, _hair, (c) => setState(() => _hair = c)),
                     const SizedBox(height: 14),
                     _label('머리 길이'),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(999)),
-                      child: Row(children: [_seg('짧게', !_long, false), _seg('길게', _long, true)]),
-                    ),
+                    _segments([
+                      _seg('짧게', !_long, () => setState(() => _long = false)),
+                      _seg('길게', _long, () => setState(() => _long = true)),
+                    ]),
                     const SizedBox(height: 14),
                     _label('옷 색'),
                     _swatches(shirts, _shirt, (c) => setState(() => _shirt = c)),
@@ -218,9 +227,21 @@ class _TitleScreenState extends State<TitleScreen> {
         child: Text(text, style: const TextStyle(color: Pal.muted, fontWeight: FontWeight.w700, fontSize: 13)),
       );
 
-  Widget _seg(String label, bool active, bool long) => Expanded(
+  void _setGender(String g) => setState(() {
+        _gender = g;
+        _long = g == 'f';
+      });
+
+  Widget _segments(List<Widget> children) => Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(999)),
+        child: Row(children: children),
+      );
+
+  Widget _seg(String label, bool active, VoidCallback onTap, [Key? key]) => Expanded(
         child: GestureDetector(
-          onTap: () => setState(() => _long = long),
+          key: key,
+          onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.symmetric(vertical: 9),

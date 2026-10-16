@@ -56,7 +56,9 @@ StreamResult calcStream(GameState s, Content c, Random rng) {
 
   final early = 1 + 1.5 / (1 + s.followers / 150);
   final conv = early * (0.2 / (1 + s.followers / 400000)) * sqrt(q) * (1 + s.image / 120) * (1 - min(s.heat, 90) / 180);
-  final gain = max(0, (v * conv * rnd(0.8, 1.2) * (viral ? 1.8 : 1) * (flop ? 0.3 : 1)).round());
+  // 안티가 많으면 새 팬이 덜 생긴다
+  final antiDrag = 1 - min(0.3, s.antis / (s.followers + 100) * 0.6);
+  final gain = max(0, (v * conv * antiDrag * rnd(0.8, 1.2) * (viral ? 1.8 : 1) * (flop ? 0.3 : 1)).round());
 
   final donation = ((v * rnd(60, 140) * skill) / 100).round() * 100;
   final ads = s.followers >= 1000 ? ((v * 30) / 100).round() * 100 : 0;

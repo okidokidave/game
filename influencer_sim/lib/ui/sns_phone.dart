@@ -237,6 +237,11 @@ class _PhoneState extends State<_Phone> {
                 Text.rich(
                   TextSpan(children: [
                     TextSpan(text: p.nick, style: const TextStyle(fontWeight: FontWeight.w800, color: _text)),
+                    if (p.g.isNotEmpty)
+                      TextSpan(
+                        text: p.g == 'm' ? ' ♂' : ' ♀',
+                        style: TextStyle(fontWeight: FontWeight.w900, color: p.g == 'm' ? const Color(0xFF3B82F6) : const Color(0xFFEC4899)),
+                      ),
                     TextSpan(text: ' @${p.handle} · D${p.day} ${slotNames[p.slot]}', style: const TextStyle(fontSize: 12, color: _muted)),
                   ]),
                   maxLines: 1,

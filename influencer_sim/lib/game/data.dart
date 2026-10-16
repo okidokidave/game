@@ -225,6 +225,72 @@ const snsMilestone = <int, List<String>>{
   1000000: ['{name} 100만 실화냐', '{name} 다이아 버튼 축하해요 ㅠㅠㅠ', '{name} 방구석 시절부터 봤다고 자랑 중'],
 };
 
+/// 성별마다 다른 말투. {sib}은 부르는 말로 바뀐다.
+/// (남자 팬 → 형/누나, 여자 팬 → 오빠/언니)
+const snsGendered = <String, Map<String, List<String>>>{
+  'shield': {
+    'm': ['{sib} 기죽지 마라 ㄹㅇ', '우리 {sib} 건드리지 마라', '{sib} 방송 10년 더 본다', '{sib} 이 정도로 안 무너짐 ㅇㅇ'],
+    'f': ['{sib} 힘내요ㅠㅠ 항상 응원해요', '{sib} 상처받지 마요 ㅠㅠ', '우리 {sib} 꽃길만 걷자', '{sib} 악플 보지 마요 ㅠㅠ'],
+  },
+  'hate': {
+    'm': ['{sib} 이번엔 좀 실망이다', '{sib} 초심 어디 감?', '{sib} 이러면 나도 못 쉴드침'],
+    'f': ['{sib} 이건 아니지…', '{sib} 진짜 실망했어요', '{sib} 믿었는데 ㅠ'],
+  },
+  'fan': {
+    'm': ['{sib} 오늘 방송 레전드', '{sib} 폼 미쳤다', '{sib} 클립 따놨다 ㅋㅋ'],
+    'f': ['{sib} 오늘도 귀여웠다 ㅠㅠ', '{sib} 목소리 듣고 힐링함', '{sib} 웃는 거 보고 하루 버팀'],
+  },
+};
+
+/// 팬이 방송인을 부르는 말
+String sibling(String fanGender, String streamerGender) =>
+    fanGender == 'm' ? (streamerGender == 'm' ? '형' : '누나') : (streamerGender == 'm' ? '오빠' : '언니');
+
+// ───── 방송 중 말실수 (드물게) ─────
+class Gaffe {
+  const Gaffe(this.text, this.quote);
+
+  /// 무슨 일이 있었는지
+  final String text;
+
+  /// SNS에 박제되는 말
+  final String quote;
+}
+
+const gaffes = [
+  Gaffe('채팅이 느리게 올라오자 무심코 말해 버렸다.', '"아 오늘 시청자들 왜 이렇게 노잼이야"'),
+  Gaffe('경쟁 스트리머 얘기가 나오자 비꼬는 말이 튀어나왔다.', '"걔는 솔직히 얼굴로 뜬 거잖아ㅋㅋ"'),
+  Gaffe('게임에서 어이없이 지는 바람에 욕설이 튀어나왔다.', '"아 ×× 이게 말이 돼?"'),
+  Gaffe('후원 메시지를 읽다가 후원자를 놀리는 말을 해 버렸다.', '"이 정도 후원으로 뭘 바라세요ㅋㅋ"'),
+  Gaffe('지역 이야기를 하다가 선을 넘는 농담을 했다.', '"거기 사는 사람들은 원래 좀…ㅋㅋ"'),
+];
+
+/// 말실수 직후 채팅
+const chatGaffe = ['??', '방금 뭐라고 함?', '와 선 넘네', '클립 땄다', '사과 안 함?', '언팔합니다', '실망이다 진짜', 'ㅋㅋㅋ 이게 맞냐', '박제 완료'];
+
+/// 사과 방송 중 채팅
+const chatApology = ['사과 받아요', '다음부터 조심해요', '진정성 있네', '울지 마요 ㅠㅠ', '사과문 읽는 거 아님?', '이미 늦었음', '힘내세요', '그래도 사과는 하네'];
+
+/// 사과 없이 강행했을 때 SNS
+const snsGaffeIgnore = SnsTopic(
+  tag: '{name}_사과해',
+  headline: '{name}, 생방송 중 막말… 사과 없이 방송 강행',
+  tone: -0.45,
+  hate: ['사과 한마디가 그렇게 어렵나', '{name} 인성 드디어 드러남', '이거 그냥 넘어가면 안 됨', '박제해 둠. 나중에 딴말하기 없기', '언팔하고 왔다'],
+  shield: ['방송하다 보면 말실수할 수도 있지', '맥락 보면 그렇게 심한 말 아님', '불편러들 또 몰려왔네', '{name}은 원래 저런 캐릭터임'],
+  neutral: ['원본 클립 어디서 봄?', '사과 방송 할까 안 할까', '팝콘 각 🍿'],
+);
+
+/// 사과 방송을 했을 때 SNS
+const snsGaffeApology = SnsTopic(
+  tag: '{name}_사과방송',
+  headline: '{name}, 말실수 직후 방송 중단하고 사과',
+  tone: 0.3,
+  hate: ['크로마키 깔고 사과하는 거 웃기네 ㅋㅋ', '사과하면 다 끝남?', '사과문 대본 티 남', '이미 한 말은 주워 담을 수 없음'],
+  shield: ['바로 사과한 건 인정', '사과까지 했는데 그만 까자', '진정성 느껴졌음', '실수 인정하는 게 쉬운 일 아님'],
+  neutral: ['크로마키 사과 방송 밈 되겠다', '사과 방송 시청자 더 많았다던데'],
+);
+
 /// 구독자에 따라 돈 단위가 커지도록
 int scaleMoney(GameState s, int base) => ((base * pow(1 + s.followers / 4000, 0.55)) / 1000).round() * 1000;
 
@@ -257,10 +323,13 @@ class Fx {
 
 /// SNS 반응. tone은 -1(악플 위주) ~ 1(쉴드 위주)
 class SnsTopic {
-  const SnsTopic({required this.tag, required this.headline, required this.tone, this.hate = const [], this.shield = const [], this.neutral = const []});
+  const SnsTopic({required this.tag, required this.headline, required this.tone, this.hate = const [], this.shield = const [], this.neutral = const [], this.oppositeTone = 0});
   final String tag;
   final String headline;
   final double tone;
+
+  /// 방송인과 성별이 다른 팬에게 더해지는 tone (열애설처럼 이성 팬이 더 민감한 주제는 음수)
+  final double oppositeTone;
   final List<String> hate;
   final List<String> shield;
   final List<String> neutral;
@@ -540,42 +609,6 @@ final gameEvents = <GameEvent>[
     ],
   ),
   GameEvent(
-    id: 'swear',
-    where: 'live',
-    title: '말실수',
-    weight: 3,
-    when: (s) => s.followers >= 100,
-    text: (s) => '게임에서 어이없이 지는 바람에 순간 욕설이 튀어나왔다!',
-    choices: [
-      EventChoice(
-        label: '바로 사과한다',
-        result: '"앗, 죄송합니다! 방금 건 못 들은 걸로…" 시청자들이 웃으며 넘어가 줬다.',
-        fx: (s) => const Fx(heat: 2, image: 1),
-        sns: const SnsTopic(
-          tag: '{name}_욕설',
-          headline: '{name}, 방송 중 욕설 후 즉시 사과',
-          tone: 0.4,
-          hate: ['어린 애들도 보는데', '평소 말버릇 나온 거지'],
-          shield: ['바로 사과했으면 된 거임', '게임하다 보면 나올 수 있지 ㅋㅋ', '사람 냄새 나서 좋음'],
-          neutral: ['그 장면 클립 웃기긴 함'],
-        ),
-      ),
-      EventChoice(
-        label: '"이게 내 컨셉이야"라며 넘어간다',
-        result: '오히려 더 세게 나갔다. 채팅창은 환호와 비난이 반반이다.',
-        fx: (s) => const Fx(heat: 12, image: -6, followers: 0.02),
-        sns: const SnsTopic(
-          tag: '{name}_막말',
-          headline: '{name}, 욕설 논란에 "내 컨셉"',
-          tone: -0.4,
-          hate: ['컨셉이면 다 되는 줄 아네', '방송 수준 떨어진다', '청소년 시청자 생각 좀'],
-          shield: ['성인 방송인데 뭐 어때', '이게 {name} 매력이지 ㅋㅋ', '불편러들 또 시작'],
-          neutral: ['호불호 갈릴 듯'],
-        ),
-      ),
-    ],
-  ),
-  GameEvent(
     id: 'wrong_donation',
     where: 'live',
     title: '실수 후원',
@@ -691,6 +724,7 @@ final gameEvents = <GameEvent>[
           tag: '{name}_열애',
           headline: '{name}, 생방송 중 열애 인정',
           tone: 0.2,
+          oppositeTone: -0.6,
           hate: ['그동안 솔로인 척한 거임?', '배신감 든다 ㅠ', '후원한 돈 데이트 비용으로 쓰는 거?'],
           shield: ['연애하는 게 죄임?', '솔직해서 더 좋아짐', '{name} 축하해요!! 행복하세요', '이걸로 욕하는 사람들 정상 아님'],
           neutral: ['상대 누군지 궁금하다', '머그잔 어디 거임 ㅋㅋ'],
@@ -704,6 +738,7 @@ final gameEvents = <GameEvent>[
           tag: '{name}_머그잔',
           headline: '{name} 커플 머그잔? "동생 것" 해명',
           tone: 0.3,
+          oppositeTone: -0.3,
           hate: ['동생 거라는 거 누가 믿음 ㅋㅋ', '거짓말 티 나던데'],
           shield: ['동생 거라는데 왜 의심함', '사생활 캐지 맙시다', '머그잔 하나로 소설 쓰네'],
           neutral: ['탐정들 출동했다 ㅋㅋ'],
@@ -912,6 +947,7 @@ final gameEvents = <GameEvent>[
           tag: '{name}_머그잔의진실',
           headline: '{name} 열애 사진 공개… "거짓말 죄송"',
           tone: 0.1,
+          oppositeTone: -0.5,
           hate: ['동생 거라며 ㅋㅋㅋㅋ', '거짓말한 게 문제지', '팬들을 바보로 아나'],
           shield: ['사생활 지키려고 그런 거잖아', '사진 찍어 올린 사람이 더 문제', '연애는 축하할 일이지'],
           neutral: ['머그잔 밈 됐다 ㅋㅋ'],
@@ -925,6 +961,7 @@ final gameEvents = <GameEvent>[
           tag: '{name}_사생활',
           headline: '{name}, 열애 사진에 "사생활" 일축',
           tone: -0.1,
+          oppositeTone: -0.5,
           hate: ['거짓말해놓고 사생활 타령', '팬들한테 미안하단 말도 없네'],
           shield: ['사생활 맞잖아', '파파라치 문화 진짜 별로다', '{name} 행복하면 됐음'],
           neutral: ['이제 동생 거 밈 못 쓰겠다'],

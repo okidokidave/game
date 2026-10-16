@@ -161,8 +161,11 @@ Map<String, int> _charPalette(Look look, {required bool blink, required bool tal
       'h': argb(look.hair),
       's': 0xFFF3C9A5,
       'e': blink ? 0xFFE0A98A : 0xFF2A2230,
-      'm': talk ? 0xFFA33B3B : 0xFFE0A98A,
-      'b': 0xFFF19A9A,
+      // 여자 캐릭터는 핑크 입술과 진한 볼, 남자 캐릭터는 눈썹
+      'm': talk ? 0xFFA33B3B : (look.male ? 0xFFE0A98A : 0xFFE77C8E),
+      'b': look.male ? 0xFFF3B3A0 : 0xFFF19A9A,
+      'r': shade(look.hair, -0.3),
+      'l': 0xFF2A2230,
       't': argb(look.shirt),
       'd': shade(look.shirt, -0.25),
       'p': 0xFF3B4A6B,
@@ -171,6 +174,8 @@ Map<String, int> _charPalette(Look look, {required bool blink, required bool tal
 
 List<String> _headRows(Look look, bool closed) {
   var rows = [..._head];
+  // 5번째 줄: 남자는 눈썹(r), 여자는 속눈썹(l)
+  rows[5] = look.male ? '.hsrrssrrsh.' : '.hslsssslsh.';
   if (look.long) {
     rows = [for (var i = 0; i < rows.length; i++) i >= 4 ? 'h${rows[i].substring(1, 11)}h' : rows[i]];
     rows.addAll(['hh........hh', 'h..........h']);
@@ -203,7 +208,7 @@ const _skies = [
 int _g(GameState s, String k) => s.gear[k]!;
 
 /// 캐릭터 뒤에 그려지는 것 (바닥, 벽, 침대, 의자 등)
-ui.Image drawBack(GameState s) {
+ui.Image drawBack(GameState s, {bool apology = false}) {
   final r = Raster();
   final deco = s.deco.toSet();
   final wall = argb(s.wallColor);
@@ -287,6 +292,19 @@ ui.Image drawBack(GameState s) {
       _sprite(r, at(34, 3, 40), _spr['figure']!, {'r': 0xFFE8463C, 'k': 0xFF333333});
       _sprite(r, at(31, 3, 40), _spr['figure2']!, {'y': 0xFFF2C14E, 'b': 0xFF3E7BD6});
     }
+  }
+
+  // 사과 방송: 벽 뒤로 초록 크로마키 천을 내린다
+  if (apology) {
+    int? green(double u, double z) {
+      if (z > _rh - 4) return 0xFF3A3F45; // 천을 건 봉
+      final fold = (u / 6).floor().isOdd;
+      if (z < 4) return fold ? 0xFF128C3A : 0xFF0F7F34;
+      return fold ? 0xFF1DBF52 : 0xFF17AE49;
+    }
+
+    _sideX(r, 0.6, 0, _rw, 2, _rh, green);
+    _sideY(r, 0.6, 0, _rw, 2, _rh, green);
   }
 
   // 러그
@@ -458,12 +476,23 @@ class RoomPainter extends CustomPainter {
     final img = Paint()..filterQuality = FilterQuality.none;
     canvas.drawImage(back, Offset.zero, img);
 
-    final live = mode == 'live';
+    final live = mode == 'live' || mode == 'apology';
     final pal = _charPalette(s.look, blink: tick % 40 == 0 || tick % 40 == 1, talk: live && (tick ~/ 2) % 3 != 0);
 
     if (mode == 'sleep') {
       final h = at(_pillowX, _pillowY, _pillowZ);
       _rows(canvas, _headRows(s.look, true).take(10).toList(), pal, h.dx - 6, h.dy - 9);
+    } else if (mode == 'apology') {
+      // 일어서서 고개 숙여 사과 (몇 박자마다 꾸벅)
+      // 책상에 가리지 않게 의자보다 한 걸음 뒤(크로마키 앞)에 선다
+      final c = at(_seatX - 8, _seatY - 8);
+      final bowing = tick % 24 >= 8 && tick % 24 < 20;
+      final apal = _charPalette(s.look, blink: bowing, talk: !bowing && (tick ~/ 2) % 3 != 0);
+      final head = _headRows(s.look, bowing);
+      final x0 = c.dx - 6;
+      final y0 = c.dy - 18;
+      _rows(canvas, _bodyStand, apal, x0, y0 + 10);
+      _rows(canvas, head, apal, x0, y0 + (bowing ? 3 : 0));
     } else if (mode != 'away') {
       final seated = live || mode == 'idle';
       final c = seated ? at(_seatX, _seatY, _g(s, 'pc') == 0 ? 0 : 12) : at(48, 74);

@@ -2,14 +2,18 @@
 
 /// 캐릭터 외모 (색은 0xRRGGBB)
 class Look {
-  const Look({required this.hair, required this.shirt, this.long = false});
+  const Look({required this.hair, required this.shirt, this.long = false, this.gender = 'f'});
   final int hair;
   final int shirt;
   final bool long;
 
-  Map<String, dynamic> toJson() => {'hair': hair, 'shirt': shirt, 'long': long};
+  /// 'm' 남자 / 'f' 여자
+  final String gender;
+  bool get male => gender == 'm';
+
+  Map<String, dynamic> toJson() => {'hair': hair, 'shirt': shirt, 'long': long, 'gender': gender};
   factory Look.fromJson(Map<String, dynamic> j) =>
-      Look(hair: j['hair'] as int, shirt: j['shirt'] as int, long: j['long'] as bool? ?? false);
+      Look(hair: j['hair'] as int, shirt: j['shirt'] as int, long: j['long'] as bool? ?? false, gender: j['gender'] as String? ?? 'f');
 }
 
 /// SNS 글 하나 (답글 포함)
@@ -28,6 +32,7 @@ class Post {
     List<Post>? replies,
     this.news = false,
     this.replyTo,
+    this.g = '',
   }) : replies = replies ?? [];
 
   final String id;
@@ -46,6 +51,9 @@ class Post {
   final bool news;
   String? replyTo;
 
+  /// 글쓴이 성별 'm' / 'f' (뉴스 계정은 '')
+  final String g;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'nick': nick,
@@ -60,6 +68,7 @@ class Post {
         'replies': replies.map((r) => r.toJson()).toList(),
         'news': news,
         'replyTo': replyTo,
+        'g': g,
       };
 
   factory Post.fromJson(Map<String, dynamic> j) => Post(
@@ -76,6 +85,7 @@ class Post {
         replies: (j['replies'] as List).map((r) => Post.fromJson(r as Map<String, dynamic>)).toList(),
         news: j['news'] as bool? ?? false,
         replyTo: j['replyTo'] as String?,
+        g: j['g'] as String? ?? '',
       );
 }
 
@@ -154,7 +164,10 @@ class GameState {
     this.earned = 0,
     this.uploads = 0,
     this.ended,
-  })  : gear = gear ?? {'camera': 0, 'mic': 0, 'light': 0, 'pc': 0},
+    double? maleFans,
+    this.antis = 0,
+  })  : maleFans = maleFans ?? (look.male ? 0.35 : 0.72),
+        gear = gear ?? {'camera': 0, 'mic': 0, 'light': 0, 'pc': 0},
         deco = deco ?? [],
         skills = skills ?? {},
         flags = flags ?? {},
@@ -207,6 +220,12 @@ class GameState {
   /// 끝났으면 엔딩 키
   String? ended;
 
+  /// 팬 중 남자 비율 (0~1). 여자 방송인은 남자 팬이, 남자 방송인은 여자 팬이 많게 시작
+  double maleFans;
+
+  /// 안티 수 (사과 없이 넘어간 사고 등으로 생김)
+  int antis;
+
   Map<String, dynamic> toJson() => {
         'v': 1,
         'name': name,
@@ -237,6 +256,8 @@ class GameState {
         'peak': peak,
         'earned': earned,
         'uploads': uploads,
+        'maleFans': maleFans,
+        'antis': antis,
       };
 
   factory GameState.fromJson(Map<String, dynamic> j) => GameState(
@@ -268,5 +289,7 @@ class GameState {
         peak: j['peak'] as int,
         earned: j['earned'] as int,
         uploads: j['uploads'] as int,
+        maleFans: (j['maleFans'] as num?)?.toDouble(),
+        antis: j['antis'] as int? ?? 0,
       );
 }

@@ -34,6 +34,15 @@ class StreamOutcome {
   final Trend? trend;
 }
 
+class GaffeOutcome {
+  const GaffeOutcome(this.result, this.changes, this.trend);
+
+  /// 사고 영향을 반영한 방송 결과
+  final StreamResult result;
+  final List<Change> changes;
+  final Trend trend;
+}
+
 class UploadOutcome {
   const UploadOutcome(this.result, this.trend);
   final UploadResult result;
@@ -253,7 +262,71 @@ class GameController extends ChangeNotifier {
   /// 방송 중 사건이 생길 확률
   double liveEventChance(Content c) => 0.38 + (c.risky ? 0.15 : 0) - (c.calm ? 0.15 : 0);
 
+  // ───── 방송 중 말실수 ─────
+  double gaffeChance(Content c) => 0.07 + (c.risky ? 0.04 : 0) - (c.calm ? 0.03 : 0);
+
+  /// 드물게 말실수가 일어난다 (없으면 null)
+  Gaffe? rollGaffe(Content c) => rng.nextDouble() < gaffeChance(c) ? _pick(gaffes) : null;
+
+  /// 말실수 대처. 사과하면 피해가 적고, 강행하면 팬이 떠나고 안티가 생긴다.
+  GaffeOutcome resolveGaffe(Gaffe g, StreamResult r, {required bool apologize}) {
+    final changes = <Change>[];
+    StreamResult scaled(double v, double gain, double money) => StreamResult(
+          viewers: max(1, (r.viewers * v).round()),
+          gain: (r.gain * gain).round(),
+          donation: (r.donation * money / 100).round() * 100,
+          ads: (r.ads * v / 100).round() * 100,
+          viral: false,
+          flop: r.flop,
+        );
+    final StreamResult result;
+    final SnsTopic base;
+    if (apologize) {
+      changes.addAll(applyFx(const Fx(image: -2, heat: 4, mental: -6)));
+      result = scaled(0.85, 0.5, 0.5);
+      base = snsGaffeApology;
+      log('🙇 말실수 후 바로 사과 방송을 했다.', 'event');
+    } else {
+      final lost = max(1, (s.followers * 0.06).round());
+      s.followers = max(0, s.followers - lost);
+      final newAntis = max(5, (s.followers * 0.03 + r.viewers * 0.2).round());
+      s.antis += newAntis;
+      changes
+        ..add(_delta('팬 이탈', -lost, shortNum))
+        ..add(_delta('안티', newAntis, shortNum, true));
+      changes.addAll(applyFx(const Fx(image: -8, heat: 16)));
+      result = scaled(0.55, 0.25, 0.6);
+      base = snsGaffeIgnore;
+      log('😶 말실수를 하고도 사과 없이 방송을 이어갔다. 팬 ${shortNum(lost)}명이 떠났다.', 'event');
+    }
+    // 박제된 말을 기사 제목에 붙인다
+    final topic = SnsTopic(
+      tag: base.tag,
+      headline: '${base.headline} ${g.quote}',
+      tone: base.tone,
+      hate: base.hate,
+      shield: base.shield,
+      neutral: base.neutral,
+    );
+    final trend = sns.topicFeed(s, topic);
+    pushTrend(trend);
+    save();
+    notifyListeners();
+    return GaffeOutcome(result, changes, trend);
+  }
+
+  // 콘텐츠마다 새로 들어오는 팬의 성비가 조금씩 다르다
+  static const _contentLean = {'game': 0.12, 'react': 0.05, 'sing': -0.08, 'asmr': -0.06, 'vlog': -0.08};
+
+  void _shiftFans(Content c, int gain) {
+    if (gain <= 0) return;
+    final base = s.look.male ? 0.35 : 0.72;
+    final target = (base + (_contentLean[c.id] ?? 0)).clamp(0.1, 0.9);
+    s.maleFans = ((s.maleFans * s.followers + target * gain) / (s.followers + gain)).clamp(0.05, 0.95);
+  }
+
   StreamOutcome finishStream(Content c, StreamResult r) {
+    _shiftFans(c, r.gain);
     s.followers += r.gain;
     final income = r.donation + r.ads;
     s.money += income;
@@ -402,6 +475,7 @@ class GameController extends ChangeNotifier {
     s.energy = (s.energy + 45 + remaining * 15).clamp(0, 100);
     s.mental = (s.mental + 5).clamp(0, 100);
     s.heat = (s.heat - 7).clamp(0, 100);
+    s.antis = (s.antis * 0.97).floor();
     s.day++;
     s.slot = 0;
     s.mode = 'idle';
@@ -440,7 +514,7 @@ class GameController extends ChangeNotifier {
     s.money -= next.price;
     s.gear[key] = lv + 1;
     log('🛒 ${next.name} 구입! (-${shortWon(next.price)})', 'buy');
-    pushFeed([sns.post(s, _pick(['{name} 장비 바꿨나? ${g.label} 확 좋아짐', '{name} 새 ${g.label} 플렉스 ㅋㅋ', '{name} 방송 퀄 점점 올라가네']), 'fan')]);
+    pushFeed([sns.post(s, _pick(['{name} 장비 바꿨나? ${g.label} 확 좋아짐', '{name} 새 ${g.label} 플렉스 ㅋㅋ', '{name} 방송 퀄 점점 올라가네']), 'fan', g: sns.fanGender(s))]);
     toasts.add('${next.name} 설치 완료!');
     emit('coin', 8);
     save();

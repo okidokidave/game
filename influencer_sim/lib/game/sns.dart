@@ -37,7 +37,7 @@ class Sns {
   // 구독자에 비례한 반응 수
   int _reach(GameState s, double mult) => max(0, ((2 + pow(s.followers, 0.82) * 0.06) * mult * _rand(0.4, 1.6)).round());
 
-  Post post(GameState s, String text, String side, {SnsUser? as, double boost = 1, bool news = false}) {
+  Post post(GameState s, String text, String side, {SnsUser? as, double boost = 1, bool news = false, String g = ''}) {
     final u = as ?? user();
     final likes = _reach(s, boost);
     return Post(
@@ -52,12 +52,36 @@ class Sns {
       day: s.day,
       slot: min(s.slot, 2),
       news: news,
+      g: g,
     );
+  }
+
+  /// 팬 성비에 따라 글쓴이 성별을 고른다
+  String fanGender(GameState s) => rng.nextDouble() < s.maleFans ? 'm' : 'f';
+
+  /// 성별 말투 문구 (형/누나/오빠/언니). 쓸 문구가 없으면 null
+  String? _genderedLine(String side, String g, GameState s, Set<String> used) {
+    final pool = snsGendered[side]?[g]?.where((l) => !used.contains(l)).toList();
+    if (pool == null || pool.isEmpty) return null;
+    final line = pick(pool);
+    used.add(line);
+    return line.replaceAll('{sib}', sibling(g, s.look.gender));
+  }
+
+  /// 한 사람의 의견: 성별 → (이성 팬이면 tone 보정) → 진영 → 문구
+  Post _voice(GameState s, SnsTopic topic, Set<String> used, {String? side, double boost = 1}) {
+    final g = fanGender(s);
+    final opposite = g != s.look.gender;
+    final sd = side ?? _sideFor(topic.tone + (opposite ? topic.oppositeTone : 0), s);
+    final line = (rng.nextDouble() < 0.35 ? _genderedLine(sd, g, s, used) : null) ?? _lineFor(sd, topic, used);
+    return post(s, line, sd, boost: boost, g: g);
   }
 
   // tone과 이미지로 악플/쉴드 비율 결정
   String _sideFor(double tone, GameState s) {
-    final t = (tone + s.image / 160).clamp(-1.0, 1.0);
+    // 안티가 많을수록 악플이 늘어난다
+    final antiShare = min(0.4, s.antis / (s.followers + 100));
+    final t = (tone + s.image / 160 - antiShare).clamp(-1.0, 1.0);
     if (rng.nextDouble() < 0.18) return 'neutral';
     return rng.nextDouble() < (t + 1) / 2 ? 'shield' : 'hate';
   }
@@ -95,9 +119,9 @@ class Sns {
     String? prev;
     for (var i = 0; i < nReplies; i++) {
       // 앞 댓글과 반대 진영이 답하는 경우가 많게 → 토론처럼 보이게
-      var side = _sideFor(topic.tone, s);
-      if (prev != null && prev != 'neutral' && rng.nextDouble() < 0.55) side = prev == 'hate' ? 'shield' : 'hate';
-      final reply = post(s, _lineFor(side, topic, used), side, boost: 0.4);
+      final forced = prev != null && prev != 'neutral' && rng.nextDouble() < 0.55 ? (prev == 'hate' ? 'shield' : 'hate') : null;
+      final reply = _voice(s, topic, used, side: forced, boost: 0.4);
+      final side = reply.side;
       if (prev != null && side != 'neutral' && prev != side && prev != 'neutral' && rng.nextDouble() < 0.6) {
         reply.replyTo = main.replies.last.nick;
       }
@@ -108,8 +132,8 @@ class Sns {
 
     final n = 4 + rng.nextInt(3);
     for (var i = 0; i < n; i++) {
-      final side = _sideFor(topic.tone, s);
-      final p = post(s, _lineFor(side, topic, used), side);
+      final p = _voice(s, topic, used);
+      final side = p.side;
       if (rng.nextDouble() < 0.6) p.text += ' #$tag';
       if (rng.nextDouble() < 0.35) {
         final opp = side == 'hate'
@@ -117,7 +141,7 @@ class Sns {
             : side == 'shield'
                 ? 'hate'
                 : _sideFor(topic.tone, s);
-        p.replies.add(post(s, _lineFor(opp, topic, used), opp, boost: 0.3));
+        p.replies.add(_voice(s, topic, used, side: opp, boost: 0.3));
       }
       posts.add(p);
     }
@@ -143,19 +167,22 @@ class Sns {
           : flop && i == 0
               ? snsStream['flop']!
               : snsStream[c.id]!;
-      out.add(post(s, pick(pool), flop && i == 0 ? 'hate' : 'fan', boost: viral ? 4 : 1));
+      final side = flop && i == 0 ? 'hate' : 'fan';
+      final g = fanGender(s);
+      final line = (side == 'fan' && rng.nextDouble() < 0.35 ? _genderedLine('fan', g, s, {}) : null) ?? pick<String>(pool);
+      out.add(post(s, line, side, boost: viral ? 4 : 1, g: g));
     }
     // 장비가 부족하면 지적하는 글
     final g = s.gear;
     if (g['camera'] == 0 && rng.nextDouble() < 0.45) {
-      out.add(post(s, pick(snsStream['lowcam']!), 'neutral'));
+      out.add(post(s, pick(snsStream['lowcam']!), 'neutral', g: fanGender(s)));
     } else if (g['mic'] == 0 && rng.nextDouble() < 0.45) {
-      out.add(post(s, pick(snsStream['lowmic']!), 'neutral'));
+      out.add(post(s, pick(snsStream['lowmic']!), 'neutral', g: fanGender(s)));
     } else if (g['light'] == 0 && rng.nextDouble() < 0.35) {
-      out.add(post(s, pick(snsStream['dark']!), 'neutral'));
+      out.add(post(s, pick(snsStream['dark']!), 'neutral', g: fanGender(s)));
     }
     return out;
   }
 
-  List<Post> milestonePosts(GameState s, int at) => (snsMilestone[at] ?? const []).map((t) => post(s, t, 'fan', boost: 2)).toList();
+  List<Post> milestonePosts(GameState s, int at) => (snsMilestone[at] ?? const []).map((t) => post(s, t, 'fan', boost: 2, g: fanGender(s))).toList();
 }

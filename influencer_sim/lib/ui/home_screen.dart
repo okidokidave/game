@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import '../ads/ad_service.dart';
 import '../game/data.dart';
 import '../game/game_controller.dart';
 import '../game/game_state.dart';
+import '../game/rules.dart';
 import '../game/sns.dart';
 import '../scene/room_view.dart';
 import 'dialogs.dart';
@@ -78,15 +80,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final msg = game.toasts.removeAt(0);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(msg, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800, color: Pal.text)),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Pal.surface2,
-          duration: const Duration(milliseconds: 2200),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-          // 아래 버튼을 가리지 않게 화면 위쪽에 띄운다
-          margin: EdgeInsets.fromLTRB(40, 0, 40, MediaQuery.sizeOf(context).height - 150),
-        ));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800, color: Pal.text),
+            ),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Pal.surface2,
+            duration: const Duration(milliseconds: 2200),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+            // 아래 버튼을 가리지 않게 화면 위쪽에 띄운다
+            margin: EdgeInsets.fromLTRB(40, 0, 40, MediaQuery.sizeOf(context).height - 150),
+          ),
+        );
     }
   }
 
@@ -148,13 +156,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// 이벤트 → 결과 → SNS 반응
   Future<void> _runEvent(GameEvent ev, {bool news = false}) async {
     if (!mounted) return;
-    final idx = await ask(
-      context,
-      ev.title,
-      [eventText(game.eventText(ev))],
-      [for (final c in ev.choices) DialogButton(c.label, choice: true)],
-      icon: news ? '📰' : '⚡',
-    );
+    final idx = await ask(context, ev.title, [eventText(game.eventText(ev))], [for (final c in ev.choices) DialogButton(c.label, choice: true)], icon: news ? '📰' : '⚡');
     final out = game.resolveEvent(ev, idx);
     if (!mounted) return;
     await ask(
@@ -171,35 +173,47 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final c = await chooseContent(context, game);
     if (c == null || !mounted) return;
 
-    final r = game.beginStream(c);
-    _startLive(c, r.viewers);
-    await Future<void>.delayed(widget.liveDuration);
-    if (!mounted) return;
+    var r = game.beginStream(c);
+    _startLive(r.viewers, () => game.chatLine(c));
 
-    // 방송 중 사건
-    final ev = game.rollEvent('live', game.liveEventChance(c));
-    if (ev != null) {
-      _stopChat();
-      await _runEvent(ev);
-      if (await _checkOver()) return;
+    // 드물게 말실수 사고. 아니면 평소처럼 방송 중 사건
+    final gaffe = game.rollGaffe(c);
+    if (gaffe != null) {
+      await Future<void>.delayed(widget.liveDuration ~/ 2);
+      if (!mounted) return;
+      r = await _handleGaffe(gaffe, r);
+      if (!mounted || await _checkOver()) return;
+    } else {
+      await Future<void>.delayed(widget.liveDuration);
+      if (!mounted) return;
+      final ev = game.rollEvent('live', game.liveEventChance(c));
+      if (ev != null) {
+        _stopChat();
+        await _runEvent(ev);
+        if (await _checkOver()) return;
+      }
     }
     _stopLive();
 
     final out = game.finishStream(c, r);
     if (!mounted) return;
     final head = r.viral ? '떡상!' : (r.flop ? '오늘은 좀 별로…' : '방송 종료');
-    await ask(context, head, [
-      resultGrid([
-        ('최고 시청자', '${shortNum(r.viewers)}명'),
-        ('새 구독자', '+${shortNum(r.gain)}'),
-        ('후원', shortWon(r.donation)),
-        ('광고 수익', r.ads > 0 ? shortWon(r.ads) : (s.followers >= 1000 ? '0원' : '구독자 1천 명부터')),
-      ]),
-      const SizedBox(height: 6),
-      mutedText(game.hintFor(c), size: 13),
-    ], [
-      DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)
-    ], icon: r.viral ? '🚀' : (r.flop ? '😓' : c.icon));
+    await ask(
+      context,
+      head,
+      [
+        resultGrid([
+          ('최고 시청자', '${shortNum(r.viewers)}명'),
+          ('새 구독자', '+${shortNum(r.gain)}'),
+          ('후원', shortWon(r.donation)),
+          ('광고 수익', r.ads > 0 ? shortWon(r.ads) : (s.followers >= 1000 ? '0원' : '구독자 1천 명부터')),
+        ]),
+        const SizedBox(height: 6),
+        mutedText(game.hintFor(c), size: 13),
+      ],
+      [DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)],
+      icon: r.viral ? '🚀' : (r.flop ? '😓' : c.icon),
+    );
     if (out.trend != null && mounted) await showPhone(context, game, trendTab: true, trend: out.trend);
     if (await _checkOver()) return;
     await _advance();
@@ -208,39 +222,111 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _upload() async {
     final out = game.upload();
     final r = out.result;
-    await ask(context, r.viral ? '쇼츠 대박!' : '업로드 완료', [
-      resultGrid([
-        ('조회수', shortNum(r.views)),
-        ('새 구독자', '+${shortNum(r.gain)}'),
-        ('광고 수익', r.ads > 0 ? shortWon(r.ads) : '-'),
-      ]),
-    ], [
-      DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)
-    ], icon: r.viral ? '🚀' : '✂️');
+    await ask(
+      context,
+      r.viral ? '쇼츠 대박!' : '업로드 완료',
+      [
+        resultGrid([('조회수', shortNum(r.views)), ('새 구독자', '+${shortNum(r.gain)}'), ('광고 수익', r.ads > 0 ? shortWon(r.ads) : '-')]),
+      ],
+      [DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)],
+      icon: r.viral ? '🚀' : '✂️',
+    );
     if (out.trend != null && mounted) await showPhone(context, game, trendTab: true, trend: out.trend);
     await _advance();
   }
 
-  // 방송 중 채팅과 시청자 수 연출
-  void _startLive(Content c, int viewers) {
+  // 방송 중 채팅과 시청자 수 연출. 시청자 수는 지금 값에서 [viewers]로 움직인다
+  void _startLive(int viewers, (String, int, String) Function() line, {bool keepChat = false}) {
+    _stopChat();
+    final from = _live ? _shownViewers : 1;
     setState(() {
       _live = true;
-      _chat.clear();
-      _shownViewers = 1;
+      if (!keepChat) _chat.clear();
+      _shownViewers = from;
     });
     var i = 0;
     const steps = 22;
     _viewerTimer = Timer.periodic(const Duration(milliseconds: 110), (t) {
       i++;
-      setState(() => _shownViewers = (viewers * (i / steps).clamp(0, 1) * (0.9 + game.rng.nextDouble() * 0.2)).round().clamp(1, 1 << 31));
+      final k = (i / steps).clamp(0.0, 1.0);
+      setState(() => _shownViewers = ((from + (viewers - from) * k) * (0.95 + game.rng.nextDouble() * 0.1)).round().clamp(1, 1 << 31));
       if (i >= steps) t.cancel();
     });
     _chatTimer = Timer.periodic(const Duration(milliseconds: 320), (_) {
       setState(() {
-        _chat.add(game.chatLine(c));
+        _chat.add(line());
         if (_chat.length > 6) _chat.removeAt(0);
       });
     });
+  }
+
+  (String, int, String) _crowd(List<String> lines) {
+    final u = game.sns.user();
+    return (u.nick, u.color, lines[game.rng.nextInt(lines.length)]);
+  }
+
+  /// 말실수 → 대처 선택 → (사과 방송 / 강행) → SNS 반응. 사고 영향을 반영한 결과를 돌려준다.
+  Future<StreamResult> _handleGaffe(Gaffe g, StreamResult r) async {
+    // 채팅창이 술렁인다
+    _stopChat();
+    setState(() {
+      for (var i = 0; i < 4; i++) {
+        _chat.add(_crowd(chatGaffe));
+      }
+      while (_chat.length > 6) {
+        _chat.removeAt(0);
+      }
+    });
+    final idx = await ask(
+      context,
+      '방송 사고! 말실수',
+      [
+        eventText(g.text),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Pal.bad.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Pal.bad.withValues(alpha: 0.4)),
+          ),
+          child: Text(
+            g.quote,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Pal.text, fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+        ),
+        const SizedBox(height: 10),
+        mutedText('채팅창이 얼어붙었다. 어떻게 할까?'),
+      ],
+      const [DialogButton('사과 없이 방송을 이어간다', choice: true), DialogButton('바로 사과 방송을 한다', choice: true)],
+      icon: '😱',
+    );
+    if (!mounted) return r;
+    final apologize = idx == 1;
+
+    // 연출: 사과 방송(크로마키 + 자막) 또는 싸늘해진 방송
+    if (apologize) {
+      game.setMode('apology');
+      _startLive((r.viewers * 0.85).round(), () => _crowd(chatApology), keepChat: true);
+    } else {
+      _startLive((r.viewers * 0.55).round(), () => _crowd(chatGaffe), keepChat: true);
+    }
+    await Future<void>.delayed(widget.liveDuration);
+    if (!mounted) return r;
+    _stopChat();
+
+    final out = game.resolveGaffe(g, r, apologize: apologize);
+    game.setMode('live');
+    await ask(
+      context,
+      apologize ? '사과 방송을 마쳤다' : '분위기가 싸해졌다',
+      [eventText(apologize ? '"제 경솔한 발언으로 상처받으신 분들께 진심으로 사과드립니다." 시청자는 줄었지만, 사과를 받아 주는 사람도 많았다.' : '아무 일 없었다는 듯 방송을 이어갔다. 채팅창은 싸늘해졌고, 하나둘 방을 나갔다. 커뮤니티에 클립이 돌기 시작했다.'), changeChips(out.changes)],
+      const [DialogButton('📱 SNS 반응 보러 가기', primary: true)],
+      icon: apologize ? '🙇' : '😶',
+    );
+    if (mounted) await showPhone(context, game, trendTab: true, trend: out.trend);
+    return out.result;
   }
 
   void _stopChat() {
@@ -260,25 +346,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     game.finish(key);
     final got = game.endingsSeen;
     if (!mounted) return;
-    final i = await ask(context, e.title, [
-      Center(child: Text('ENDING', style: TextStyle(color: Pal.endingColor(e.type), fontWeight: FontWeight.w800, letterSpacing: 3))),
-      const SizedBox(height: 6),
-      eventText(e.text),
-      const SizedBox(height: 6),
-      resultGrid([
-        ('구독자', shortNum(s.followers)),
-        ('최고 시청자', '${shortNum(s.peak)}명'),
-        ('총 수입', shortWon(s.earned)),
-        ('방송 횟수', '${s.streams}회'),
-        ('이미지', imageText(s.image)),
-        ('진행 일수', '${s.day.clamp(1, seasonDays)}일'),
-      ]),
-      const SizedBox(height: 4),
-      Center(child: mutedText('엔딩 도감 ${got.length} / ${endings.length}')),
-    ], const [
-      DialogButton('새 게임', primary: true),
-      DialogButton('📱 마지막 반응 보기'),
-    ], icon: e.type == 'bad' ? '🥀' : (e.type == 'true' ? '👑' : '🏆'));
+    final i = await ask(
+      context,
+      e.title,
+      [
+        Center(
+          child: Text(
+            'ENDING',
+            style: TextStyle(color: Pal.endingColor(e.type), fontWeight: FontWeight.w800, letterSpacing: 3),
+          ),
+        ),
+        const SizedBox(height: 6),
+        eventText(e.text),
+        const SizedBox(height: 6),
+        resultGrid([
+          ('구독자', shortNum(s.followers)),
+          ('최고 시청자', '${shortNum(s.peak)}명'),
+          ('총 수입', shortWon(s.earned)),
+          ('방송 횟수', '${s.streams}회'),
+          ('이미지', imageText(s.image)),
+          ('진행 일수', '${s.day.clamp(1, seasonDays)}일'),
+        ]),
+        const SizedBox(height: 4),
+        Center(child: mutedText('엔딩 도감 ${got.length} / ${endings.length}')),
+      ],
+      const [DialogButton('새 게임', primary: true), DialogButton('📱 마지막 반응 보기')],
+      icon: e.type == 'bad' ? '🥀' : (e.type == 'true' ? '👑' : '🏆'),
+    );
     if (!mounted) return;
     if (i == 1) await showPhone(context, game, trendTab: true);
     if (i == 0) widget.onExit?.call();
@@ -302,19 +396,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(minHeight: box.maxHeight - 16),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          children: [
-                            _stats(),
-                            const SizedBox(height: 12),
-                            const Spacer(),
-                            _stage(),
-                            const Spacer(),
-                            const SizedBox(height: 12),
-                            _ticker(),
-                          ],
-                        ),
-                      ),
+                      child: IntrinsicHeight(child: Column(children: [_stats(), const SizedBox(height: 12), const Spacer(), _stage(), const Spacer(), const SizedBox(height: 12), _ticker()])),
                     ),
                   ),
                 ),
@@ -343,7 +425,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: CircleAvatar(
                   radius: 19,
                   backgroundColor: Color(0xFF000000 | s.look.shirt),
-                  child: Text(s.name.characters.first, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                  child: Text(
+                    s.name.characters.first,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -351,10 +436,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Pal.text, fontSize: 16, fontWeight: FontWeight.w800)),
+                    Text(
+                      s.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Pal.text, fontSize: 16, fontWeight: FontWeight.w800),
+                    ),
                     ShaderMask(
                       shaderCallback: (r) => Pal.brand.createShader(r),
-                      child: Text(rankName(s.followers), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
+                      child: Text(
+                        rankName(s.followers),
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                      ),
                     ),
                   ],
                 ),
@@ -367,7 +460,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(height: 10),
           Row(
             children: [
-              Text('DAY $day', style: const TextStyle(color: Pal.text, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
+              Text(
+                'DAY $day',
+                style: const TextStyle(color: Pal.text, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: ClipRRect(
@@ -403,10 +499,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           for (var i = 0; i < 3; i++)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Opacity(opacity: i == s.slot ? 1 : 0.3, child: Text(icons[i], style: TextStyle(fontSize: i == s.slot ? 14 : 11))),
+              child: Opacity(
+                opacity: i == s.slot ? 1 : 0.3,
+                child: Text(icons[i], style: TextStyle(fontSize: i == s.slot ? 14 : 11)),
+              ),
             ),
           const SizedBox(width: 4),
-          Text(slotNames[s.slot], style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w800)),
+          Text(
+            slotNames[s.slot],
+            style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w800),
+          ),
         ],
       ),
     );
@@ -416,49 +518,121 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _stats() {
     return Glass(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Column(children: [_gaugeRow(), _fans()]),
+    );
+  }
+
+  Widget _gaugeRow() {
+    return Row(
+      children: [
+        Expanded(child: _gauge('⚡', '체력', s.energy / 100, Pal.energy, '${s.energy}')),
+        Expanded(child: _gauge('🧠', '멘탈', s.mental / 100, Pal.mental, '${s.mental}')),
+        Expanded(child: _gauge('✨', '이미지', (s.image + 100) / 200, Pal.image, imageText(s.image))),
+        Expanded(child: _gauge('🔥', '논란', s.heat / 100, Pal.heat, '${s.heat}', warn: s.heat >= 60)),
+      ],
+    );
+  }
+
+  // 팬 성비 막대 + 안티 수
+  Widget _fans() {
+    final m = (s.maleFans * 100).round();
+    const male = Color(0xFF60A5FA);
+    const female = Color(0xFFF472B6);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
       child: Row(
         children: [
-          Expanded(child: _gauge('⚡', '체력', s.energy / 100, Pal.energy, '${s.energy}')),
-          Expanded(child: _gauge('🧠', '멘탈', s.mental / 100, Pal.mental, '${s.mental}')),
-          Expanded(child: _gauge('✨', '이미지', (s.image + 100) / 200, Pal.image, imageText(s.image))),
-          Expanded(child: _gauge('🔥', '논란', s.heat / 100, Pal.heat, '${s.heat}', warn: s.heat >= 60)),
+          const Text(
+            '팬 성비',
+            style: TextStyle(color: Pal.muted, fontSize: 11, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '♂$m%',
+            style: const TextStyle(color: male, fontSize: 11.5, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 5,
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: max(m, 1),
+                      child: Container(color: male),
+                    ),
+                    Expanded(
+                      flex: max(100 - m, 1),
+                      child: Container(color: female),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '♀${100 - m}%',
+            style: const TextStyle(color: female, fontSize: 11.5, fontWeight: FontWeight.w800),
+          ),
+          if (s.antis > 0) ...[
+            const SizedBox(width: 10),
+            Text(
+              '😈 안티 ${shortNum(s.antis)}',
+              style: const TextStyle(color: Pal.bad, fontSize: 11.5, fontWeight: FontWeight.w800),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _gauge(String icon, String label, double v, Color color, String value, {bool warn = false}) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Text(icon, style: const TextStyle(fontSize: 12)),
-                const SizedBox(width: 3),
-                Expanded(child: Text(label, maxLines: 1, style: const TextStyle(color: Pal.muted, fontSize: 11, fontWeight: FontWeight.w700))),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(value, style: TextStyle(color: warn ? Pal.heat : Pal.text, fontSize: 15, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 4),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: Stack(
-                children: [
-                  Container(height: 5, color: Pal.bg),
-                  AnimatedFractionallySizedBox(
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeOut,
-                    widthFactor: v.clamp(0.0, 1.0),
-                    child: Container(height: 5, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(999))),
-                  ),
-                ],
+            Text(icon, style: const TextStyle(fontSize: 12)),
+            const SizedBox(width: 3),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                style: const TextStyle(color: Pal.muted, fontSize: 11, fontWeight: FontWeight.w700),
               ),
             ),
           ],
         ),
-      );
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(color: warn ? Pal.heat : Pal.text, fontSize: 15, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: Stack(
+            children: [
+              Container(height: 5, color: Pal.bg),
+              AnimatedFractionallySizedBox(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOut,
+                widthFactor: v.clamp(0.0, 1.0),
+                child: Container(
+                  height: 5,
+                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(999)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _stage() {
     final trend = contentOf(s.trend);
@@ -473,6 +647,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Stack(
         children: [
           RoomView(state: s, mode: s.mode, effects: game.effects),
+          // 사과 방송 자막
+          if (s.mode == 'apology')
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(color: const Color(0xE6000000), borderRadius: BorderRadius.circular(10)),
+                child: const Column(
+                  children: [
+                    Text(
+                      '죄송합니다',
+                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 2),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      '경솔한 발언으로 상처받으신 분들께 진심으로 사과드립니다',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFFD9DBEA), fontSize: 11.5, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (_live)
             Positioned(
               top: 12,
@@ -482,13 +681,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(color: Pal.live, borderRadius: BorderRadius.circular(8)),
-                    child: const Text('● LIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
+                    child: Text(
+                      s.mode == 'apology' ? '● 사과 방송' : '● LIVE',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12),
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(color: const Color(0x99000000), borderRadius: BorderRadius.circular(8)),
-                    child: Text('👁 ${shortNum(_shownViewers)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+                    child: Text(
+                      '👁 ${shortNum(_shownViewers)}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12),
+                    ),
                   ),
                 ],
               ),
@@ -496,7 +701,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (_live && _chat.isNotEmpty)
             Positioned(
               right: 10,
-              bottom: 10,
+              bottom: s.mode == 'apology' ? null : 10,
+              top: s.mode == 'apology' ? 66 : null,
               child: Container(
                 width: 190,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -504,12 +710,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final (nick, color, text) in _chat)
+                    for (final (nick, color, text) in s.mode == 'apology' ? _chat.skip(max(0, _chat.length - 3)) : _chat)
                       Text.rich(
-                        TextSpan(children: [
-                          TextSpan(text: nick, style: TextStyle(color: Color(color), fontWeight: FontWeight.w800)),
-                          TextSpan(text: ' $text'),
-                        ]),
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: nick,
+                              style: TextStyle(color: Color(color), fontWeight: FontWeight.w800),
+                            ),
+                            TextSpan(text: ' $text'),
+                          ],
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.45),
@@ -524,8 +735,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               bottom: 12,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: const Color(0xA6080A16), borderRadius: BorderRadius.circular(999), border: Border.all(color: Pal.stroke)),
-                child: Text('🔥 이번 주 대세  ${trend.icon} ${trend.name}', style: const TextStyle(color: Color(0xFFFFD27A), fontSize: 12, fontWeight: FontWeight.w800)),
+                decoration: BoxDecoration(
+                  color: const Color(0xA6080A16),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Pal.stroke),
+                ),
+                child: Text(
+                  '🔥 이번 주 대세  ${trend.icon} ${trend.name}',
+                  style: const TextStyle(color: Color(0xFFFFD27A), fontSize: 12, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           Positioned(top: 10, right: 10, child: _phoneButton()),
@@ -543,7 +761,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          const SizedBox(width: 46, height: 46, child: Center(child: Text('📱', style: TextStyle(fontSize: 22)))),
+          const SizedBox(
+            width: 46,
+            height: 46,
+            child: Center(child: Text('📱', style: TextStyle(fontSize: 22))),
+          ),
           if (s.unread > 0)
             Positioned(
               top: -5,
@@ -552,8 +774,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.symmetric(horizontal: 5),
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: Pal.live, borderRadius: BorderRadius.circular(999), border: Border.all(color: Colors.white, width: 1.5)),
-                child: Text(s.unread > 99 ? '99+' : '${s.unread}', style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w900)),
+                decoration: BoxDecoration(
+                  color: Pal.live,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: Text(
+                  s.unread > 99 ? '99+' : '${s.unread}',
+                  style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w900),
+                ),
               ),
             ),
         ],
@@ -576,7 +805,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const Text('📝', style: TextStyle(fontSize: 14)),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(last?.text ?? '아직 기록이 없어요', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _logColor(last?.kind ?? ''), fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text(
+              last?.text ?? '아직 기록이 없어요',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: _logColor(last?.kind ?? ''), fontSize: 13, fontWeight: FontWeight.w600),
+            ),
           ),
           const Icon(Icons.expand_less_rounded, color: Pal.muted, size: 20),
         ],
@@ -585,13 +819,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Color _logColor(String kind) => switch (kind) {
-        'viral' => Pal.good,
-        'flop' => Pal.muted,
-        'event' => const Color(0xFFFF9EC2),
-        'milestone' => Pal.gold,
-        'buy' => const Color(0xFF9ED0FF),
-        _ => Pal.text,
-      };
+    'viral' => Pal.good,
+    'flop' => Pal.muted,
+    'event' => const Color(0xFFFF9EC2),
+    'milestone' => Pal.gold,
+    'buy' => const Color(0xFF9ED0FF),
+    _ => Pal.text,
+  };
 
   void _showLog() {
     showSheet<void>(
@@ -616,13 +850,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           padding: const EdgeInsets.symmetric(vertical: 2),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(999)),
-                          child: Text('D${l.day} ${slotNames[l.slot]}', style: const TextStyle(fontSize: 11, color: Pal.muted, fontWeight: FontWeight.w700)),
+                          child: Text(
+                            'D${l.day} ${slotNames[l.slot]}',
+                            style: const TextStyle(fontSize: 11, color: Pal.muted, fontWeight: FontWeight.w700),
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             l.text,
-                            style: TextStyle(fontSize: 13.5, height: 1.45, color: _logColor(l.kind), fontWeight: l.kind == 'day' || l.kind == 'viral' || l.kind == 'milestone' ? FontWeight.w800 : FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              height: 1.45,
+                              color: _logColor(l.kind),
+                              fontWeight: l.kind == 'day' || l.kind == 'viral' || l.kind == 'milestone' ? FontWeight.w800 : FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -636,13 +878,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  static const _small = [
-    ('upload', '✂️', '업로드'),
-    ('work', '🏪', '알바'),
-    ('rest', '🛋️', '휴식'),
-    ('sleep', '😴', '잠자기'),
-    ('shop', '🛒', '상점'),
-  ];
+  static const _small = [('upload', '✂️', '업로드'), ('work', '🏪', '알바'), ('rest', '🛋️', '휴식'), ('sleep', '😴', '잠자기'), ('shop', '🛒', '상점')];
 
   // 아래 버튼 영역: 큰 방송 버튼 + 작은 동그란 버튼들
   Widget _dock() {
@@ -666,10 +902,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             height: 58,
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [for (final (id, icon, label) in _small) _roundAction(id, icon, label)],
-          ),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [for (final (id, icon, label) in _small) _roundAction(id, icon, label)]),
         ],
       ),
     );
@@ -687,31 +920,52 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             radius: 20,
             color: Pal.surface2,
             border: Border.all(color: Pal.stroke),
-            child: SizedBox(width: 52, height: 52, child: Center(child: Text(icon, style: const TextStyle(fontSize: 22)))),
+            child: SizedBox(
+              width: 52,
+              height: 52,
+              child: Center(child: Text(icon, style: const TextStyle(fontSize: 22))),
+            ),
           ),
           const SizedBox(height: 5),
-          Text(label, style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w700)),
-          Text(why ?? _subFor(id), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: why != null ? Pal.bad : Pal.muted, fontSize: 10, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          Text(
+            why ?? _subFor(id),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: why != null ? Pal.bad : Pal.muted, fontSize: 10, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
   }
 
   String _subFor(String id) => switch (id) {
-        'upload' => '⚡15',
-        'work' => '+6만',
-        'rest' => '회복',
-        'sleep' => '하루 끝',
-        _ => '시간 0',
-      };
+    'upload' => '⚡15',
+    'work' => '+6만',
+    'rest' => '회복',
+    'sleep' => '하루 끝',
+    _ => '시간 0',
+  };
 
   Widget _endDock() => Container(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        decoration: const BoxDecoration(color: Pal.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-        child: Row(children: [
-          Expanded(child: GhostButton(label: '📱 마지막 반응', onTap: () => showPhone(context, game, trendTab: true))),
-          const SizedBox(width: 10),
-          Expanded(child: GradientButton(label: '새 게임', onTap: widget.onExit)),
-        ]),
-      );
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+    decoration: const BoxDecoration(
+      color: Pal.surface,
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: GhostButton(label: '📱 마지막 반응', onTap: () => showPhone(context, game, trendTab: true)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: GradientButton(label: '새 게임', onTap: widget.onExit),
+        ),
+      ],
+    ),
+  );
 }

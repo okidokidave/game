@@ -57,7 +57,7 @@ class _RoomViewState extends State<RoomView> with SingleTickerProviderStateMixin
   // 방 모양을 바꾸는 값들. 이 값이 그대로면 다시 그리지 않는다.
   String _sig(GameState s) {
     final trophies = s.followers >= 1000000 ? 3 : (s.followers >= 100000 ? 2 : (s.followers >= 10000 ? 1 : 0));
-    return '${s.gear.values.join(',')}|${s.deco.join(',')}|$trophies|${min(s.slot, 2)}|${s.wallColor}';
+    return '${s.gear.values.join(',')}|${s.deco.join(',')}|$trophies|${min(s.slot, 2)}|${s.wallColor}|${widget.mode == 'apology'}';
   }
 
   void _redrawIfNeeded() {
@@ -66,7 +66,7 @@ class _RoomViewState extends State<RoomView> with SingleTickerProviderStateMixin
     _signature = sig;
     _back?.dispose();
     _front?.dispose();
-    _back = drawBack(widget.state);
+    _back = drawBack(widget.state, apology: widget.mode == 'apology');
     _front = drawFront(widget.state);
   }
 
@@ -74,6 +74,7 @@ class _RoomViewState extends State<RoomView> with SingleTickerProviderStateMixin
     if (elapsed - _last < _frame) return;
     _last = elapsed;
     _tick++;
+    // 방송 중 하트·채팅 풍선 (사과 방송 중에는 뜨지 않는다)
     if (widget.mode == 'live' && _tick % 4 == 0) {
       _particles.addAll(burstParticles(_rng.nextDouble() < 0.7 ? 'heart' : 'chat', 1, _rng));
     }
