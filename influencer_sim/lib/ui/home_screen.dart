@@ -250,12 +250,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _runEvent(GameEvent ev, {bool news = false}) async {
     if (!mounted) return;
     _sfx(Sfx.alert, Buzz.medium);
-    final idx = await ask(context, ev.title, [eventText(game.eventText(ev))], [for (final c in ev.choices) DialogButton(c.label, choice: true)], icon: news ? '📰' : '⚡');
+    final crisis = ev.where == 'crisis';
+    final idx = await ask(context, ev.title, [eventText(game.eventText(ev))], [for (final c in ev.choices) DialogButton(c.label, choice: true)],
+        icon: crisis ? '🚨' : (news ? '📰' : '⚡'));
     final out = game.resolveEvent(ev, idx);
     if (!mounted) return;
     await ask(
       context,
-      ev.title,
+      out.won == null ? ev.title : (out.won! ? '${ev.title} · 성공!' : '${ev.title} · 실패…'),
       [eventText(Sns.fill(out.choice.result, s)), changeChips(out.changes)],
       [DialogButton(out.trend != null ? '📱 SNS 반응 보러 가기' : '확인', primary: true)],
       icon: out.changes.where((c) => c.good == false).length > out.changes.where((c) => c.good == true).length ? '😥' : '✨',

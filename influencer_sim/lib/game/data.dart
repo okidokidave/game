@@ -449,7 +449,7 @@ String _comma(int n) {
 
 /// 선택 결과로 바뀌는 수치. followers는 현재 구독자 대비 비율.
 class Fx {
-  const Fx({this.money = 0, this.followers = 0, this.image = 0, this.heat = 0, this.mental = 0, this.energy = 0, this.flag, this.unflag});
+  const Fx({this.money = 0, this.followers = 0, this.image = 0, this.heat = 0, this.mental = 0, this.energy = 0, this.flag, this.unflag, this.quit});
   final int money;
   final double followers;
   final int image;
@@ -458,6 +458,9 @@ class Fx {
   final int energy;
   final String? flag;
   final String? unflag;
+
+  /// 그만두는 직원 id
+  final String? quit;
 }
 
 /// SNS 반응. tone은 -1(악플 위주) ~ 1(쉴드 위주)
@@ -481,11 +484,15 @@ class SnsTopic {
 }
 
 class EventChoice {
-  const EventChoice({required this.label, required this.result, required this.fx, this.sns});
+  const EventChoice({required this.label, required this.result, required this.fx, this.sns, this.chance, this.lose});
   final String label;
   final String result;
   final Fx Function(GameState s) fx;
   final SnsTopic? sns;
+
+  /// 결과가 운에 달린 선택지: 성공 확률. 실패하면 [lose]가 대신 일어난다
+  final double Function(GameState s)? chance;
+  final EventChoice? lose;
 }
 
 class GameEvent {
@@ -501,7 +508,8 @@ class GameEvent {
 
   final String id;
 
-  /// 'live'(방송 중), 'news'(아침에 터지는 소식), 'rank'(순위 상위권일 때 아침 소식)
+  /// 'live'(방송 중), 'news'(아침에 터지는 소식), 'rank'(순위 상위권일 때 아침 소식),
+  /// 'crisis'(유명해질수록 자주 오는 위기)
   final String where;
   final String title;
   final int weight;
@@ -514,6 +522,12 @@ Fx _none(GameState s) => const Fx();
 
 /// 어젯밤 기준 내 인기 순위 (아직 없으면 99)
 int rankNow(GameState s) => s.lastRanks['me'] ?? 99;
+
+/// 평소 평판이 좋을수록 높아지는 확률 (이미지 -100 ~ 100 → base ± 0.25)
+double byImage(GameState s, double base) => (base + s.image / 400).clamp(0.15, 0.9);
+
+/// 갑질 고소를 한 직원 (편집자가 있으면 편집자)
+String accuser(GameState s) => s.staff.contains('editor') ? 'editor' : 'manager';
 
 final gameEvents = <GameEvent>[
   GameEvent(
@@ -1506,6 +1520,323 @@ final gameEvents = <GameEvent>[
         label: '조용히 감사 글만 올린다',
         result: '"아직 부족해요. 더 열심히 할게요." 겸손한 글에 칭찬이 쏟아졌다.',
         fx: (s) => const Fx(image: 10, mental: 6, flag: 'crownDone'),
+      ),
+    ],
+  ),
+
+  // ───── 위기 (유명해질수록 자주 찾아온다. 한 판에 한 번씩) ─────
+  GameEvent(
+    id: 'staff_gapjil',
+    where: 'crisis',
+    title: '🚨 갑질 고소',
+    weight: 5,
+    when: (s) => s.staff.isNotEmpty && !s.flags.contains('gapjilDone'),
+    text: (s) =>
+        '${staffOf(accuser(s)).name}가 "갑질을 당했다"며 고소장을 냈다. 밤 11시에 수정 요청을 보낸 카톡 캡처가 커뮤니티에 돌고 있다. ${staffOf(accuser(s)).name}는 오늘부로 일을 그만뒀다.',
+    choices: [
+      EventChoice(
+        label: '💰 합의금을 주고 조용히 끝낸다',
+        result: '합의금을 보내고 서로 더 말하지 않기로 했다. 그런데 "합의 = 인정 아니냐"는 말이 나온다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 300000), image: -3, heat: 6, quit: accuser(s), flag: 'gapjilDone'),
+        sns: const SnsTopic(
+          tag: '{name}_갑질합의',
+          headline: '{name}, 전 직원 갑질 고소 합의로 마무리',
+          tone: -0.2,
+          hate: ['합의했다는 건 찔리는 게 있다는 거지', '돈으로 입막음 ㅋㅋ', '밤 11시 카톡은 선 넘었다'],
+          shield: ['일 커지기 전에 정리한 게 현명', '양쪽 말 다 들어봐야 함', '프리랜서 일이 원래 그렇지'],
+          neutral: ['합의금 얼마일까'],
+        ),
+      ),
+      EventChoice(
+        label: '⚖️ 변호사를 선임해 맞선다 (평판이 좋을수록 유리)',
+        result: '대화 기록 전체를 제출했다. 수정 요청은 계약서에 있던 내용이었고, 결과는 무혐의!',
+        chance: (s) => byImage(s, 0.5),
+        fx: (s) => Fx(money: -scaleMoney(s, 150000), image: 8, heat: -10, mental: -5, quit: accuser(s), flag: 'gapjilDone'),
+        sns: const SnsTopic(
+          tag: '{name}_무혐의',
+          headline: '{name} 갑질 고소 무혐의… "계약대로 일했을 뿐"',
+          tone: 0.6,
+          hate: ['무혐의라도 인성은 별개', '변호사빨이지'],
+          shield: ['역시 아니었네', '대화 기록 보니까 정상이던데', '고소한 쪽이 사과해라'],
+          neutral: ['요즘 이런 폭로 많네'],
+        ),
+        lose: EventChoice(
+          label: '⚖️ 변호사를 선임해 맞선다',
+          result: '재판에서 다른 직원들의 증언까지 나왔다. 패소… 변호사비와 배상금을 모두 물었다.',
+          fx: (s) => Fx(money: -scaleMoney(s, 700000), image: -15, heat: 25, followers: -0.04, mental: -12, quit: accuser(s), flag: 'gapjilDone'),
+          sns: const SnsTopic(
+            tag: '{name}_갑질패소',
+            headline: '{name} 갑질 소송 패소… 추가 증언까지',
+            tone: -0.7,
+            hate: ['결국 사실이었네', '직원한테 저러는 사람이 방송에선 착한 척', '구독 취소함', '소송까지 건 게 더 괘씸'],
+            shield: ['판결 내용 다 나온 거 아님', '항소하면 모름'],
+            neutral: ['판결문 요약 올라옴'],
+          ),
+        ),
+      ),
+      EventChoice(
+        label: '🙇 잘못은 없지만 일단 사과한다',
+        result: '"오해의 여지를 드려 죄송합니다." 사과문을 올렸다. 억울했지만 논란은 금방 식었다.',
+        fx: (s) => Fx(image: -6, heat: 4, mental: -10, quit: accuser(s), flag: 'gapjilDone'),
+        sns: const SnsTopic(
+          tag: '{name}_갑질사과',
+          headline: '{name}, 갑질 논란에 "오해 드려 죄송" 사과',
+          tone: -0.1,
+          hate: ['사과했다는 건 인정한 거네', '오해 드려 죄송은 사과가 아님'],
+          shield: ['빨리 사과한 건 잘했다', '억울해도 사과하는 게 쉽나', '이제 그만 놓아주자'],
+          neutral: ['사과문 맞춤법 검사 완료'],
+        ),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'school_violence',
+    where: 'crisis',
+    title: '🚨 학폭 논란',
+    weight: 4,
+    when: (s) => s.followers >= 20000 && !s.flags.contains('schoolDone'),
+    text: (s) => '"[폭로] {name}, 중학교 때 저를 괴롭혔습니다" 익명 커뮤니티 글이 올라왔다. 증거는 없지만 조회수가 폭발 중이다.',
+    choices: [
+      EventChoice(
+        label: '📂 동창 증언과 생활기록부를 공개한다',
+        result: '동창 10명이 실명으로 "그런 일 없었다"고 증언했다. 글쓴이는 계정을 지우고 사라졌다.',
+        chance: (s) => byImage(s, 0.65),
+        fx: (s) => const Fx(image: 10, heat: -15, followers: 0.02, flag: 'schoolDone'),
+        sns: const SnsTopic(
+          tag: '{name}_학폭허위',
+          headline: '{name} 학폭 의혹, 동창 증언으로 허위 판명',
+          tone: 0.7,
+          hate: ['그래도 찜찜함', '동창들이 친구라서 감싸는 거 아님?'],
+          shield: ['허위 폭로한 사람 처벌해라', '생기부까지 깠으면 끝난 거지', '마녀사냥한 사람들 사과해'],
+          neutral: ['요즘 학폭 폭로 진짜 많다'],
+        ),
+        lose: EventChoice(
+          label: '📂 동창 증언과 생활기록부를 공개한다',
+          result: '한 동창이 "장난이 좀 심하긴 했다"고 말했다. 해명은 오히려 불에 기름을 부었다.',
+          fx: (s) => const Fx(image: -14, heat: 22, followers: -0.05, mental: -12, flag: 'schoolDone'),
+          sns: const SnsTopic(
+            tag: '{name}_학폭',
+            headline: '{name} 학폭 해명 역풍… "장난이 심했다" 동창 증언',
+            tone: -0.7,
+            hate: ['장난이었다고 하면 다냐', '피해자는 평생 기억함', '방송 접어라', '이래서 해명은 신중해야'],
+            shield: ['한 명 말로 단정하지 말자', '다른 동창들은 아니라잖아'],
+            neutral: ['진실은 아무도 모름'],
+          ),
+        ),
+      ),
+      EventChoice(
+        label: '⚖️ 허위사실 유포로 고소한다',
+        result: '고소장을 내자 작성자가 글을 내리고 "지어낸 이야기였다"며 사과했다.',
+        chance: (s) => byImage(s, 0.55),
+        fx: (s) => Fx(money: -scaleMoney(s, 150000), image: 6, heat: -12, flag: 'schoolDone'),
+        sns: const SnsTopic(
+          tag: '{name}_학폭고소',
+          headline: '{name} 학폭 폭로자, 고소 후 "지어낸 글" 자백',
+          tone: 0.6,
+          hate: ['고소로 겁줘서 내린 거 아님?'],
+          shield: ['허위 폭로 처벌 꼭 받길', '{name} 마음고생 했겠다', '역시 아니었음'],
+          neutral: ['폭로 글 캡처 다 지워짐'],
+        ),
+        lose: EventChoice(
+          label: '⚖️ 허위사실 유포로 고소한다',
+          result: '"고소로 입막음하냐"는 반발이 커졌다. 다른 익명 글까지 올라오기 시작했다.',
+          fx: (s) => Fx(money: -scaleMoney(s, 150000), image: -10, heat: 18, followers: -0.03, flag: 'schoolDone'),
+          sns: const SnsTopic(
+            tag: '{name}_입막음',
+            headline: '{name}, 학폭 폭로자 고소… "입막음" 반발',
+            tone: -0.6,
+            hate: ['피해자를 고소하네', '고소부터 하는 거 보니 찔리나 봄', '추가 폭로 기다린다'],
+            shield: ['허위면 고소하는 게 당연하지', '증거 없는 폭로가 더 문제'],
+            neutral: ['법적 공방 길어질 듯'],
+          ),
+        ),
+      ),
+      EventChoice(
+        label: '🙇 기억은 안 나지만 상처받았다면 사과한다',
+        result: '"기억나지 않지만, 상처받으셨다면 죄송합니다." 사과문은 "인정한 셈"이라며 퍼졌다.',
+        fx: (s) => const Fx(image: -10, heat: 12, followers: -0.03, mental: -8, flag: 'schoolDone'),
+        sns: const SnsTopic(
+          tag: '{name}_학폭사과',
+          headline: '{name}, 학폭 의혹에 "기억 안 나지만 죄송"',
+          tone: -0.4,
+          hate: ['기억 안 난다는 게 제일 무서움', '사과 = 인정', '가해자는 원래 기억 못 함'],
+          shield: ['일단 사과한 건 용기', '증거도 없는데 사과까지 했잖아'],
+          neutral: ['사과문 해석 논쟁 중'],
+        ),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'impersonator',
+    where: 'crisis',
+    title: '🚨 사칭 계정 사기',
+    weight: 4,
+    when: (s) => s.followers >= 8000 && !s.flags.contains('fakeDone'),
+    text: (s) => '{name}을(를) 사칭한 계정이 팬들에게 "팬미팅 선입금"을 받고 잠적했다. 피해자가 수십 명이다.',
+    choices: [
+      EventChoice(
+        label: '💸 피해 팬들에게 직접 보상한다',
+        result: '내 잘못은 아니지만 피해 금액을 직접 돌려줬다. 팬들은 감동했다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 250000), image: 12, mental: 4, flag: 'fakeDone'),
+        sns: const SnsTopic(
+          tag: '{name}_사칭보상',
+          headline: '{name}, 사칭 사기 피해 팬들에게 사비로 보상',
+          tone: 0.8,
+          hate: ['이미지 관리 오지네'],
+          shield: ['자기 잘못도 아닌데 보상이라니', '이런 사람이라 좋아함', '사기꾼 꼭 잡혀라'],
+          neutral: ['사칭 계정 신고 부탁'],
+        ),
+      ),
+      EventChoice(
+        label: '📢 공지만 올리고 경찰에 맡긴다',
+        result: '"저와 무관한 계정입니다." 공지를 올렸다. "너무 차갑다"는 반응도 있었다.',
+        fx: (s) => const Fx(image: -3, heat: 6, flag: 'fakeDone'),
+        sns: const SnsTopic(
+          tag: '{name}_사칭',
+          headline: '{name} 사칭 계정 사기 피해 속출… "무관" 공지',
+          tone: -0.1,
+          hate: ['팬들 피해 봤는데 공지 한 줄?', '좀 더 신경 써 줬으면'],
+          shield: ['본인 잘못 아니잖아', '사기꾼이 나쁜 거지'],
+          neutral: ['사칭 계정 아직 살아 있음'],
+        ),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'friend_expose',
+    where: 'crisis',
+    title: '🚨 옛 친구의 폭로',
+    weight: 4,
+    when: (s) => s.followers >= 30000 && !s.flags.contains('friendDone'),
+    text: (s) => '옛 친구가 영상을 올렸다. "{name}, 반지하 시절에 나한테 300만 원 빌리고 안 갚았어요. 유명해지더니 연락도 안 받네요."',
+    choices: [
+      EventChoice(
+        label: '🧾 이체 내역을 공개한다',
+        result: '3년 전에 모두 갚은 이체 내역을 공개했다. 친구는 "기억이 잘못됐다"며 영상을 내렸다.',
+        chance: (s) => byImage(s, 0.6),
+        fx: (s) => const Fx(image: 8, heat: -10, flag: 'friendDone'),
+        sns: const SnsTopic(
+          tag: '{name}_이체내역',
+          headline: '{name}, 이체 내역 공개… "3년 전에 다 갚았다"',
+          tone: 0.6,
+          hate: ['친구랑 돈 얘기 공개하는 것도 좀'],
+          shield: ['증거 나오니까 조용해졌네', '유명해지면 별 사람 다 꼬인다', '{name} 억울했겠다'],
+          neutral: ['친구 영상 삭제됨'],
+        ),
+        lose: EventChoice(
+          label: '🧾 이체 내역을 공개한다',
+          result: '갚은 건 절반뿐이었다는 게 드러났다. 나머지는 까맣게 잊고 있었다.',
+          fx: (s) => const Fx(image: -12, heat: 20, followers: -0.03, mental: -8, flag: 'friendDone'),
+          sns: const SnsTopic(
+            tag: '{name}_빚투',
+            headline: '{name} 빚투 해명 역풍… "절반만 갚아"',
+            tone: -0.6,
+            hate: ['절반은 어디 감?', '돈 벌면서 친구 돈은 안 갚네', '내역 공개가 자폭'],
+            shield: ['잊었을 수도 있지', '지금이라도 갚으면 됨'],
+            neutral: ['빚투 또 터졌네'],
+          ),
+        ),
+      ),
+      EventChoice(
+        label: '🤝 조용히 다시 갚고 화해한다',
+        result: '친구를 만나 밥을 사고 돈을 보냈다. 친구가 "오해였다"는 영상을 다시 올렸다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 150000), image: 2, heat: -6, mental: 5, flag: 'friendDone'),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'channel_hack',
+    where: 'crisis',
+    title: '🚨 채널 해킹',
+    weight: 3,
+    when: (s) => s.followers >= 50000 && !s.flags.contains('hackDone'),
+    text: (s) => '자고 일어나니 내 채널에서 코인 사기 방송이 24시간째 송출되고 있다! 채널 이름도 바뀌어 있다.',
+    choices: [
+      EventChoice(
+        label: '🔐 보안 업체에 긴급 의뢰한다',
+        result: '보안 업체가 몇 시간 만에 채널을 되찾아 줬다. 피해 공지도 빠르게 올렸다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 250000), followers: -0.005, flag: 'hackDone'),
+      ),
+      EventChoice(
+        label: '📞 밤새 플랫폼 고객센터에 매달린다',
+        result: '사흘 만에 채널을 되찾았다. 그사이 구독자가 꽤 빠져나갔다.',
+        fx: (s) => const Fx(energy: -40, mental: -12, followers: -0.03, heat: 5, flag: 'hackDone'),
+        sns: const SnsTopic(
+          tag: '{name}_해킹',
+          headline: '{name} 채널 해킹… 사흘간 코인 사기 방송',
+          tone: 0.1,
+          hate: ['보안 관리 좀 하지', '코인 방송 보고 돈 넣은 사람 어쩔'],
+          shield: ['{name}도 피해자임', '플랫폼 대응 너무 느림', '복구 기다릴게'],
+          neutral: ['요즘 대형 채널 해킹 유행'],
+        ),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'tax_audit',
+    where: 'crisis',
+    title: '🚨 세무조사',
+    weight: 3,
+    when: (s) => s.followers >= 100000 && !s.flags.contains('taxDone'),
+    text: (s) => '"[단독] 억대 수입 방송인 {name}, 세무조사 착수" 기사가 떴다. 후원금 신고 누락 의혹이다.',
+    choices: [
+      EventChoice(
+        label: '🧮 세무사를 고용해 성실히 소명한다',
+        result: '장부를 꼼꼼히 정리해 제출했다. 결과는 "문제없음". 오히려 성실 납세자로 알려졌다.',
+        chance: (s) => byImage(s, 0.7),
+        fx: (s) => Fx(money: -scaleMoney(s, 300000), image: 5, heat: -8, flag: 'taxDone'),
+        sns: const SnsTopic(
+          tag: '{name}_세무조사',
+          headline: '{name} 세무조사 "문제없음" 결론',
+          tone: 0.5,
+          hate: ['조사받은 것 자체가 좀', '얼마나 버는 거야 대체'],
+          shield: ['깔끔하네', '성실 납세 인정', '기사 쓴 기자 정정해라'],
+          neutral: ['방송인 수입 공개 논쟁'],
+        ),
+        lose: EventChoice(
+          label: '🧮 세무사를 고용해 성실히 소명한다',
+          result: '해외 플랫폼 후원금 일부가 신고에서 빠져 있었다. 추징금을 물었다.',
+          fx: (s) => Fx(money: -scaleMoney(s, 1500000), image: -10, heat: 16, flag: 'taxDone'),
+          sns: const SnsTopic(
+            tag: '{name}_추징금',
+            headline: '{name}, 후원금 신고 누락으로 추징금',
+            tone: -0.5,
+            hate: ['팬들 돈으로 탈세?', '세금은 내고 방송해라', '실망이다'],
+            shield: ['고의는 아니었다잖아', '추징금 다 냈으면 된 거지'],
+            neutral: ['방송인 세금 교육 필요'],
+          ),
+        ),
+      ),
+      EventChoice(
+        label: '🙇 먼저 추징금을 내고 사과문을 올린다',
+        result: '조사가 끝나기도 전에 추징금을 내고 사과했다. "시원하게 인정했다"는 반응도 있었다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 1000000), image: -4, heat: 6, flag: 'taxDone'),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'stalker',
+    where: 'crisis',
+    title: '🚨 사생팬',
+    weight: 3,
+    when: (s) => s.followers >= 200000 && !s.flags.contains('stalkerDone'),
+    text: (s) => '방송에 비친 창밖 풍경으로 집 주소가 알려졌다. 오늘 아침 문 앞에 모르는 사람이 서 있었다.',
+    choices: [
+      EventChoice(
+        label: '🚓 경찰에 신고하고 경호 업체를 부른다',
+        result: '경호원이 집 앞을 지키기 시작했다. 돈은 들었지만 마음이 놓였다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 500000), mental: 6, flag: 'stalkerDone'),
+      ),
+      EventChoice(
+        label: '🙏 방송에서 자제를 부탁한다',
+        result: '"제 공간은 지켜 주세요." 진심이 통했는지 팬들이 서로 자제를 부탁하기 시작했다.',
+        chance: (s) => byImage(s, 0.5),
+        fx: (s) => const Fx(mental: 2, image: 4, flag: 'stalkerDone'),
+        lose: EventChoice(
+          label: '🙏 방송에서 자제를 부탁한다',
+          result: '부탁은 소용없었다. 밤마다 초인종이 울렸고, 잠을 이루지 못했다.',
+          fx: (s) => const Fx(mental: -20, energy: -20, flag: 'stalkerDone'),
+        ),
       ),
     ],
   ),

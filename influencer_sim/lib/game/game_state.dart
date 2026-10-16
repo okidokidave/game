@@ -235,6 +235,7 @@ class GameState {
     this.firedUntil = 0,
     List<String>? staff,
     List<Dm>? dms,
+    this.lastGaffe = -99,
   })  : dms = dms ?? [],
         staff = staff ?? [], rivals = rivals ?? {},
         prevRanks = prevRanks ?? {},
@@ -326,6 +327,9 @@ class GameState {
   /// 받은 DM (최신이 앞)
   List<Dm> dms;
 
+  /// 마지막으로 말실수한 날
+  int lastGaffe;
+
   Map<String, dynamic> toJson() => {
         'v': 1,
         'name': name,
@@ -368,6 +372,7 @@ class GameState {
         'firedUntil': firedUntil,
         'staff': staff,
         'dms': dms.map((d) => d.toJson()).toList(),
+        'lastGaffe': lastGaffe,
       };
 
   factory GameState.fromJson(Map<String, dynamic> j) => GameState(
@@ -412,5 +417,6 @@ class GameState {
         firedUntil: j['firedUntil'] as int? ?? 0,
         staff: List<String>.from(j['staff'] as List? ?? const []),
         dms: (j['dms'] as List? ?? const []).map((d) => Dm.fromJson(d as Map<String, dynamic>)).toList(),
+        lastGaffe: j['lastGaffe'] as int? ?? -99,
       );
 }

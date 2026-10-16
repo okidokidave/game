@@ -12,6 +12,9 @@ import 'save_repository.dart';
 import 'sns.dart';
 
 /// 수치 변화 한 줄 (결과 팝업의 칩)
+/// 클래스 안에서는 log가 기록 메서드라서 밖에 둔다
+double _log10(num x) => log(x) / ln10;
+
 class Change {
   const Change(this.label, this.text, this.good);
   final String label;
@@ -22,8 +25,13 @@ class Change {
 }
 
 class EventOutcome {
-  const EventOutcome(this.choice, this.changes, this.trend);
+  const EventOutcome(this.choice, this.changes, this.trend, [this.won]);
+
+  /// 실제로 일어난 선택지 (운에 달린 선택지에서 실패하면 그 실패 결과)
   final EventChoice choice;
+
+  /// 운에 달린 선택지였으면 성공 여부, 아니면 null
+  final bool? won;
   final List<Change> changes;
   final Trend? trend;
 }
@@ -220,6 +228,11 @@ class GameController extends ChangeNotifier {
       s.energy = (s.energy + fx.energy).clamp(0, 100);
       changes.add(_delta('체력', fx.energy));
     }
+    if (fx.quit != null && s.staff.remove(fx.quit)) {
+      final st = staffOf(fx.quit!);
+      changes.add(Change(st.name, '퇴사', false));
+      log('${st.icon} ${st.name}가 일을 그만뒀다.', 'event');
+    }
     if (fx.flag != null) s.flags.add(fx.flag!);
     if (fx.unflag != null) s.flags.remove(fx.unflag);
     return changes;
@@ -279,7 +292,13 @@ class GameController extends ChangeNotifier {
   EventOutcome resolveEvent(GameEvent ev, int index) {
     s.seen.add(ev.id);
     if (s.seen.length > 10) s.seen.removeAt(0);
-    final choice = ev.choices[index];
+    var choice = ev.choices[index];
+    // 운에 달린 선택지 (승소·패소 등)
+    bool? won;
+    if (choice.chance != null) {
+      won = rng.nextDouble() < choice.chance!(s);
+      if (!won) choice = choice.lose!;
+    }
     final changes = applyFx(choice.fx(s), ev.title);
     log('${ev.title}: ${choice.label}', 'event');
     Trend? trend;
@@ -291,7 +310,7 @@ class GameController extends ChangeNotifier {
     checkMilestones();
     save();
     notifyListeners();
-    return EventOutcome(choice, changes, trend);
+    return EventOutcome(choice, changes, trend, won);
   }
 
   // ───── 방송 ─────
@@ -429,13 +448,18 @@ class GameController extends ChangeNotifier {
   }
 
   // ───── 방송 중 말실수 ─────
-  double gaffeChance(Content c) => 0.07 + (c.risky ? 0.04 : 0) - (c.calm ? 0.03 : 0);
+  /// 말실수 확률. 한 번 사고가 나면 열흘은 조심하게 된다
+  double gaffeChance(Content c) {
+    if (s.day - s.lastGaffe < 10) return 0;
+    return 0.03 + (c.risky ? 0.02 : 0) - (c.calm ? 0.015 : 0);
+  }
 
   /// 드물게 말실수가 일어난다 (없으면 null)
   Gaffe? rollGaffe(Content c) => rng.nextDouble() < gaffeChance(c) ? _pick(gaffes) : null;
 
   /// 말실수 대처. 사과하면 피해가 적고, 강행하면 팬이 떠나고 안티가 생긴다.
   GaffeOutcome resolveGaffe(Gaffe g, StreamResult r, {required bool apologize}) {
+    s.lastGaffe = s.day;
     final changes = <Change>[];
     StreamResult scaled(double v, double gain, double money) => StreamResult(
           viewers: max(1, (r.viewers * v).round()),
@@ -756,7 +780,7 @@ class GameController extends ChangeNotifier {
     // 폭로될 일이 있거나 유명해질수록 아침 소식이 자주 온다
     final newsChance = s.flags.contains('hiddenAd') || s.flags.contains('lieDating') ? 0.2 : (s.followers >= 30000 ? 0.12 : 0.06);
     // 순위표 상위권이면 순위 이벤트(CF·뉴스·공중파·1위)가 먼저 찾아온다
-    final news = over ? null : (rollEvent('rank', 0.45) ?? rollEvent('news', newsChance));
+    final news = over ? null : (rollEvent('rank', 0.45) ?? rollEvent('crisis', crisisChance) ?? rollEvent('news', newsChance));
     save();
     notifyListeners();
     return DayReport(news: news);
@@ -848,6 +872,9 @@ class GameController extends ChangeNotifier {
     notifyListeners();
     return (d.note!, changes, trend);
   }
+
+  /// 위기가 찾아올 확률: 구독자 5천부터, 10배 늘 때마다 +4%p (최대 15%)
+  double get crisisChance => s.followers < 5000 ? 0 : min(0.15, 0.04 + 0.04 * _log10(s.followers / 5000));
 
   // ───── 상점 ─────
   bool buyGear(String key) {
