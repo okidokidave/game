@@ -13,6 +13,7 @@ import '../game/sns.dart';
 import '../scene/room_view.dart';
 import 'dialogs.dart';
 import 'palette.dart';
+import 'sheets.dart';
 import 'sns_phone.dart';
 
 /// 게임 화면: 상태판, 방, 행동 버튼, 오늘의 기록
@@ -58,6 +59,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _reactHits = 0;
   int _reactShown = 0;
 
+  // 시청자 질문에 잘 대답해서 오른 분위기
+  int _hype = 0;
+
   SoundService? get _sound => widget.sound;
 
   Future<void> _phone({bool trendTab = false, Trend? trend, bool dmTab = false}) {
@@ -86,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
     );
   }
+
   void _sfx(Sfx s, [Buzz? buzz]) {
     _sound?.play(s);
     if (buzz != null) _sound?.vibrate(buzz);
@@ -159,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         case 'upload':
           await _upload();
         case 'work':
-          await _work();
+          await (game.isPro ? _promote() : _work());
         case 'rest':
           game.rest();
           await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -178,22 +183,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final place = game.job;
     final pay = s.slot == 2 ? (place.pay * 1.2).round() : place.pay;
     final strikes = s.workStrikes;
-    final i = await ask(context, '${place.name} 알바', [
-      mutedText('오늘 알바비 ${shortWon(pay)} · 체력 -22', size: 14),
-      const SizedBox(height: 10),
-      Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(12)),
-        child: Text(
-          '🎥 알바 브이로그를 찍으면 구독자가 늘어요. 대신 점장님께 걸리면 경고! 3번 걸리면 잘려요.\n현재 경고 $strikes/3',
-          style: const TextStyle(color: Pal.text, fontSize: 13, height: 1.5),
+    final i = await ask(
+      context,
+      '${place.name} 알바',
+      [
+        mutedText('오늘 알바비 ${shortWon(pay)} · 체력 -22', size: 14),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(12)),
+          child: Text('🎥 알바 브이로그를 찍으면 구독자가 늘어요. 대신 점장님께 걸리면 경고! 3번 걸리면 잘려요.\n현재 경고 $strikes/3', style: const TextStyle(color: Pal.text, fontSize: 13, height: 1.5)),
         ),
-      ),
-    ], const [
-      DialogButton('묵묵히 일만 한다', choice: true),
-      DialogButton('🎥 알바 브이로그를 찍는다', choice: true),
-      DialogButton('취소'),
-    ], icon: place.icon);
+      ],
+      const [DialogButton('묵묵히 일만 한다', choice: true), DialogButton('🎥 알바 브이로그를 찍는다', choice: true), DialogButton('취소')],
+      icon: place.icon,
+    );
     if (i == 2 || !mounted) return;
     final out = game.work(vlog: i == 1);
     _sfx(Sfx.coin);
@@ -205,11 +209,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         context,
         out.fired ? '알바에서 잘렸다!' : (out.caught ? '점장님께 걸렸다…' : '알바 브이로그 완성'),
         [
-          eventText(out.fired
-              ? '"이번이 세 번째죠? 내일부터 안 나와도 돼요." 해고 순간까지 카메라에 담겼다. 그런데 이 클립이 화제가 되고 있다…'
-              : out.caught
-                  ? '"근무 중에 촬영하면 안 된다고 했죠?" 점장님 눈빛이 싸늘하다. (경고 ${out.strikes}/3)'
-                  : '손님 몰래 찍은 알바 일상이 소소하게 반응을 얻었다.'),
+          eventText(
+            out.fired
+                ? '"이번이 세 번째죠? 내일부터 안 나와도 돼요." 해고 순간까지 카메라에 담겼다. 그런데 이 클립이 화제가 되고 있다…'
+                : out.caught
+                ? '"근무 중에 촬영하면 안 된다고 했죠?" 점장님 눈빛이 싸늘하다. (경고 ${out.strikes}/3)'
+                : '손님 몰래 찍은 알바 일상이 소소하게 반응을 얻었다.',
+          ),
           changeChips([Change('알바비', '+${shortWon(out.pay)}', true), Change('구독자', '+${shortNum(out.gain)}', true)]),
           if (out.fired) ...[const SizedBox(height: 8), mutedText('일주일 동안 알바를 할 수 없어요. 그 뒤 새 알바를 구할 수 있어요.')],
         ],
@@ -218,6 +224,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
       if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
     }
+    await _advance();
+    if (s.ended == null && s.slot != 0) game.setMode('away');
+  }
+
+  /// 전업 방송인이 된 뒤의 알바 버튼: 부모님 가게 홍보
+  Future<void> _promote() async {
+    final i = await ask(context, '🍗 부모님 가게 홍보', [
+      mutedText('부모님이 차리신 치킨집을 도와드리자.', size: 14),
+      const SizedBox(height: 10),
+      _tradeoff('🎥 가게 일 돕기 브이로그', '체력 -20. 구독자 조금, 찐팬 증가, 부모님 용돈.'),
+      const SizedBox(height: 6),
+      _tradeoff('📢 방송에서 대놓고 홍보', '체력 -12. 잘되면 이미지·찐팬·용돈이 크게 늘지만 "가족 장사" 논란이 날 수도 있어요.'),
+    ], const [
+      DialogButton('🎥 가게 일 돕기 브이로그', choice: true),
+      DialogButton('📢 방송에서 홍보하기', choice: true),
+      DialogButton('취소'),
+    ], icon: '🍗');
+    if (i == 2 || !mounted) return;
+    final out = game.promote(onAir: i == 1);
+    _sfx(out.backlash ? Sfx.alert : Sfx.coin);
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    await ask(
+      context,
+      i == 0 ? '효도 브이로그 완성' : (out.backlash ? '"가족 장사" 논란…' : '주문 폭주!'),
+      [
+        eventText(i == 0
+            ? '앞치마를 두르고 치킨을 튀겼다. 손님들이 알아보고 사진을 찍어 갔다. 엄마가 몰래 용돈을 쥐여 주셨다.'
+            : out.backlash
+                ? '"방송을 광고판으로 쓰냐"는 채팅이 올라왔다. 부모님 가게 이야기가 커뮤니티에 퍼지고 있다.'
+                : '방송이 끝나자마자 가게 전화가 불이 났다. 아빠가 "덕분에 닭이 다 떨어졌다"며 웃으셨다.'),
+        changeChips(out.changes),
+      ],
+      [DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)],
+      icon: i == 0 ? '🎥' : (out.backlash ? '😥' : '🍗'),
+    );
+    if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
     await _advance();
     if (s.ended == null && s.slot != 0) game.setMode('away');
   }
@@ -251,8 +294,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     _sfx(Sfx.alert, Buzz.medium);
     final crisis = ev.where == 'crisis';
-    final idx = await ask(context, ev.title, [eventText(game.eventText(ev))], [for (final c in ev.choices) DialogButton(c.label, choice: true)],
-        icon: crisis ? '🚨' : (news ? '📰' : '⚡'));
+    final idx = await ask(context, ev.title, [eventText(game.eventText(ev))], [for (final c in ev.choices) DialogButton(c.label, choice: true)], icon: crisis ? '🚨' : (news ? '📰' : '⚡'));
     final out = game.resolveEvent(ev, idx);
     if (!mounted) return;
     await ask(
@@ -288,7 +330,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       r = kept;
     } else {
-      await Future<void>.delayed(widget.liveDuration);
+      // 방송 중간에 시청자 질문이 올라온다
+      await Future<void>.delayed(widget.liveDuration * 0.45);
+      if (!mounted) return;
+      final q = game.rollQuestion();
+      if (q != null) await _askQuestion(q, r);
+      await Future<void>.delayed(widget.liveDuration * 0.55);
       if (!mounted) return;
       final ev = game.rollEvent('live', game.liveEventChance(c));
       if (ev != null) {
@@ -299,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     final hits = _reactHits, shown = _reactShown;
     _stopLive();
-    r = game.boostStream(r, hits);
+    r = game.boostStream(r, hits, hype: _hype);
 
     final out = game.finishStream(c, r);
     if (r.viral) _sfx(Sfx.sparkle, Buzz.heavy);
@@ -464,16 +511,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _tradeoff(String title, String text) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(12)),
-        child: Text.rich(
-          TextSpan(children: [
-            TextSpan(text: '$title  ', style: const TextStyle(fontWeight: FontWeight.w800, color: Pal.text)),
-            TextSpan(text: text, style: const TextStyle(color: Pal.muted)),
-          ]),
-          style: const TextStyle(fontSize: 12.5, height: 1.5),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(12)),
+    child: Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$title  ',
+            style: const TextStyle(fontWeight: FontWeight.w800, color: Pal.text),
+          ),
+          TextSpan(
+            text: text,
+            style: const TextStyle(color: Pal.muted),
+          ),
+        ],
+      ),
+      style: const TextStyle(fontSize: 12.5, height: 1.5),
+    ),
+  );
 
   /// 3주 자숙: 검은 화면에서 날짜가 흐르고, 결과와 복귀 반응을 보여 준다
   Future<void> _hiatus() async {
@@ -492,10 +547,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await ask(
       context,
       '${report.days ~/ 7}주 후…',
-      [
-        eventText('자숙 기간이 끝났다. 쉬는 동안 논란은 가라앉았지만, 기다리다 지친 팬도 있었다. 조심스럽게 복귀 방송을 켠다.'),
-        changeChips(report.changes),
-      ],
+      [eventText('자숙 기간이 끝났다. 쉬는 동안 논란은 가라앉았지만, 기다리다 지친 팬도 있었다. 조심스럽게 복귀 방송을 켠다.'), changeChips(report.changes)],
       [DialogButton(report.trend != null ? '📱 복귀 반응 보기' : '확인', primary: true)],
       icon: '🌙',
     );
@@ -504,9 +556,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// 방송 중: 후원 팝업 두 번, 채팅 반응 버튼 두 번
+  /// 시청자 질문에 대답하기
+  Future<void> _askQuestion(ChatQuestion q, StreamResult r) async {
+    _sfx(Sfx.notify, Buzz.light);
+    final u = game.sns.user();
+    final i = await ask(
+      context,
+      '시청자 질문',
+      [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(14)),
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '${u.nick}  ',
+                  style: TextStyle(color: Color(u.color), fontWeight: FontWeight.w800),
+                ),
+                TextSpan(
+                  text: q.question,
+                  style: const TextStyle(color: Pal.text),
+                ),
+              ],
+            ),
+            style: const TextStyle(fontSize: 14.5, height: 1.45),
+          ),
+        ),
+      ],
+      [for (final a in q.answers) DialogButton(a.label, choice: true)],
+      icon: '🙋',
+    );
+    if (!mounted) return;
+    final (reactions, hype, _) = game.answerQuestion(q, i, r.viewers);
+    _hype += hype;
+    if (hype > 0) game.emit('heart', 6 * hype);
+    setState(() {
+      for (final t in reactions) {
+        _chat.add(_crowd([t]));
+      }
+      while (_chat.length > 6) {
+        _chat.removeAt(0);
+      }
+    });
+  }
+
   void _scheduleExtras(StreamResult r) {
     _reactHits = 0;
     _reactShown = 0;
+    _hype = 0;
     final d = widget.liveDuration.inMilliseconds;
     Timer at(double frac, void Function() f) {
       final tm = Timer(Duration(milliseconds: (d * frac).round()), () {
@@ -624,7 +722,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(minHeight: box.maxHeight - 16),
-                      child: IntrinsicHeight(child: Column(children: [_stats(), const SizedBox(height: 12), const Spacer(), _stage(), const Spacer(), const SizedBox(height: 12), _ticker()])),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          children: [_stats(), const SizedBox(height: 8), _todayRow(), const SizedBox(height: 12), const Spacer(), _stage(), const Spacer(), const SizedBox(height: 12), _ticker()],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -718,7 +820,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 radius: 999,
                 color: Pal.surface2,
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                child: Text('🏆 ${game.myRank}위', style: const TextStyle(color: Pal.gold, fontSize: 12, fontWeight: FontWeight.w900)),
+                child: Text(
+                  '🏆 ${game.myRank}위',
+                  style: const TextStyle(color: Pal.gold, fontSize: 12, fontWeight: FontWeight.w900),
+                ),
               ),
               const SizedBox(width: 6),
               _slotChip(),
@@ -775,55 +880,111 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // 미션 · 방송 예고 · 기록 · 업적
+  Widget _todayRow() {
+    final done = s.missions.where((m) => m.done).length;
+    final sched = s.schedDay != 0 && s.schedContent != null ? '${s.schedDay == s.day ? '오늘' : '내일'} ${slotNames[s.schedSlot]} ${contentOf(s.schedContent!).icon}' : '방송 예고';
+    Widget chip(String key, String text, VoidCallback onTap, {bool hot = false, int flex = 1}) => Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: Pressable(
+          key: ValueKey(key),
+          onTap: s.ended == null || key == 'stats-button' ? onTap : null,
+          radius: 14,
+          color: Pal.surface2,
+          border: Border.all(color: hot ? Pal.pink : Pal.stroke),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          child: Center(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+      ),
+    );
+    return Row(
+      children: [
+        chip('missions-button', '🎯 미션 $done/${s.missions.length}', () => openMissions(context, game), hot: done < s.missions.length, flex: 5),
+        chip('schedule-button', '📅 $sched', () => openSchedule(context, game), hot: s.schedDay != 0, flex: 6),
+        chip('stats-button', '📊 기록', () => openStats(context, game), flex: 4),
+        chip('achievements-button', '🏅 ${game.achieved.length}', () => openAchievements(context, game), flex: 3),
+      ],
+    );
+  }
+
   // 팬 성비 막대 + 안티 수
   Widget _fans() {
     final m = (s.maleFans * 100).round();
     const male = Color(0xFF60A5FA);
     const female = Color(0xFFF472B6);
+    final extra = <Widget>[
+      if (s.coreFans > 0)
+        Text(
+          '💖 찐팬 ${shortNum(s.coreFans)}',
+          style: const TextStyle(color: Color(0xFFFF7AB6), fontSize: 11.5, fontWeight: FontWeight.w800),
+        ),
+      if (s.antis > 0)
+        Text(
+          '😈 안티 ${shortNum(s.antis)}',
+          style: const TextStyle(color: Pal.bad, fontSize: 11.5, fontWeight: FontWeight.w800),
+        ),
+      if (s.flags.contains('mcn'))
+        const Text(
+          '🏢 MCN 소속',
+          style: TextStyle(color: Pal.muted, fontSize: 11.5, fontWeight: FontWeight.w800),
+        ),
+    ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
-      child: Row(
+      child: Column(
         children: [
-          const Text(
-            '팬 성비',
-            style: TextStyle(color: Pal.muted, fontSize: 11, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '♂$m%',
-            style: const TextStyle(color: male, fontSize: 11.5, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: SizedBox(
-                height: 5,
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: max(m, 1),
-                      child: Container(color: male),
+          Row(
+            children: [
+              const Text(
+                '팬 성비',
+                style: TextStyle(color: Pal.muted, fontSize: 11, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '♂$m%',
+                style: const TextStyle(color: male, fontSize: 11.5, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: SizedBox(
+                    height: 5,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: max(m, 1),
+                          child: Container(color: male),
+                        ),
+                        Expanded(
+                          flex: max(100 - m, 1),
+                          child: Container(color: female),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      flex: max(100 - m, 1),
-                      child: Container(color: female),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 6),
+              Text(
+                '♀${100 - m}%',
+                style: const TextStyle(color: female, fontSize: 11.5, fontWeight: FontWeight.w800),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          Text(
-            '♀${100 - m}%',
-            style: const TextStyle(color: female, fontSize: 11.5, fontWeight: FontWeight.w800),
-          ),
-          if (s.antis > 0) ...[
-            const SizedBox(width: 10),
-            Text(
-              '😈 안티 ${shortNum(s.antis)}',
-              style: const TextStyle(color: Pal.bad, fontSize: 11.5, fontWeight: FontWeight.w800),
+          if (extra.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [for (final w in extra) Padding(padding: const EdgeInsets.only(right: 12), child: w)],
             ),
           ],
         ],
@@ -1011,8 +1172,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                       child: Column(
                         children: [
-                          Text('💰 ${_donation!.$1}님 ${won(_donation!.$2)} 후원!', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14)),
-                          Text('"${_donation!.$3}"', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text(
+                            '💰 ${_donation!.$1}님 ${won(_donation!.$2)} 후원!',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+                          ),
+                          Text(
+                            '"${_donation!.$3}"',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
                         ],
                       ),
                     ),
@@ -1035,7 +1204,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     glow: Pal.pink,
                     radius: 999,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    child: const Text('💬 반응하기!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
+                    child: const Text(
+                      '💬 반응하기!',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15),
+                    ),
                   ),
                 ),
               ),
@@ -1134,10 +1306,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: ListView(
               shrinkWrap: true,
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-              children: [
-                for (final (i, (id, name, icon, followers)) in rows.indexed)
-                  _rankRow(i + 1, id, name, icon, followers),
-              ],
+              children: [for (final (i, (id, name, icon, followers)) in rows.indexed) _rankRow(i + 1, id, name, icon, followers)],
             ),
           ),
         ],
@@ -1163,21 +1332,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: [
           SizedBox(
             width: 30,
-            child: Text('$rank', textAlign: TextAlign.center, style: TextStyle(color: medals[rank] ?? Pal.muted, fontSize: 17, fontWeight: FontWeight.w900)),
+            child: Text(
+              '$rank',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: medals[rank] ?? Pal.muted, fontSize: 17, fontWeight: FontWeight.w900),
+            ),
           ),
           const SizedBox(width: 6),
           Container(
             width: 36,
             height: 36,
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: Pal.bg, shape: BoxShape.circle, border: Border.all(color: medals[rank] ?? Pal.stroke)),
+            decoration: BoxDecoration(
+              color: Pal.bg,
+              shape: BoxShape.circle,
+              border: Border.all(color: medals[rank] ?? Pal.stroke),
+            ),
             child: Text(icon, style: const TextStyle(fontSize: 17)),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(me ? '$name (나)' : name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Pal.text, fontWeight: me ? FontWeight.w900 : FontWeight.w700, fontSize: 14.5)),
+            child: Text(
+              me ? '$name (나)' : name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Pal.text, fontWeight: me ? FontWeight.w900 : FontWeight.w700, fontSize: 14.5),
+            ),
           ),
-          Text(shortNum(followers), style: const TextStyle(color: Pal.text, fontWeight: FontWeight.w800, fontSize: 14)),
+          Text(
+            shortNum(followers),
+            style: const TextStyle(color: Pal.text, fontWeight: FontWeight.w800, fontSize: 14),
+          ),
           SizedBox(
             width: 38,
             child: Text(
@@ -1197,19 +1382,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final week = s.ledger.where((l) => l.day > s.day - 7);
     int sum(Iterable<LedgerEntry> xs, bool income) => xs.where((l) => income ? l.amount > 0 : l.amount < 0).fold(0, (a, l) => a + l.amount);
     Widget box(String label, int v, Color color) => Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(14)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(color: Pal.muted, fontSize: 11.5, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                FittedBox(child: Text('${v > 0 ? '+' : ''}${shortWon(v)}', style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w900))),
-              ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: Pal.surface2, borderRadius: BorderRadius.circular(14)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Pal.muted, fontSize: 11.5, fontWeight: FontWeight.w700),
             ),
-          ),
-        );
+            const SizedBox(height: 2),
+            FittedBox(
+              child: Text(
+                '${v > 0 ? '+' : ''}${shortWon(v)}',
+                style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
     final days = <int>[];
     for (final l in s.ledger) {
       if (!days.contains(l.day)) days.add(l.day);
@@ -1222,13 +1415,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           sheetHeader(ctx, '💰 통장', sub: '잔고 ${s.money < 0 ? '-' : ''}${won(s.money)} · 매일 밤 생활비 ${shortWon(game.rent)}'),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Row(children: [
-              box('오늘 수입', sum(today, true), Pal.good),
-              const SizedBox(width: 8),
-              box('최근 7일 수입', sum(week, true), Pal.good),
-              const SizedBox(width: 8),
-              box('최근 7일 지출', sum(week, false), Pal.bad),
-            ]),
+            child: Row(
+              children: [
+                box('오늘 수입', sum(today, true), Pal.good),
+                const SizedBox(width: 8),
+                box('최근 7일 수입', sum(week, true), Pal.good),
+                const SizedBox(width: 8),
+                box('최근 7일 지출', sum(week, false), Pal.bad),
+              ],
+            ),
           ),
           Flexible(
             child: s.ledger.isEmpty
@@ -1240,16 +1435,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       for (final d in days) ...[
                         Padding(
                           padding: const EdgeInsets.only(top: 10, bottom: 4),
-                          child: Text('DAY $d', style: const TextStyle(color: Pal.muted, fontSize: 12, fontWeight: FontWeight.w800)),
+                          child: Text(
+                            'DAY $d',
+                            style: const TextStyle(color: Pal.muted, fontSize: 12, fontWeight: FontWeight.w800),
+                          ),
                         ),
                         for (final l in s.ledger.where((l) => l.day == d))
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 5),
                             child: Row(
                               children: [
-                                Expanded(child: Text(l.label, style: const TextStyle(color: Pal.text, fontSize: 14, fontWeight: FontWeight.w600))),
-                                Text('${l.amount > 0 ? '+' : '-'}${won(l.amount)}',
-                                    style: TextStyle(color: l.amount > 0 ? Pal.good : Pal.bad, fontSize: 14, fontWeight: FontWeight.w800)),
+                                Expanded(
+                                  child: Text(
+                                    l.label,
+                                    style: const TextStyle(color: Pal.text, fontSize: 14, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                Text(
+                                  '${l.amount > 0 ? '+' : '-'}${won(l.amount)}',
+                                  style: TextStyle(color: l.amount > 0 ? Pal.good : Pal.bad, fontSize: 14, fontWeight: FontWeight.w800),
+                                ),
                               ],
                             ),
                           ),
@@ -1337,7 +1542,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             height: 58,
           ),
           const SizedBox(height: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [for (final (id, icon, label) in _small) _roundAction(id, icon, label)]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final (id, icon, label) in _small)
+                id == 'work' && game.isPro && s.flags.contains('parentShop') ? _roundAction(id, '🍗', '가게 홍보') : _roundAction(id, icon, label),
+            ],
+          ),
         ],
       ),
     );
@@ -1379,7 +1590,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   String _subFor(String id) => switch (id) {
     'upload' => '⚡15',
-    'work' => '+6만',
+    'work' => game.isPro ? '용돈·찐팬' : '+6만',
     'rest' => '회복',
     'sleep' => '하루 끝',
     _ => '시간 0',
@@ -1428,13 +1639,22 @@ class HiatusOverlay extends StatelessWidget {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('자숙 기간', style: TextStyle(color: Color(0xFF6B6F8A), fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 4)),
+                const Text(
+                  '자숙 기간',
+                  style: TextStyle(color: Color(0xFF6B6F8A), fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 4),
+                ),
                 const SizedBox(height: 14),
-                Text('DAY $day', style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w900)),
+                Text(
+                  'DAY $day',
+                  style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w900),
+                ),
                 const SizedBox(height: 14),
                 Opacity(
                   opacity: v,
-                  child: Text('${(to - from) ~/ 7}주 후…', style: const TextStyle(color: Color(0xFFB9BCD6), fontSize: 18, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    '${(to - from) ~/ 7}주 후…',
+                    style: const TextStyle(color: Color(0xFFB9BCD6), fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             );

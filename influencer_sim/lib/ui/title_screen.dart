@@ -6,6 +6,7 @@ import '../game/game_state.dart';
 import '../scene/room_view.dart';
 import 'dialogs.dart';
 import 'palette.dart';
+import 'sheets.dart';
 
 /// 시작 화면: 내 방 미리보기, 닉네임과 외모 고르기, 이어하기
 class TitleScreen extends StatefulWidget {
@@ -184,6 +185,14 @@ class _TitleScreenState extends State<TitleScreen> {
               _saved == null
                   ? GradientButton(key: const ValueKey('new-game'), icon: '📡', label: '방송 시작하기', onTap: _start, height: 58)
                   : GhostButton(key: const ValueKey('new-game'), label: '새로 시작하기', onTap: _start),
+              if (got.isNotEmpty || widget.game.achieved.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                GhostButton(
+                  key: const ValueKey('achievements-title'),
+                  label: '🏅 업적 도감 · 🎁 다회차 혜택 ${widget.game.unlockedPerks.length}/${perks.length}',
+                  onTap: () => openAchievements(context, widget.game),
+                ),
+              ],
               if (got.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Glass(

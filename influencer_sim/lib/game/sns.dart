@@ -81,7 +81,9 @@ class Sns {
   String _sideFor(double tone, GameState s) {
     // 안티가 많을수록 악플이 늘어난다
     final antiShare = min(0.4, s.antis / (s.followers + 100));
-    final t = (tone + s.image / 160 - antiShare).clamp(-1.0, 1.0);
+    // 찐팬이 많을수록 쉴드가 늘어난다
+    final coreShare = min(0.25, s.coreFans / (s.followers + 50) * 1.2);
+    final t = (tone + s.image / 160 - antiShare + coreShare).clamp(-1.0, 1.0);
     if (rng.nextDouble() < 0.18) return 'neutral';
     return rng.nextDouble() < (t + 1) / 2 ? 'shield' : 'hate';
   }

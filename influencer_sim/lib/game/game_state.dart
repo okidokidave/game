@@ -191,6 +191,46 @@ class Dm {
       );
 }
 
+/// 오늘의 미션 하나. kind는 data.dart의 missionKinds
+class Mission {
+  Mission(this.kind, this.goal, this.reward, {this.progress = 0, this.done = false});
+  final String kind;
+  final int goal;
+  final int reward;
+  int progress;
+  bool done;
+
+  Map<String, dynamic> toJson() => {'kind': kind, 'goal': goal, 'reward': reward, 'progress': progress, 'done': done};
+  factory Mission.fromJson(Map<String, dynamic> j) =>
+      Mission(j['kind'] as String, j['goal'] as int, j['reward'] as int, progress: j['progress'] as int? ?? 0, done: j['done'] as bool? ?? false);
+}
+
+/// 하루가 끝날 때의 기록 (그래프용)
+class DayStat {
+  const DayStat(this.day, this.followers, this.money, this.peak, this.core);
+  final int day;
+  final int followers;
+  final int money;
+
+  /// 그날 최고 시청자
+  final int peak;
+  final int core;
+
+  List<int> toJson() => [day, followers, money, peak, core];
+  factory DayStat.fromJson(List<dynamic> j) => DayStat(j[0] as int, j[1] as int, j[2] as int, j[3] as int, j.length > 4 ? j[4] as int : 0);
+}
+
+/// 기억에 남는 방송 (최고 시청자 순 3개)
+class BestStream {
+  const BestStream(this.day, this.content, this.viewers);
+  final int day;
+  final String content;
+  final int viewers;
+
+  List<dynamic> toJson() => [day, content, viewers];
+  factory BestStream.fromJson(List<dynamic> j) => BestStream(j[0] as int, j[1] as String, j[2] as int);
+}
+
 class GameState {
   GameState({
     required this.name,
@@ -236,7 +276,22 @@ class GameState {
     List<String>? staff,
     List<Dm>? dms,
     this.lastGaffe = -99,
-  })  : dms = dms ?? [],
+    this.coreFans = 0,
+    this.schedDay = 0,
+    this.schedSlot = 0,
+    this.schedContent,
+    this.schedKept = 0,
+    this.missionsDone = 0,
+    this.todayPeak = 0,
+    List<Mission>? missions,
+    List<DayStat>? history,
+    List<BestStream>? best,
+    List<String>? business,
+  })  : missions = missions ?? [],
+        history = history ?? [],
+        best = best ?? [],
+        business = business ?? [],
+        dms = dms ?? [],
         staff = staff ?? [], rivals = rivals ?? {},
         prevRanks = prevRanks ?? {},
         lastRanks = lastRanks ?? {},
@@ -330,6 +385,31 @@ class GameState {
   /// 마지막으로 말실수한 날
   int lastGaffe;
 
+  /// 찐팬 수 (논란이 나도 쉴드를 쳐 주고 후원을 많이 한다)
+  int coreFans;
+
+  /// 방송 예고 (schedDay가 0이면 예고 없음)
+  int schedDay;
+  int schedSlot;
+  String? schedContent;
+
+  /// 예고를 지킨 횟수, 완료한 미션 수
+  int schedKept;
+  int missionsDone;
+
+  /// 오늘 최고 시청자 (그래프용)
+  int todayPeak;
+
+  /// 오늘의 미션
+  List<Mission> missions;
+
+  /// 날짜별 기록, 기억에 남는 방송
+  List<DayStat> history;
+  List<BestStream> best;
+
+  /// 연 사업 (data.dart의 businesses)
+  final List<String> business;
+
   Map<String, dynamic> toJson() => {
         'v': 1,
         'name': name,
@@ -373,6 +453,17 @@ class GameState {
         'staff': staff,
         'dms': dms.map((d) => d.toJson()).toList(),
         'lastGaffe': lastGaffe,
+        'coreFans': coreFans,
+        'schedDay': schedDay,
+        'schedSlot': schedSlot,
+        'schedContent': schedContent,
+        'schedKept': schedKept,
+        'missionsDone': missionsDone,
+        'todayPeak': todayPeak,
+        'missions': missions.map((m) => m.toJson()).toList(),
+        'history': history.map((h) => h.toJson()).toList(),
+        'best': best.map((b) => b.toJson()).toList(),
+        'business': business,
       };
 
   factory GameState.fromJson(Map<String, dynamic> j) => GameState(
@@ -418,5 +509,16 @@ class GameState {
         staff: List<String>.from(j['staff'] as List? ?? const []),
         dms: (j['dms'] as List? ?? const []).map((d) => Dm.fromJson(d as Map<String, dynamic>)).toList(),
         lastGaffe: j['lastGaffe'] as int? ?? -99,
+        coreFans: j['coreFans'] as int? ?? 0,
+        schedDay: j['schedDay'] as int? ?? 0,
+        schedSlot: j['schedSlot'] as int? ?? 0,
+        schedContent: j['schedContent'] as String?,
+        schedKept: j['schedKept'] as int? ?? 0,
+        missionsDone: j['missionsDone'] as int? ?? 0,
+        todayPeak: j['todayPeak'] as int? ?? 0,
+        missions: (j['missions'] as List? ?? const []).map((m) => Mission.fromJson(m as Map<String, dynamic>)).toList(),
+        history: (j['history'] as List? ?? const []).map((h) => DayStat.fromJson(h as List)).toList(),
+        best: (j['best'] as List? ?? const []).map((b) => BestStream.fromJson(b as List)).toList(),
+        business: List<String>.from(j['business'] as List? ?? const []),
       );
 }

@@ -20,11 +20,11 @@ Future<GameController> make([int seed = 1]) async {
 const good = StreamResult(viewers: 500, gain: 200, donation: 10000, ads: 0, viral: false, flop: false);
 
 /// 노래 방송을 끝낼 때까지 반복해서 제안 DM을 기다린다
-DmOffer? streamUntilOffer(GameController g, String content, {int tries = 200, StreamResult r = good}) {
+DmOffer? streamUntilOffer(GameController g, String content, {int tries = 200, StreamResult r = good, String? want}) {
   final c = contentOf(content);
   for (var i = 0; i < tries; i++) {
     final out = g.finishStream(c, r);
-    if (out.offer != null) return out.offer;
+    if (out.offer != null && (want == null || out.offer!.id == want)) return out.offer;
   }
   return null;
 }
@@ -139,7 +139,7 @@ void main() {
     test('노래 방송 뒤에 아이돌 소속사 콜라보 제안이 DM으로 온다', () async {
       final g = await make();
       g.s.followers = 5000;
-      final offer = streamUntilOffer(g, 'sing');
+      final offer = streamUntilOffer(g, 'sing', want: 'idol_collab');
       expect(offer?.id, 'idol_collab');
       final dm = g.s.dms.firstWhere((d) => d.kind == 'offer');
       expect(dm.nick, offer!.from);
@@ -158,7 +158,7 @@ void main() {
     test('제안을 수락하면 돈과 구독자가 늘고 SNS가 들썩인다', () async {
       final g = await make();
       g.s.followers = 5000;
-      streamUntilOffer(g, 'sing');
+      streamUntilOffer(g, 'sing', want: 'idol_collab');
       final dm = g.s.dms.firstWhere((d) => d.offer == 'idol_collab');
       final m = g.s.money, f = g.s.followers, trends = g.s.trends.length;
       final (text, changes, trend) = g.answerOffer(dm, accept: true);
@@ -177,7 +177,7 @@ void main() {
     test('거절하면 아무것도 변하지 않고, 답장이 없으면 4일 뒤 만료된다', () async {
       final g = await make();
       g.s.followers = 5000;
-      streamUntilOffer(g, 'sing');
+      streamUntilOffer(g, 'sing', want: 'idol_collab');
       final dm = g.s.dms.firstWhere((d) => d.offer == 'idol_collab');
       final m = g.s.money;
       g.answerOffer(dm, accept: false);
@@ -187,7 +187,7 @@ void main() {
       final g2 = await make(2);
       g2.s.followers = 5000;
       g2.s.money = 10000000;
-      streamUntilOffer(g2, 'sing');
+      streamUntilOffer(g2, 'sing', want: 'idol_collab');
       final dm2 = g2.s.dms.firstWhere((d) => d.kind == 'offer');
       for (var i = 0; i < 4; i++) {
         g2.endDay(0);
@@ -219,7 +219,7 @@ void main() {
     test('DM은 저장된다', () async {
       final g = await make();
       g.s.followers = 5000;
-      streamUntilOffer(g, 'sing');
+      streamUntilOffer(g, 'sing', want: 'idol_collab');
       final back = GameState.fromJson(g.s.toJson());
       expect(back.dms.length, g.s.dms.length);
       expect(back.dms.first.offer, g.s.dms.first.offer);
@@ -235,7 +235,7 @@ void main() {
         g = await make();
       });
       g.s.followers = 5000;
-      streamUntilOffer(g, 'sing');
+      streamUntilOffer(g, 'sing', want: 'idol_collab');
       await tester.pumpWidget(MaterialApp(
         home: Builder(
           builder: (context) => Scaffold(

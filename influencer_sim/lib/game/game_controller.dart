@@ -80,6 +80,16 @@ class WorkOutcome {
   final Trend? trend;
 }
 
+/// 부모님 가게 홍보 결과
+class PromoOutcome {
+  const PromoOutcome(this.changes, this.trend, this.backlash);
+  final List<Change> changes;
+  final Trend? trend;
+
+  /// "가족 장사" 논란이 났는지
+  final bool backlash;
+}
+
 class UploadOutcome {
   const UploadOutcome(this.result, this.trend);
   final UploadResult result;
@@ -128,16 +138,55 @@ class GameController extends ChangeNotifier {
   List<String> get endingsSeen => _repo.endings();
 
   void save() {
-    if (_state != null && _state!.ended == null) _repo.save(_state!);
+    if (_state == null) return;
+    checkAchievements();
+    if (_state!.ended == null) _repo.save(_state!);
   }
+
+  // ───── 업적 (판이 바뀌어도 남는다) ─────
+  Set<String>? _achieved;
+  Set<String> get achieved => _achieved ??= _repo.achievements().toSet();
+
+  void checkAchievements() {
+    for (final a in achievements) {
+      if (achieved.contains(a.id) || !a.check(s)) continue;
+      achieved.add(a.id);
+      _repo.addAchievement(a.id);
+      toasts.add('🏅 업적 달성: ${a.title}');
+    }
+  }
+
+  /// 지금 열린 다회차 혜택
+  List<Perk> get unlockedPerks => perks.where((p) => p.unlocked(endingsSeen.length, achieved.length)).toList();
 
   void newGame(String name, Look look, {int wallColor = 0xE9DCCB}) {
     _state = GameState(name: name, look: look, wallColor: wallColor, trend: _pick(['talk', 'mukbang', 'sing']));
     log('📱 스마트폰 하나로 방송을 시작했다. 목표: 60일 안에 셀럽 되기!', 'day');
+    _applyPerks();
+    _newMissions();
     s.prevRanks = _ranks();
     s.lastRanks = s.prevRanks;
     save();
     notifyListeners();
+  }
+
+  /// 다회차 혜택을 새 게임에 적용한다
+  void _applyPerks() {
+    final e = endingsSeen.length, a = achieved.length;
+    if (e >= 1) s.money += 50000;
+    if (a >= 5) s.image = 10;
+    if (e >= 3) s.gear['camera'] = max(s.gear['camera']!, 1);
+    if (a >= 10) {
+      s.followers += 50;
+      s.coreFans += 20;
+    }
+    if (e >= 5) s.gear['mic'] = max(s.gear['mic']!, 1);
+    if (a >= 15) {
+      s.house = 'oneroom';
+      s.wallColor = houseOf('oneroom').wall;
+    }
+    final n = unlockedPerks.length;
+    if (n > 0) log('🎁 다회차 혜택 $n개가 적용됐다.', 'note');
   }
 
   void resume(GameState state) {
@@ -183,6 +232,11 @@ class GameController extends ChangeNotifier {
         if (s.lastViewers == 0) return '방송 기록 없음';
         if (s.energy < 15) return '체력 부족';
       case 'work':
+        if (isPro) {
+          if (!s.flags.contains('parentShop')) return '전업 방송인';
+          if (s.energy < 20) return '체력 부족';
+          return null;
+        }
         if (s.day < s.firedUntil) return '잘림 (D${s.firedUntil}부터)';
         if (s.energy < 22) return '체력 부족';
     }
@@ -217,8 +271,10 @@ class GameController extends ChangeNotifier {
       changes.add(_delta('이미지', fx.image));
     }
     if (fx.heat != 0) {
-      s.heat = (s.heat + fx.heat).clamp(0, 100);
-      changes.add(_delta('논란', fx.heat, null, true));
+      // 찐팬이 많으면 논란이 덜 커진다
+      final h = fx.heat > 0 ? max(1, (fx.heat * (1 - shieldPower)).round()) : fx.heat;
+      s.heat = (s.heat + h).clamp(0, 100);
+      changes.add(_delta('논란', h, null, true));
     }
     if (fx.mental != 0) {
       s.mental = (s.mental + fx.mental).clamp(0, 100);
@@ -299,6 +355,8 @@ class GameController extends ChangeNotifier {
       won = rng.nextDouble() < choice.chance!(s);
       if (!won) choice = choice.lose!;
     }
+    s.flags.add('${ev.id}#$index');
+    if (won == true) s.flags.add('${ev.id}Won');
     final changes = applyFx(choice.fx(s), ev.title);
     log('${ev.title}: ${choice.label}', 'event');
     Trend? trend;
@@ -318,14 +376,22 @@ class GameController extends ChangeNotifier {
   StreamResult beginStream(Content c) {
     s.energy -= energyCost(c);
     money(-c.cost, '${c.name} 재료비');
-    final r = calcStream(s, c, rng);
+    var r = calcStream(s, c, rng);
+    // 예고한 방송을 지키면 기다리던 시청자가 몰려온다
+    scheduleHit = isScheduled(c);
+    if (scheduleHit) {
+      r = StreamResult(viewers: (r.viewers * 1.25).round(), gain: (r.gain * 1.2).round(), donation: r.donation, ads: r.ads, viral: r.viral, flop: false);
+    }
     s.mode = 'live';
     notifyListeners();
     return r;
   }
 
   /// 채팅 반응을 성공한 만큼 방송 결과를 키운다 (한 번에 시청자 +8%, 구독자 +10%, 후원 +15%)
-  StreamResult boostStream(StreamResult r, int hits) {
+  /// 시청자 질문에 잘 대답한 분위기([hype])도 같은 만큼 결과를 키운다
+  StreamResult boostStream(StreamResult r, int hits, {int hype = 0}) {
+    if (hits > 0) progress('react', hits);
+    hits += hype;
     if (hits <= 0) return r;
     return StreamResult(
       viewers: (r.viewers * (1 + 0.08 * hits)).round(),
@@ -461,6 +527,8 @@ class GameController extends ChangeNotifier {
   GaffeOutcome resolveGaffe(Gaffe g, StreamResult r, {required bool apologize}) {
     s.lastGaffe = s.day;
     final changes = <Change>[];
+    // 사과 없이 넘어가면 찐팬도 실망한다
+    addCore(-(s.coreFans * (apologize ? 0.03 : 0.12)).round());
     StreamResult scaled(double v, double gain, double money) => StreamResult(
           viewers: max(1, (r.viewers * v).round()),
           gain: (r.gain * gain).round(),
@@ -511,6 +579,8 @@ class GameController extends ChangeNotifier {
 
   /// 사과 후 3주 자숙. 방송·수입은 없고 생활비는 나간다. 팬은 서서히 조금 떠나고 논란은 가라앉는다.
   HiatusReport startHiatus() {
+    s.flags.add('hiatus');
+    s.schedDay = 0;
     final fans0 = s.followers, heat0 = s.heat, mental0 = s.mental, image0 = s.image;
     var days = 0;
     while (days < hiatusDays && s.day <= seasonDays) {
@@ -520,7 +590,12 @@ class GameController extends ChangeNotifier {
       s.antis = (s.antis * 0.97).floor();
       s.mental = (s.mental + 3).clamp(0, 100);
       _updateRanking();
+      s.history.add(DayStat(s.day, s.followers, s.money, 0, s.coreFans));
       s.day++;
+    }
+    // 자숙 중에도 사업은 돌아간다
+    for (final b in ownedBusinesses) {
+      money(businessIncome(b) * days, '${b.name} 수익 ($days일)');
     }
     // 자숙 중 순위 알림은 쌓지 않는다
     toasts.removeWhere((m) => m.startsWith('🏆 순위'));
@@ -571,6 +646,24 @@ class GameController extends ChangeNotifier {
     final income = r.donation + r.ads;
     money(r.donation, '${c.name} 후원');
     money(r.ads, '${c.name} 광고 수익');
+    if (s.flags.contains('mcn')) money(-((income * 0.3) / 100).round() * 100, 'MCN 수수료 30%');
+    if (r.viral) s.flags.add('viral');
+    // 꾸준히 보러 오는 사람 일부가 찐팬이 된다
+    addCore((r.gain * 0.06).round() + (r.viral ? 0 : 1));
+    s.todayPeak = max(s.todayPeak, r.viewers);
+    s.best = ([...s.best, BestStream(s.day, c.id, r.viewers)]..sort((a, b) => b.viewers.compareTo(a.viewers))).take(3).toList();
+    if (scheduleHit) {
+      scheduleHit = false;
+      s.schedKept++;
+      s.schedDay = 0;
+      addCore(max(3, (r.viewers * 0.05).round()));
+      toasts.add('📅 예고한 방송을 지켰다! 찐팬이 늘었어요');
+      log('📅 예고한 대로 ${c.name}을(를) 켰다. 기다리던 시청자들이 몰려왔다.', 'event');
+    }
+    progress('stream', 1);
+    if (s.slot == 2) progress('night', 1);
+    progress('gain', r.gain);
+    progress('donation', r.donation);
     s.streams++;
     s.peak = max(s.peak, r.viewers);
     s.skills[c.id] = (s.skills[c.id] ?? 0) + 1;
@@ -637,6 +730,7 @@ class GameController extends ChangeNotifier {
     s.followers += r.gain;
     money(r.ads, '영상 광고 수익');
     s.uploads++;
+    progress('upload', 1);
     s.mental = (s.mental - 1).clamp(0, 100);
     final c = contentOf(s.lastContent ?? 'talk');
     pushFeed(sns.streamPosts(s, c, viral: r.viral));
@@ -664,6 +758,63 @@ class GameController extends ChangeNotifier {
 
   Workplace get job => workplaces[s.workplace % workplaces.length];
 
+  /// 전업 방송인 (구독자 1만 명부터). 알바는 그만두고, 부모님 가게가 생기면 가게 홍보를 한다
+  bool get isPro => s.followers >= proFollowers;
+
+  /// 부모님 가게 홍보. [onAir]면 방송에서 대놓고 홍보하고(효과가 크지만 '가족 장사' 논란 위험),
+  /// 아니면 가게 일을 도우며 브이로그를 찍는다.
+  PromoOutcome promote({required bool onAir}) {
+    s.mode = 'away';
+    s.energy -= onAir ? 12 : 20;
+    Trend? trend;
+    var backlash = false;
+    final changes = <Change>[];
+    if (onAir) {
+      backlash = rng.nextDouble() < 0.3 + s.heat / 200;
+      if (backlash) {
+        changes.addAll(applyFx(const Fx(heat: 10, image: -5)));
+        trend = sns.topicFeed(
+          s,
+          const SnsTopic(
+            tag: '{name}_가족장사',
+            headline: '{name}, 방송 중 부모님 가게 홍보… "가족 장사" 논란',
+            tone: -0.3,
+            hate: ['방송을 광고판으로 쓰네', '팬들한테 치킨 강매?', '선 넘었다'],
+            shield: ['부모님 가게 좀 도울 수도 있지', '효도하는 게 뭐가 문제', '맛있으면 됐지'],
+            neutral: ['그래서 치킨 맛은?'],
+          ),
+        );
+        pushTrend(trend);
+        log('🍗 방송에서 부모님 가게를 홍보했다가 "가족 장사" 소리를 들었다.', 'flop');
+      } else {
+        final gift = scaleMoney(s, 60000);
+        changes
+          ..addAll(applyFx(Fx(money: gift, image: 3), '부모님 용돈'))
+          ..add(Change('찐팬', '+${shortNum(3 + s.followers ~/ 3000)}', true));
+        addCore(3 + s.followers ~/ 3000);
+        trend = sns.topicFeed(s, snsParentShop);
+        pushTrend(trend);
+        log('🍗 방송에서 부모님 가게를 소개했다. 주문이 밀려들었다!', 'event');
+      }
+    } else {
+      final gain = max(3, (s.followers * 0.004 * (0.7 + rng.nextDouble() * 0.6)).round());
+      s.followers += gain;
+      changes
+        ..add(Change('구독자', '+${shortNum(gain)}', true))
+        ..addAll(applyFx(Fx(money: scaleMoney(s, 20000), image: 2, mental: 4), '부모님 용돈'));
+      addCore(2 + s.followers ~/ 5000);
+      pushFeed([
+        for (var i = 0; i < 2; i++)
+          sns.post(s, _pick(['{name} 치킨 튀기는 브이로그 ㅋㅋ 생활력 만렙', '부모님 가게 돕는 {name} 효도 클라스', '{name} 앞치마 잘 어울린다', '이 가게 어디예요? 가 보고 싶다']), 'fan', g: sns.fanGender(s)),
+      ]);
+      log('🍗 부모님 가게 일을 도우며 브이로그를 찍었다. 구독자 +${shortNum(gain)}');
+    }
+    checkMilestones();
+    save();
+    notifyListeners();
+    return PromoOutcome(changes, trend, backlash);
+  }
+
   /// 알바. [vlog]면 일하면서 브이로그를 찍는다: 구독자는 늘지만 점장 눈치가 쌓이고 3번 걸리면 잘린다.
   WorkOutcome work({bool vlog = false}) {
     final place = job;
@@ -690,6 +841,7 @@ class GameController extends ChangeNotifier {
       s.workStrikes++;
       if (s.workStrikes >= 3) {
         fired = true;
+        s.flags.add('fired');
         s.workStrikes = 0;
         s.firedUntil = s.day + 7;
         s.workplace = (s.workplace + 1) % workplaces.length;
@@ -714,6 +866,7 @@ class GameController extends ChangeNotifier {
     s.mode = 'stand';
     s.energy = (s.energy + 25).clamp(0, 100);
     s.mental = (s.mental + 8).clamp(0, 100);
+    progress('rest', 1);
     log('${_pick(['🛋️ 뒹굴거리며 쉬었다.', '🛋️ 좋아하는 방송을 보며 쉬었다.', '🛋️ 산책을 다녀왔다. 머리가 맑아졌다.', '🛋️ 낮잠을 잤다.'])} 체력 +25, 멘탈 +8');
     notifyListeners();
   }
@@ -745,6 +898,13 @@ class GameController extends ChangeNotifier {
   DayReport endDay(int remaining) {
     money(-rent, '생활비 (${houseOf(s.house).name})');
     _staffNight();
+    for (final b in ownedBusinesses) {
+      money(businessIncome(b), '${b.icon} ${b.name} 수익');
+    }
+    _scheduleNight();
+    s.history.add(DayStat(s.day, s.followers, s.money, s.todayPeak, s.coreFans));
+    if (s.history.length > 90) s.history.removeAt(0);
+    s.todayPeak = 0;
     final broke = s.money < 0;
     s.energy = (s.energy + 45 + remaining * 15).clamp(0, 100);
     s.mental = (s.mental + 5).clamp(0, 100);
@@ -772,6 +932,7 @@ class GameController extends ChangeNotifier {
       notes.add('이번 주 대세 콘텐츠는 ${c.icon} ${c.name}! 시청자 1.5배');
     }
     log('D+${s.day} 아침이 밝았다.', 'day');
+    _newMissions();
     if (s.firedUntil > 0 && s.day == s.firedUntil) notes.add('${job.icon} 새 알바를 구했다: ${job.name}');
     for (final n in notes) {
       log(n, 'note');
@@ -859,6 +1020,7 @@ class GameController extends ChangeNotifier {
       return (d.note!, const <Change>[], null);
     }
     d.status = 'accepted';
+    s.flags.add('offer_${o.id}');
     d.note = Sns.fill(o.result, s);
     final changes = applyFx(o.fx(s), o.from);
     log('📩 ${o.from}의 제안을 수락했다.', 'event');
@@ -875,6 +1037,154 @@ class GameController extends ChangeNotifier {
 
   /// 위기가 찾아올 확률: 구독자 5천부터, 10배 늘 때마다 +4%p (최대 15%)
   double get crisisChance => s.followers < 5000 ? 0 : min(0.15, 0.04 + 0.04 * _log10(s.followers / 5000));
+
+  // ───── 찐팬 ─────
+  void addCore(int n) => s.coreFans = (s.coreFans + n).clamp(0, s.followers);
+
+  /// 구독자 중 찐팬 비율
+  double get loyalty => s.coreFans / (s.followers + 50);
+
+  /// 논란이 덜 커지는 정도 (0 ~ 0.3)
+  double get shieldPower => min(0.3, loyalty * 1.5);
+
+  // ───── 시청자 질문 ─────
+  String? _lastQuestion;
+
+  /// 방송 중에 시청자 질문이 올라온다 (없으면 null)
+  ChatQuestion? rollQuestion([double chance = 0.45]) {
+    if (rng.nextDouble() >= chance) return null;
+    final pool = chatQuestions.where((q) => s.followers >= q.min && q.id != _lastQuestion).toList();
+    if (pool.isEmpty) return null;
+    final q = _pick(pool);
+    _lastQuestion = q.id;
+    return q;
+  }
+
+  /// 질문에 대답한다. (채팅 반응, 분위기, 변화)
+  (List<String>, int, List<Change>) answerQuestion(ChatQuestion q, int index, int viewers) {
+    final a = q.answers[index];
+    final changes = applyFx(a.fx, '시청자 질문');
+    if (a.core != 0) {
+      final n = a.core * (1 + (viewers * 0.02).round());
+      addCore(n);
+      changes.add(_delta('찐팬', n, shortNum));
+    }
+    progress('question', 1);
+    if (changes.isNotEmpty) toasts.add('💬 ${changes.map((c) => '${c.label} ${c.text}').join(' · ')}');
+    log('🙋 "${q.question}" → ${a.label}');
+    save();
+    notifyListeners();
+    return (a.reactions, a.hype, changes);
+  }
+
+  // ───── 방송 예고 ─────
+  /// 이번 방송이 예고한 방송인지
+  bool scheduleHit = false;
+
+  bool isScheduled(Content c) => s.schedDay == s.day && s.schedSlot == s.slot && s.schedContent == c.id;
+
+  /// 예고할 수 있는 시간 (day, slot): 지금 이후부터 내일 밤까지
+  List<(int, int)> scheduleSlots() => [
+        for (var sl = s.slot + 1; sl <= 2; sl++) (s.day, sl),
+        for (var sl = 0; sl <= 2; sl++) (s.day + 1, sl),
+      ];
+
+  void setSchedule(int day, int slot, String content) {
+    s.schedDay = day;
+    s.schedSlot = slot;
+    s.schedContent = content;
+    log('📅 방송 예고: ${day == s.day ? '오늘' : '내일'} ${slotNames[slot]} ${contentOf(content).name}');
+    pushFeed([sns.post(s, _pick(['{name} ${day == s.day ? '오늘' : '내일'} ${slotNames[slot]}에 ${contentOf(content).name} 한대!! 알람 맞춤', '예고 떴다 ${contentOf(content).icon} 무조건 본방', '{name} 예고 지키는지 보자 ㅋㅋ']), 'fan', g: sns.fanGender(s))]);
+    save();
+    notifyListeners();
+  }
+
+  void cancelSchedule() {
+    s.schedDay = 0;
+    save();
+    notifyListeners();
+  }
+
+  /// 오늘 예고를 어겼으면 찐팬이 실망한다
+  void _scheduleNight() {
+    if (s.schedDay == 0 || s.schedDay > s.day) return;
+    final lost = max(1, (s.coreFans * 0.08).round());
+    addCore(-lost);
+    s.image = (s.image - 2).clamp(-100, 100);
+    s.schedDay = 0;
+    log('📅 예고한 방송을 펑크 냈다… 찐팬 -${shortNum(lost)}, 이미지 -2', 'flop');
+    pushFeed([sns.post(s, _pick(['{name} 예고 펑크 냄 ㅡㅡ 알람까지 맞췄는데', '기다렸는데 방송 안 켬…', '{name} 예고 믿은 내가 바보']), 'hate', g: sns.fanGender(s))]);
+  }
+
+  // ───── 오늘의 미션 ─────
+  void _newMissions() {
+    final kinds = missionKinds.where((k) => k.id != 'upload' || s.gear['pc']! >= 1).toList()..shuffle(rng);
+    final reward = scaleMoney(s, 30000);
+    s.missions = [
+      for (final k in kinds.take(3))
+        Mission(
+          k.id,
+          switch (k.id) {
+            'stream' => 2,
+            'gain' => max(10, (s.followers * 0.03 / 10).round() * 10),
+            'donation' => scaleMoney(s, 20000),
+            'react' => 2,
+            _ => 1,
+          },
+          reward,
+        ),
+    ];
+  }
+
+  String missionText(Mission m) {
+    final k = missionKindOf(m.kind);
+    final n = m.kind == 'donation' ? shortWon(m.goal) : shortNum(m.goal);
+    return '${k.icon} ${k.label.replaceAll('{n}', n)}';
+  }
+
+  /// 미션 진행. 다 채우면 보상을 바로 받는다
+  void progress(String kind, int amount) {
+    if (amount <= 0) return;
+    for (final m in s.missions.where((m) => m.kind == kind && !m.done)) {
+      m.progress = min(m.goal, m.progress + amount);
+      if (m.progress < m.goal) continue;
+      m.done = true;
+      s.missionsDone++;
+      money(m.reward, '미션 보상');
+      addCore(2 + s.followers ~/ 2000);
+      toasts.add('🎯 미션 완료! +${shortWon(m.reward)}');
+      log('🎯 미션 완료: ${missionText(m)} (+${shortWon(m.reward)})', 'milestone');
+    }
+  }
+
+  // ───── 사업 ─────
+  List<Business> get ownedBusinesses => businesses.where((b) => s.business.contains(b.id)).toList();
+
+  /// 하루 수입: 이미지가 좋으면 더, 논란이 크면 불매로 반토막
+  int businessIncome(Business b) {
+    final v = (b.base + b.perFan * s.followers) * (1 + s.image / 200) * (s.heat >= 60 ? 0.5 : 1);
+    return (v / 1000).round() * 1000;
+  }
+
+  String? businessBlock(Business b) {
+    if (s.business.contains(b.id)) return '운영 중';
+    if (s.followers < b.minFollowers) return '구독자 ${shortNum(b.minFollowers)} 필요';
+    if (s.money < b.cost) return '돈 부족';
+    return null;
+  }
+
+  bool openBusiness(Business b) {
+    if (businessBlock(b) != null) return false;
+    money(-b.cost, '${b.name} 창업');
+    s.business.add(b.id);
+    log('${b.icon} ${b.name}을(를) 열었다! 매일 밤 수익이 들어온다.', 'buy');
+    toasts.add('${b.icon} ${b.name} 오픈!');
+    pushFeed([sns.post(s, _pick(['{name} ${b.name} 오픈했대!! 가 봐야지', '{name} 이제 사업가네 ㄷㄷ', '{name} ${b.name} 대박 나라']), 'fan', g: sns.fanGender(s), boost: 2)]);
+    emit('coin', 10);
+    save();
+    notifyListeners();
+    return true;
+  }
 
   // ───── 상점 ─────
   bool buyGear(String key) {

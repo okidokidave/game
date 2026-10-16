@@ -10,6 +10,7 @@ class SaveRepository {
 
   static const _key = 'influencer_save_v1';
   static const _endingsKey = 'influencer_endings';
+  static const _achievementsKey = 'influencer_achievements';
 
   final SharedPreferences _prefs;
 
@@ -34,5 +35,13 @@ class SaveRepository {
   Future<void> addEnding(String key) async {
     final seen = endings();
     if (!seen.contains(key)) await _prefs.setStringList(_endingsKey, [...seen, key]);
+  }
+
+  /// 지금까지 달성한 업적 (판이 바뀌어도 남는다)
+  List<String> achievements() => _prefs.getStringList(_achievementsKey) ?? const [];
+
+  Future<void> addAchievement(String id) async {
+    final got = achievements();
+    if (!got.contains(id)) await _prefs.setStringList(_achievementsKey, [...got, id]);
   }
 }

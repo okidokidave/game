@@ -271,7 +271,7 @@ Widget _contentCard(BuildContext ctx, GameController game, Content c) {
           children: [
             Text(c.icon, style: const TextStyle(fontSize: 28)),
             const Spacer(),
-            if (hot) _tag('🔥 대세', Pal.pink) else if (s.lastContent == c.id) _tag('연속', Pal.muted),
+            if (game.isScheduled(c)) _tag('📅 예고', Pal.good) else if (hot) _tag('🔥 대세', Pal.pink) else if (s.lastContent == c.id) _tag('연속', Pal.muted),
           ],
         ),
         const Spacer(),
@@ -317,7 +317,7 @@ class _ShopSheet extends StatefulWidget {
 }
 
 class _ShopSheetState extends State<_ShopSheet> {
-  /// 0 장비, 1 꾸미기, 2 이사, 3 직원
+  /// 0 장비, 1 꾸미기, 2 이사, 3 직원, 4 사업
   int _tab = 0;
 
   @override
@@ -342,6 +342,8 @@ class _ShopSheetState extends State<_ShopSheet> {
                         ? [for (final h in houses) _houseRow(game, h)]
                         : _tab == 3
                         ? [for (final st in staffList) _staffRow(game, st)]
+                        : _tab == 4
+                        ? [for (final b in businesses) _businessRow(game, b)]
                         : [
                         for (final d in decos) _decoRow(game, d),
                         _row(
@@ -379,7 +381,7 @@ class _ShopSheetState extends State<_ShopSheet> {
   Widget _segment() => Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(999)),
-        child: Row(children: [_segBtn('장비', 0), _segBtn('꾸미기', 1), _segBtn('이사', 2), _segBtn('직원', 3)]),
+        child: Row(children: [_segBtn('장비', 0), _segBtn('꾸미기', 1), _segBtn('이사', 2), _segBtn('직원', 3), _segBtn('사업', 4)]),
       );
 
   Widget _segBtn(String label, int tab) {
@@ -393,7 +395,7 @@ class _ShopSheetState extends State<_ShopSheet> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             alignment: Alignment.center,
             decoration: BoxDecoration(gradient: active ? Pal.brand : null, borderRadius: BorderRadius.circular(999)),
-            child: Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: active ? Colors.white : Pal.muted)),
+            child: Text(label, maxLines: 1, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: active ? Colors.white : Pal.muted)),
           ),
         ),
       );
@@ -411,6 +413,22 @@ class _ShopSheetState extends State<_ShopSheet> {
           : why != null && why != '돈 부족'
               ? Text(why, textAlign: TextAlign.right, style: const TextStyle(color: Pal.muted, fontSize: 11.5, fontWeight: FontWeight.w700))
               : _buy('고용', why == null ? () => game.hire(st) : null, ValueKey('hire-${st.id}')),
+    );
+  }
+
+  Widget _businessRow(GameController game, Business b) {
+    final owned = game.s.business.contains(b.id);
+    final why = game.businessBlock(b);
+    final income = game.businessIncome(b);
+    return _row(
+      b.icon,
+      b.name,
+      '${b.desc}\n${owned ? '오늘 밤 수익' : '창업비 ${shortWon(b.cost)} · 지금 열면 하루'} 약 ${shortWon(income)}',
+      owned
+          ? const Text('운영 중', style: TextStyle(color: Pal.good, fontWeight: FontWeight.w800))
+          : why != null && why != '돈 부족'
+              ? Text(why, textAlign: TextAlign.right, style: const TextStyle(color: Pal.muted, fontSize: 11.5, fontWeight: FontWeight.w700))
+              : _buy('창업', why == null ? () => game.openBusiness(b) : null, ValueKey('open-${b.id}')),
     );
   }
 

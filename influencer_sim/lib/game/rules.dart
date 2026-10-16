@@ -9,7 +9,8 @@ import 'game_state.dart';
 double quality(GameState s, Content? c) {
   final g = s.gear;
   final q = g['camera']! + g['light']! * 0.8 + g['mic']! * (c?.mic ?? 1) + g['pc']! * (c?.pc ?? 0.4);
-  return 1 + q * 0.13 + s.deco.length * 0.03 + houseOf(s.house).bonus;
+  // MCN 소속이면 회사 홍보로 시청자 +15%
+  return 1 + q * 0.13 + s.deco.length * 0.03 + houseOf(s.house).bonus + (s.flags.contains('mcn') ? 0.15 : 0);
 }
 
 bool canStream(GameState s, Content c) => c.need.entries.every((e) => s.gear[e.key]! >= e.value);
@@ -60,7 +61,9 @@ StreamResult calcStream(GameState s, Content c, Random rng) {
   final antiDrag = 1 - min(0.3, s.antis / (s.followers + 100) * 0.6);
   final gain = max(0, (v * conv * antiDrag * rnd(0.8, 1.2) * (viral ? 1.8 : 1) * (flop ? 0.3 : 1)).round());
 
-  final donation = ((v * rnd(60, 140) * skill) / 100).round() * 100;
+  // 찐팬이 많을수록 후원이 늘어난다 (최대 +50%)
+  final core = 1 + min(0.5, s.coreFans / (s.followers + 50) * 2.5);
+  final donation = ((v * rnd(60, 140) * skill * core) / 100).round() * 100;
   final ads = s.followers >= 1000 ? ((v * 30) / 100).round() * 100 : 0;
   return StreamResult(viewers: v, gain: gain, donation: donation, ads: ads, viral: viral, flop: flop);
 }

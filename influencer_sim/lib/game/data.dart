@@ -523,6 +523,18 @@ Fx _none(GameState s) => const Fx();
 /// 어젯밤 기준 내 인기 순위 (아직 없으면 99)
 int rankNow(GameState s) => s.lastRanks['me'] ?? 99;
 
+/// 이만큼 구독자가 생기면 전업 방송인: 알바를 그만둔다
+const proFollowers = 10000;
+
+const snsParentShop = SnsTopic(
+  tag: '{name}_부모님가게',
+  headline: '{name} 부모님 치킨집, 팬들 성지 순례 코스 등극',
+  tone: 0.6,
+  hate: ['가족 장사 시작이네', '방송으로 가게 홍보는 좀…', '팬들 지갑 털기'],
+  shield: ['효자/효녀 인정', '치킨 맛있더라 진짜', '부모님 너무 친절하심', '이런 홍보는 환영'],
+  neutral: ['가게 위치 어디임?', '주말엔 줄 서야 한대'],
+);
+
 /// 평소 평판이 좋을수록 높아지는 확률 (이미지 -100 ~ 100 → base ± 0.25)
 double byImage(GameState s, double base) => (base + s.image / 400).clamp(0.15, 0.9);
 
@@ -1840,6 +1852,319 @@ final gameEvents = <GameEvent>[
       ),
     ],
   ),
+
+  // ───── 초반 방송 사고 (작은 방송인일 때만) ─────
+  GameEvent(
+    id: 'hot_mic',
+    where: 'live',
+    title: '🎙️ 방송이 안 꺼졌다',
+    weight: 4,
+    when: (s) => s.followers >= 30 && s.followers < 3000 && !s.flags.contains('hotMicDone'),
+    text: (s) => '방송을 끈 줄 알고 기지개를 켜며 혼잣말을 했다. "아 오늘 시청자 왜 이렇게 없어… 다들 어디 간 거야" 그런데 채팅창이 움직이고 있다. "다 들려요 ㅋㅋㅋ"',
+    choices: [
+      EventChoice(
+        label: '😂 "다 들었어요?" 웃으며 받아친다 (센스에 달림)',
+        result: '"들었으면 구독 좀 해 주세요 ㅋㅋ" 클립이 "현실 스트리머"라며 퍼졌다.',
+        chance: (s) => byImage(s, 0.6),
+        fx: (s) => const Fx(followers: 0.08, image: 3, flag: 'hotMicDone'),
+        sns: const SnsTopic(
+          tag: '{name}_방송안꺼짐',
+          headline: '방송 안 꺼진 줄 모르고 혼잣말한 {name}… "현실 스트리머"',
+          tone: 0.6,
+          hate: ['시청자 탓하네', '평소 본심 나옴'],
+          shield: ['너무 웃김 ㅋㅋㅋ', '현실 스트리머 공감', '받아치는 거 센스 있다'],
+          neutral: ['클립 조회수 터짐'],
+        ),
+        lose: EventChoice(
+          label: '😂 "다 들었어요?" 웃으며 받아친다',
+          result: '어색한 웃음만 나왔다. "시청자 탓하는 스트리머" 클립이 돌기 시작했다.',
+          fx: (s) => const Fx(image: -6, heat: 8, mental: -6, flag: 'hotMicDone'),
+          sns: const SnsTopic(
+            tag: '{name}_본심',
+            headline: '{name} 방송 안 꺼진 줄 모르고 시청자 탓',
+            tone: -0.3,
+            hate: ['본심 나왔네', '시청자 없는 게 우리 탓?', '구독 취소'],
+            shield: ['혼잣말인데 뭘', '작은 방송인 현실이지'],
+            neutral: ['방송 끄는 버튼 두 번 확인하자'],
+          ),
+        ),
+      ),
+      EventChoice(
+        label: '🙇 바로 사과한다',
+        result: '"죄송해요, 와 주신 분들께 감사한 마음뿐이에요." 남아 있던 시청자들이 응원해 줬다.',
+        fx: (s) => const Fx(image: 1, mental: -3, flag: 'hotMicDone'),
+      ),
+      EventChoice(
+        label: '🔌 못 본 척 방송을 끈다',
+        result: '황급히 방송을 껐다. 다음 날 커뮤니티에 "도망간 스트리머" 글이 올라왔다.',
+        fx: (s) => const Fx(image: -4, heat: 6, flag: 'hotMicDone'),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'family_intrude',
+    where: 'live',
+    title: '🚪 가족 난입',
+    weight: 4,
+    when: (s) => s.followers >= 10 && s.followers < 3000 && !s.flags.contains('familyDone'),
+    text: (s) => '방송 중에 방문이 벌컥 열렸다. "${s.look.male ? '아들' : '딸'}! 밥 먹으라니까 몇 번을 불러!" 엄마의 목소리가 그대로 송출됐다.',
+    choices: [
+      EventChoice(
+        label: '👩 엄마를 방송에 소개한다',
+        result: '엄마가 수줍게 손을 흔들었다. 채팅창이 "어머님 안녕하세요!!"로 도배됐다.',
+        fx: (s) => const Fx(followers: 0.06, image: 5, mental: 4, flag: 'familyDone'),
+        sns: const SnsTopic(
+          tag: '{name}_어머님',
+          headline: '{name} 방송에 어머니 깜짝 등장… "어머님 팬 됐어요"',
+          tone: 0.8,
+          hate: ['가족 팔이 시작'],
+          shield: ['어머님 너무 귀여우셔 ㅋㅋㅋ', '이게 찐 가족 방송이지', '어머님 고정 출연 가자'],
+          neutral: ['반찬 뭐였는지 궁금'],
+        ),
+      ),
+      EventChoice(
+        label: '🙈 황급히 방송을 끈다',
+        result: '부랴부랴 방송을 껐다. 시청자 몇 명이 "아쉽다"며 나갔다.',
+        fx: (s) => const Fx(followers: -0.01, mental: -3, flag: 'familyDone'),
+      ),
+      EventChoice(
+        label: '🤫 "5분만!" 하고 계속한다 (운에 달림)',
+        result: '엄마가 한숨 쉬며 나갔다. "어머님 화나셨다 ㅋㅋ" 채팅이 오히려 터졌다.',
+        chance: (s) => 0.5,
+        fx: (s) => const Fx(followers: 0.03, flag: 'familyDone'),
+        lose: EventChoice(
+          label: '🤫 "5분만!" 하고 계속한다',
+          result: '등짝 스매싱 소리가 그대로 송출됐다. 클립은 웃겼지만 등이 아프다.',
+          fx: (s) => const Fx(followers: 0.04, mental: -6, energy: -10, flag: 'familyDone'),
+        ),
+      ),
+    ],
+  ),
+
+  // ───── MCN ─────
+  GameEvent(
+    id: 'mcn_offer',
+    where: 'news',
+    title: '🏢 MCN 소속 제안',
+    weight: 4,
+    when: (s) => s.followers >= 15000 && !s.flags.contains('mcnOffered') && !s.flags.contains('mcn') && !s.flags.contains('mcnSlaveDone'),
+    text: (s) => 'MCN 회사 "스타웨이브"에서 소속 제안이 왔다. 계약금 ${won(scaleMoney(s, 400000))}에 광고·홍보를 맡아 주는 대신, 앞으로 후원·광고 수익의 30%를 가져간다.',
+    choices: [
+      EventChoice(
+        label: '✍️ 계약한다 (시청자 +15%, 수익 30% 수수료)',
+        result: '계약서에 사인했다. 회사 홍보 덕분에 방송이 여기저기 노출되기 시작했다.',
+        fx: (s) => Fx(money: scaleMoney(s, 400000), image: 2, flag: 'mcn'),
+      ),
+      EventChoice(
+        label: '🙅 혼자 하겠다며 거절한다',
+        result: '"아직은 혼자 해 볼게요." 회사는 아쉬워하며 명함을 두고 갔다.',
+        fx: (s) => const Fx(mental: 2, flag: 'mcnOffered'),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'mcn_slave',
+    where: 'crisis',
+    title: '🚨 노예계약 논란',
+    weight: 6,
+    when: (s) => s.flags.contains('mcn') && s.followers >= 60000 && !s.flags.contains('mcnSlaveDone'),
+    text: (s) => '계약서를 다시 읽다가 독소조항을 발견했다. "계약 기간 10년, 위약금은 수익의 5배." 같은 회사 스트리머들도 술렁이고 있다.',
+    choices: [
+      EventChoice(
+        label: '💸 위약금을 내고 탈퇴한다',
+        result: '큰돈이 나갔지만 자유를 되찾았다. 수수료도 이제 없다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 800000), image: 4, mental: 6, unflag: 'mcn', flag: 'mcnSlaveDone'),
+      ),
+      EventChoice(
+        label: '📢 계약서를 공개하고 폭로한다 (평판에 달림)',
+        result: '여론이 내 편이 됐다. 회사는 사과문을 내고 계약을 해지해 줬다.',
+        chance: (s) => byImage(s, 0.55),
+        fx: (s) => const Fx(image: 10, heat: 5, followers: 0.03, unflag: 'mcn', flag: 'mcnSlaveDone'),
+        sns: const SnsTopic(
+          tag: '{name}_노예계약',
+          headline: '{name}, MCN 노예계약 폭로… 회사 사과',
+          tone: 0.6,
+          hate: ['계약할 땐 좋다고 했으면서', '계약서 안 읽은 본인 잘못'],
+          shield: ['10년 계약은 선 넘었다', '용기 있다', '다른 스트리머들도 나서야'],
+          neutral: ['MCN 계약 실태 조사 필요'],
+        ),
+        lose: EventChoice(
+          label: '📢 계약서를 공개하고 폭로한다',
+          result: '회사가 "계약 위반"이라며 소송을 걸었다. 결국 위약금에 소송비까지 물었다.',
+          fx: (s) => Fx(money: -scaleMoney(s, 1200000), heat: 15, image: -5, mental: -10, unflag: 'mcn', flag: 'mcnSlaveDone'),
+        ),
+      ),
+      EventChoice(
+        label: '😶 그냥 참고 남는다',
+        result: '조용히 남기로 했다. 수수료는 계속 나간다.',
+        fx: (s) => const Fx(mental: -10, flag: 'mcnSlaveDone'),
+      ),
+    ],
+  ),
+
+  // ───── 인간관계 ─────
+  GameEvent(
+    id: 'friend_feud',
+    where: 'crisis',
+    title: '🚨 절친 스트리머의 저격',
+    weight: 4,
+    when: (s) => s.followers >= 10000 && !s.flags.contains('feudDone'),
+    text: (s) => '같이 합방하던 절친 스트리머 "새벽감성 수아"가 저격 방송을 했다. "뜨더니 연락도 씹고, 내 콘텐츠까지 따라 하더라."',
+    choices: [
+      EventChoice(
+        label: '🔥 맞저격 방송을 한다',
+        result: '서로의 카톡까지 공개되는 진흙탕 싸움이 됐다. 시청자는 늘었지만…',
+        fx: (s) => const Fx(followers: 0.04, heat: 22, image: -8, mental: -8, flag: 'feudDone'),
+        sns: const SnsTopic(
+          tag: '{name}_수아_저격전',
+          headline: '{name} vs 수아, 절친에서 저격전으로',
+          tone: -0.3,
+          hate: ['둘 다 똑같음', '친구 사이 저렇게 공개 싸움?', '팝콘 각'],
+          shield: ['{name} 카톡 보니까 억울할 만함', '수아가 먼저 시작함'],
+          neutral: ['저격 타임라인 정리 올라옴'],
+        ),
+      ),
+      EventChoice(
+        label: '🤝 직접 만나 화해한다 (운에 달림)',
+        result: '술 한잔하며 오해를 풀었다. 다음 주에 "화해 합방"을 하기로 했다!',
+        chance: (s) => byImage(s, 0.6),
+        fx: (s) => const Fx(followers: 0.03, image: 6, mental: 6, flag: 'feudDone'),
+        sns: const SnsTopic(
+          tag: '{name}_수아_화해',
+          headline: '{name}·수아 화해 합방 예고… "오해였다"',
+          tone: 0.7,
+          hate: ['짜고 친 거 아님?'],
+          shield: ['둘이 다시 보니 좋다', '어른스럽게 풀었네', '화해 합방 본방 사수'],
+          neutral: ['저격 영상은 삭제됨'],
+        ),
+        lose: EventChoice(
+          label: '🤝 직접 만나 화해한다',
+          result: '만나서 한 이야기까지 녹음돼 방송에 나갔다. 더 큰 싸움이 됐다.',
+          fx: (s) => const Fx(heat: 14, mental: -12, image: -4, flag: 'feudDone'),
+        ),
+      ),
+      EventChoice(
+        label: '🤐 대응하지 않는다',
+        result: '아무 말도 하지 않았다. 마음은 괴롭지만 논란은 서서히 식었다.',
+        fx: (s) => const Fx(mental: -8, heat: 4, flag: 'feudDone'),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'ex_expose',
+    where: 'crisis',
+    title: '🚨 전 연인의 폭로',
+    weight: 4,
+    when: (s) => s.followers >= 25000 && !s.flags.contains('exDone'),
+    text: (s) => '전 연인이 SNS에 긴 글을 올렸다. "방송에선 착한 척하지만, 사귈 때는 완전 다른 사람이었어요."',
+    choices: [
+      EventChoice(
+        label: '🧱 사생활이라며 선을 긋는다',
+        result: '"개인적인 일이라 말씀드리지 않겠습니다." 짧은 입장만 냈다.',
+        fx: (s) => const Fx(heat: 8, image: -3, flag: 'exDone'),
+      ),
+      EventChoice(
+        label: '📱 반박 증거를 공개한다 (운에 달림)',
+        result: '헤어질 때 주고받은 메시지를 공개했다. 폭로 글은 과장이었다는 게 드러났다.',
+        chance: (s) => byImage(s, 0.5),
+        fx: (s) => const Fx(image: 6, heat: -8, flag: 'exDone'),
+        lose: EventChoice(
+          label: '📱 반박 증거를 공개한다',
+          result: '공개한 메시지에서 오히려 내 말투가 문제가 됐다. 역풍이 불었다.',
+          fx: (s) => const Fx(image: -12, heat: 18, followers: -0.03, flag: 'exDone'),
+          sns: const SnsTopic(
+            tag: '{name}_전연인',
+            headline: '{name}, 전 연인 폭로 반박하다 역풍',
+            tone: -0.6,
+            hate: ['반박한다고 깐 게 자폭', '말투 무섭다', '방송이랑 딴판이네'],
+            shield: ['연애사는 둘만 아는 거', '한쪽 말만 듣지 말자'],
+            neutral: ['연애 폭로 시즌인가'],
+          ),
+        ),
+      ),
+      EventChoice(
+        label: '🙇 상처 줬다면 미안하다고 사과한다',
+        result: '"부족했던 저 때문에 상처받았다면 미안합니다." 사과에 반응이 엇갈렸다.',
+        fx: (s) => const Fx(image: -5, heat: 5, mental: -6, flag: 'exDone'),
+        sns: const SnsTopic(
+          tag: '{name}_사과',
+          headline: '{name}, 전 연인 폭로에 사과',
+          tone: -0.1,
+          oppositeTone: -0.3,
+          hate: ['사과하는 거 보니 사실인가 봄', '연애 숨긴 것도 실망'],
+          shield: ['사과한 건 어른스럽다', '연애는 사생활이지'],
+          neutral: ['전 연인 글 삭제됨'],
+        ),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'wrecker',
+    where: 'crisis',
+    title: '🚨 사이버 렉카',
+    weight: 4,
+    when: (s) => s.followers >= 15000 && !s.flags.contains('wreckerDone'),
+    text: (s) => '이슈 유튜버 "팩트폭격기"가 내 방송을 짜깁기해 "{name}의 충격적인 두 얼굴"이라는 영상을 올렸다. 조회수 100만.',
+    choices: [
+      EventChoice(
+        label: '⚖️ 명예훼손으로 고소한다 (운에 달림)',
+        result: '렉카 유튜버가 영상을 내리고 사과문을 올렸다. 다른 렉카들도 조용해졌다.',
+        chance: (s) => 0.65,
+        fx: (s) => Fx(money: -scaleMoney(s, 200000), image: 8, heat: -12, flag: 'wreckerDone'),
+        sns: const SnsTopic(
+          tag: '렉카_{name}_사과',
+          headline: '렉카 유튜버, {name} 짜깁기 영상 삭제·사과',
+          tone: 0.7,
+          hate: ['고소 남발'],
+          shield: ['렉카들 다 고소당해야 함', '짜깁기였구나', '{name} 고생했다'],
+          neutral: ['렉카 규제 필요'],
+        ),
+        lose: EventChoice(
+          label: '⚖️ 명예훼손으로 고소한다',
+          result: '렉카가 "고소당했다"며 2탄을 올렸다. 조회수는 더 늘었다.',
+          fx: (s) => Fx(money: -scaleMoney(s, 200000), heat: 12, image: -5, mental: -8, flag: 'wreckerDone'),
+        ),
+      ),
+      EventChoice(
+        label: '🎬 원본을 공개하는 해명 영상 (평판에 달림)',
+        result: '원본과 나란히 놓으니 짜깁기가 한눈에 보였다. 해명 영상이 더 많이 퍼졌다.',
+        chance: (s) => byImage(s, 0.55),
+        fx: (s) => const Fx(image: 8, heat: -10, followers: 0.02, flag: 'wreckerDone'),
+        lose: EventChoice(
+          label: '🎬 원본을 공개하는 해명 영상',
+          result: '원본에도 애매한 장면이 있었다. "해명이 더 문제"라는 반응이 나왔다.',
+          fx: (s) => const Fx(image: -8, heat: 14, flag: 'wreckerDone'),
+        ),
+      ),
+      EventChoice(
+        label: '🤐 무시한다',
+        result: '대응하지 않았다. 일주일쯤 지나자 렉카는 다른 사람을 찾아 떠났다.',
+        fx: (s) => const Fx(heat: 8, image: -3, mental: -5, flag: 'wreckerDone'),
+      ),
+    ],
+  ),
+
+  // ───── 부모님 가게 (전업 방송인이 되면 알바 대신 가게 홍보) ─────
+  GameEvent(
+    id: 'parent_shop',
+    where: 'news',
+    title: '🍗 부모님 가게 오픈',
+    weight: 6,
+    when: (s) => s.followers >= proFollowers && !s.flags.contains('parentShop'),
+    text: (s) => '부모님이 동네에 작은 치킨집을 차리셨다! 엄마가 전화로 조심스럽게 물었다. "혹시… 네 방송에서 한 번 소개해 줄 수 있니?"',
+    choices: [
+      EventChoice(
+        label: '🙌 "당연하지! 내가 홍보할게!"',
+        result: '가게 개업식에 꽃다발을 들고 갔다. 이제 시간 날 때 가게 홍보를 할 수 있다. (알바 버튼 → 가게 홍보)',
+        fx: (s) => const Fx(mental: 6, image: 2, flag: 'parentShop'),
+      ),
+      EventChoice(
+        label: '😅 "방송이랑은 따로 하는 게 좋을 것 같아"',
+        result: '엄마는 "그래, 네 말이 맞다"며 웃으셨다. 마음이 쓰이면 언제든 홍보를 도울 수 있다. (알바 버튼 → 가게 홍보)',
+        fx: (s) => const Fx(mental: -2, flag: 'parentShop'),
+      ),
+    ],
+  ),
 ];
 
 // ───── 결말 ─────
@@ -2013,4 +2338,190 @@ const dmComfort = [
   '실수할 수도 있죠. 기다릴게요',
   '반성하는 모습 보기 좋았어요. 꼭 돌아와 주세요',
   '{name}님 없으니까 허전해요 ㅠ',
+];
+
+// ───── 방송 중 시청자 질문 ─────
+class ChatAnswer {
+  const ChatAnswer(this.label, this.reactions, {this.fx = const Fx(), this.core = 0, this.hype = 0});
+  final String label;
+
+  /// 대답 뒤 채팅창 반응
+  final List<String> reactions;
+  final Fx fx;
+
+  /// 찐팬 변화 (구독자 대비 %가 아니라 명 단위 비율: core × 구독자/100)
+  final int core;
+
+  /// 방송 분위기 (채팅 반응 성공처럼 결과를 키운다)
+  final int hype;
+}
+
+class ChatQuestion {
+  const ChatQuestion(this.id, this.question, this.answers, {this.min = 0});
+  final String id;
+  final String question;
+  final List<ChatAnswer> answers;
+
+  /// 구독자 수가 이만큼 되어야 나온다
+  final int min;
+}
+
+const chatQuestions = [
+  ChatQuestion('age', '근데 나이 몇 살이에요??', [
+    ChatAnswer('솔직하게 말한다', ['오 생각보다 어리다', '동갑이네요!!', '솔직해서 좋음'], core: 2),
+    ChatAnswer('"영원한 열일곱 살~"', ['ㅋㅋㅋㅋㅋㅋ', '17살 n년차', '주민등록증 보여주세요 ㅋㅋ'], hype: 1),
+    ChatAnswer('"그건 비밀이에요"', ['궁금한데…', '비밀 많네', 'ㅇㅋㅇㅋ'], fx: Fx(image: -1)),
+  ]),
+  ChatQuestion('dating', '애인 있어요??? 솔직히 말해주세요', [
+    ChatAnswer('"여러분이 제 애인이죠~"', ['꺄아아악', '심쿵', '나만의 애인 ㅠㅠ'], core: 3, hype: 1),
+    ChatAnswer('"지금은 없어요"', ['오 ㄹㅇ?', '다행이다 ㅋㅋ', '그럼 저랑…'], core: 1),
+    ChatAnswer('"사실… 있어요"', ['헐', '축하해요!!', '실망이다…'], fx: Fx(image: 3, followers: -0.01, heat: 3)),
+  ]),
+  ChatQuestion('income', '방송으로 한 달에 얼마 벌어요?', [
+    ChatAnswer('대충 공개한다', ['헐 생각보다 많다', '부럽다…', '나도 방송할까'], fx: Fx(heat: 4), hype: 1),
+    ChatAnswer('"여러분 덕분에 밥은 먹어요"', ['겸손 ㅋㅋ', '앞으로 더 벌어요!', '후원 각'], core: 2),
+    ChatAnswer('못 본 척 넘어간다', ['읽씹 ㅋㅋ', '민감한 질문이었나', '패스~'], fx: Fx()),
+  ]),
+  ChatQuestion('politics', '이번 선거 누구 뽑아요?', [
+    ChatAnswer('솔직하게 대답한다', ['아…', '그쪽이야?', '방송 나감'], fx: Fx(heat: 12, followers: -0.01, image: -3), hype: 1),
+    ChatAnswer('"방송에선 정치 얘기 안 해요"', ['프로답다', '현명함', '그게 맞지'], fx: Fx(image: 2)),
+    ChatAnswer('"저는 치킨 당입니다"', ['ㅋㅋㅋㅋ', '치킨당 입당합니다', '센스 보소'], hype: 1, core: 1),
+  ], min: 300),
+  ChatQuestion('rival', '찐텐형 방송 어때요? 솔직히', [
+    ChatAnswer('칭찬한다', ['훈훈하다', '합방 해 주세요!', '인성 굿'], fx: Fx(image: 2)),
+    ChatAnswer('"솔직히 좀 시끄럽죠 ㅋㅋ"', ['ㅋㅋㅋ 저격?', '클립 땄다', '찐텐형 팬 화남'], fx: Fx(heat: 8), hype: 2),
+    ChatAnswer('"누군지 잘 몰라요"', ['모르는 척 ㅋㅋ', '설마', '진짜 모름?'], fx: Fx(heat: 2)),
+  ], min: 500),
+  ChatQuestion('event', '구독자 이벤트 해 주세요!!!', [
+    ChatAnswer('"이번 주에 바로 할게요!"', ['오예!!', '역시 최고', '약속했다?'], fx: Fx(money: -20000), core: 4),
+    ChatAnswer('"구독자 목표 달성하면 할게요"', ['좋아 목표 달성 간다', '영업 시작', 'ㄱㄱ'], core: 1, hype: 1),
+    ChatAnswer('"다음에~"', ['맨날 다음에래', '아쉽다', '언젠간 하겠지'], fx: Fx(image: -1)),
+  ]),
+  ChatQuestion('sing', '노래 한 소절만 불러 주세요!!', [
+    ChatAnswer('부른다', ['오 잘 부르는데?', '귀 호강', '한 곡 더!'], fx: Fx(energy: -5), hype: 1, core: 1),
+    ChatAnswer('"저 음치예요…" 하고 부른다', ['ㅋㅋㅋㅋㅋ 음치 맞네', '귀엽다', '용기에 박수'], hype: 2),
+    ChatAnswer('거절한다', ['아쉽…', '다음엔 꼭', 'ㅠㅠ'], fx: Fx()),
+  ]),
+  ChatQuestion('late', '오늘 왜 늦게 켰어요? 기다렸잖아요', [
+    ChatAnswer('"기다리게 해서 미안해요!"', ['괜찮아요~', '기다린 보람 있다', '빨리 시작해요'], core: 2),
+    ChatAnswer('"늦잠 잤어요 ㅎㅎ"', ['ㅋㅋㅋ 솔직', '부럽다 늦잠', '귀엽게 봐 줌'], hype: 1),
+    ChatAnswer('"제 맘이죠~"', ['오 당당', '건방져 ㅋㅋ', '좀 서운함'], fx: Fx(image: -2), hype: 1),
+  ]),
+  ChatQuestion('birthday', '저 오늘 생일이에요!! 축하해 주세요ㅠㅠ', [
+    ChatAnswer('생일 축하 노래를 불러 준다', ['감동이다 ㅠㅠ', '나도 생일인데!!', '이런 스트리머 어디 없음'], core: 3, hype: 1),
+    ChatAnswer('채팅으로 축하해 준다', ['생축!!', '🎂🎂🎂', '축하해요~'], core: 1),
+    ChatAnswer('"저도 오늘 생일인데요?" 장난친다', ['진짜요?? ㅋㅋ', '거짓말 ㄴㄴ', '아 장난이구나'], hype: 1, fx: Fx(image: -1)),
+  ]),
+  ChatQuestion('hater', '[악플] 방송 노잼이네 시간 아까움', [
+    ChatAnswer('재치 있게 받아친다', ['ㅋㅋㅋㅋㅋ 사이다', '참교육', '클립각'], hype: 2, fx: Fx(heat: 3)),
+    ChatAnswer('무시하고 방송한다', ['무시가 답', '멘탈 갑', '신경 쓰지 마요'], core: 1),
+    ChatAnswer('강퇴한다', ['잘 가~', '깔끔', '매니저 일 잘하네'], core: 1, fx: Fx(mental: 2)),
+  ]),
+  ChatQuestion('home', '고향 어디예요? 사투리 써 주세요!', [
+    ChatAnswer('사투리를 쓴다', ['ㅋㅋㅋ 찐이다', '고향 사람 손!', '사투리 귀여움'], hype: 1, core: 1),
+    ChatAnswer('"서울 토박이예요"', ['ㅇㅎ', '서울 사람이었구나', '노잼 ㅋㅋ'], fx: Fx()),
+    ChatAnswer('"개인 정보는 비밀!"', ['조심성 굿', '그래 그게 맞다', '사생팬 조심'], fx: Fx(image: 1)),
+  ], min: 100),
+];
+
+// ───── 오늘의 미션 ─────
+class MissionKind {
+  const MissionKind(this.id, this.icon, this.label);
+  final String id;
+  final String icon;
+
+  /// {n}은 목표 수치
+  final String label;
+}
+
+const missionKinds = [
+  MissionKind('stream', '📺', '방송 {n}번 하기'),
+  MissionKind('night', '🌙', '밤 방송 하기'),
+  MissionKind('gain', '👥', '구독자 {n}명 늘리기'),
+  MissionKind('donation', '💰', '후원 {n} 받기'),
+  MissionKind('react', '💬', '채팅 반응 {n}번 성공'),
+  MissionKind('question', '🙋', '시청자 질문에 대답하기'),
+  MissionKind('upload', '✂️', '영상 업로드 하기'),
+  MissionKind('rest', '🛋️', '휴식으로 멘탈 챙기기'),
+];
+
+MissionKind missionKindOf(String id) => missionKinds.firstWhere((k) => k.id == id);
+
+// ───── 사업 ─────
+class Business {
+  const Business(this.id, this.name, this.icon, this.minFollowers, this.cost, this.base, this.perFan, this.desc);
+  final String id;
+  final String name;
+  final String icon;
+  final int minFollowers;
+  final int cost;
+
+  /// 하루 수입 = base + 구독자 × perFan (이미지·논란에 따라 오르내림)
+  final int base;
+  final double perFan;
+  final String desc;
+}
+
+const businesses = [
+  Business('goods', '굿즈샵', '🛍️', 10000, 3000000, 50000, 1.0, '내 캐릭터 굿즈를 파는 온라인 샵. 매일 조금씩 팔린다.'),
+  Business('cafe', '팬 카페', '☕', 100000, 20000000, 300000, 1.0, '팬들이 찾아오는 내 이름의 카페. 성지 순례 코스.'),
+  Business('beauty', '뷰티 브랜드', '💄', 300000, 60000000, 500000, 2.0, '내 이름을 건 화장품. 이미지가 좋을수록 잘 팔린다.'),
+  Business('agency', '크리에이터 회사', '🏢', 800000, 200000000, 1000000, 3.0, '후배 스트리머를 키우는 회사. 이제 나도 대표님.'),
+];
+
+Business businessOf(String id) => businesses.firstWhere((b) => b.id == id);
+
+// ───── 업적 ─────
+class Achievement {
+  const Achievement(this.id, this.icon, this.title, this.desc, this.check);
+  final String id;
+  final String icon;
+  final String title;
+  final String desc;
+  final bool Function(GameState s) check;
+}
+
+final achievements = <Achievement>[
+  Achievement('first', '📱', '첫 방송', '스마트폰으로 첫 방송을 켰다', (s) => s.streams >= 1),
+  Achievement('silver', '🥈', '실버 버튼', '구독자 1만 명', (s) => s.followers >= 10000),
+  Achievement('gold', '🥇', '골드 버튼', '구독자 10만 명', (s) => s.followers >= 100000),
+  Achievement('diamond', '💎', '다이아 버튼', '구독자 100만 명', (s) => s.followers >= 1000000),
+  Achievement('viral', '🚀', '알고리즘의 선택', '방송이 떡상했다', (s) => s.flags.contains('viral')),
+  Achievement('penthouse', '🏙️', '반지하에서 펜트하우스로', '펜트하우스에 입주했다', (s) => s.house == 'penthouse'),
+  Achievement('rank1', '👑', '스트리머 1위', '인기 순위 1위를 찍었다', (s) => s.lastRanks['me'] == 1),
+  Achievement('fired', '🚫', '알바 해고 엔딩', '알바 브이로그 찍다가 잘렸다', (s) => s.flags.contains('fired')),
+  Achievement('hiatus', '🙇', '자숙의 시간', '사과하고 3주 자숙했다', (s) => s.flags.contains('hiatus')),
+  Achievement('cleared', '⚖️', '무혐의', '갑질 고소에서 무혐의를 받았다', (s) => s.flags.contains('staff_gapjilWon')),
+  Achievement('truth', '📂', '진실은 밝혀진다', '학폭 의혹이 허위로 밝혀졌다', (s) => s.flags.contains('school_violenceWon')),
+  Achievement('idol', '🎤', '아이돌과 한 무대', '아이돌 소속사 콜라보를 했다', (s) => s.flags.contains('offer_idol_collab')),
+  Achievement('tv', '📡', '공중파 스타', '공중파 예능에 출연했다', (s) => s.flags.contains('idol_variety#0') || s.flags.contains('idol_variety#1')),
+  Achievement('team', '🧑‍🤝‍🧑', '우리 팀', '편집자와 매니저를 모두 고용했다', (s) => s.staff.length >= 2),
+  Achievement('boss', '🛍️', '사업가', '첫 사업을 열었다', (s) => s.business.isNotEmpty),
+  Achievement('tycoon', '🏢', '재벌 스트리머', '사업을 3개 이상 운영했다', (s) => s.business.length >= 3),
+  Achievement('core', '💖', '찐팬 부자', '찐팬 1만 명', (s) => s.coreFans >= 10000),
+  Achievement('promise', '📅', '약속은 지킨다', '방송 예고를 10번 지켰다', (s) => s.schedKept >= 10),
+  Achievement('missions', '🎯', '미션 마스터', '오늘의 미션 30개 완료', (s) => s.missionsDone >= 30),
+  Achievement('mom', '👩', '어머님 팬클럽', '엄마를 방송에 소개했다', (s) => s.flags.contains('family_intrude#0')),
+];
+
+Achievement achievementOf(String id) => achievements.firstWhere((a) => a.id == id);
+
+// ───── 다회차 혜택 ─────
+class Perk {
+  const Perk(this.icon, this.text, this.need, this.unlocked);
+  final String icon;
+  final String text;
+
+  /// 열리는 조건 설명
+  final String need;
+  final bool Function(int endings, int achievements) unlocked;
+}
+
+final perks = <Perk>[
+  Perk('💰', '시작 자금 +5만 원', '엔딩 1개', (e, a) => e >= 1),
+  Perk('✨', '시작 이미지 +10', '업적 5개', (e, a) => a >= 5),
+  Perk('📷', '웹캠을 들고 시작', '엔딩 3개', (e, a) => e >= 3),
+  Perk('💖', '찐팬 20명·구독자 50명으로 시작', '업적 10개', (e, a) => a >= 10),
+  Perk('🎙️', '핀 마이크를 들고 시작', '엔딩 5개', (e, a) => e >= 5),
+  Perk('🏠', '원룸에서 시작', '업적 15개', (e, a) => a >= 15),
 ];
