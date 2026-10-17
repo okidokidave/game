@@ -30,7 +30,9 @@ void main() {
     expect(miniFor(contentOf('asmr')).kind, MiniKind.hold);
     expect(miniFor(contentOf('talk')).kind, MiniKind.targets);
     expect(miniFor(contentOf('pet'), petIcon: '🐱').good, ['🐱']);
-    expect([starsOf(0.1), starsOf(0.3), starsOf(0.6), starsOf(0.9)], [0, 1, 2, 3]);
+    expect([starsOf(0), starsOf(0.3), starsOf(0.5), starsOf(0.73), starsOf(1)], [0, 1.5, 2.5, 3.5, 5]);
+    expect(starText(3.5), '⭐⭐⭐½ 3.5/5');
+    expect(starText(5), '⭐⭐⭐⭐⭐ 5/5');
   });
 
   testWidgets('먹방: 연타하면 별 3개, 가만히 있으면 0개', (tester) async {
@@ -40,7 +42,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 30));
       }
     });
-    expect(starsOf(full!), 3);
+    expect(starsOf(full!), 5);
     final idle = await play(tester, 'mukbang', () async {});
     expect(idle, 0);
   });
@@ -73,5 +75,12 @@ void main() {
   testWidgets('ASMR: 아무것도 안 하면 점수가 낮다', (tester) async {
     final r = await play(tester, 'asmr', () async {});
     expect(r, lessThan(0.5));
+  });
+
+  testWidgets('건너뛰면 별 2.5개', (tester) async {
+    final r = await play(tester, 'sing', () async {
+      await tester.tap(find.byKey(const ValueKey('mini-skip')));
+    });
+    expect(starsOf(r!), 2.5);
   });
 }

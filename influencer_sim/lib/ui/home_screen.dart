@@ -56,8 +56,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // 방송 중 후원 팝업과 채팅 반응 버튼
   final List<Timer> _extraTimers = [];
   (String, int, String)? _donation; // 닉네임, 금액, 메시지
-  // 방송 미니게임 결과 (별 0~3개, 안 했으면 -1)
-  int _stars = -1;
+  // 이번 방송에서 미니게임을 했는지 (하루 첫 방송만)
+  bool _playedMini = false;
 
   // 시청자 질문에 잘 대답해서 오른 분위기
   int _hype = 0;
@@ -357,24 +357,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _startLive(r.viewers, () => game.chatLine(c));
     _scheduleExtras(r);
 
-    // 콘텐츠별 미니게임: 잘할수록 시청자·구독자·후원 보너스
-    await Future<void>.delayed(widget.liveDuration * 0.15);
-    if (!mounted) return;
-    final spec = miniFor(c, petIcon: s.pet == null ? '🐾' : petOf(s.pet!).icon);
-    final score = await playMinigame(context, spec, duration: widget.liveDuration * 1.5, rng: game.rng);
-    if (!mounted) return;
-    _stars = starsOf(score);
-    _sfx(_stars >= 2 ? Sfx.sparkle : Sfx.pop, Buzz.light);
-    if (_stars > 0) game.emit('heart', 6 * _stars);
-    setState(() {
-      final lines = _stars >= 2 ? const ['미쳤다 ㅋㅋㅋ', '이 맛에 봄', '찐텐 나왔다', '레전드 각', '클립 따야지'] : const ['ㅋㅋ', '오늘 좀 피곤해 보임', '괜찮아요~', '힘내요!'];
-      for (var i = 0; i < 2; i++) {
-        _chat.add(_crowd(lines));
-      }
-      while (_chat.length > 6) {
-        _chat.removeAt(0);
-      }
-    });
+    // 하루 첫 방송만 콘텐츠별 미니게임. 결과(별 0~5)가 오늘의 컨디션이 되어 그날 방송 모두에 보너스
+    _playedMini = false;
+    if (game.needMinigame) {
+      await Future<void>.delayed(widget.liveDuration * 0.15);
+      if (!mounted) return;
+      final spec = miniFor(c, petIcon: s.pet == null ? '🐾' : petOf(s.pet!).icon);
+      final score = await playMinigame(context, spec, duration: widget.liveDuration * 1.5, rng: game.rng);
+      if (!mounted) return;
+      final stars = starsOf(score);
+      game.setTodayStars(stars);
+      _playedMini = true;
+      _sfx(stars >= 3 ? Sfx.sparkle : Sfx.pop, Buzz.light);
+      if (stars > 0) game.emit('heart', (3 * stars).round());
+      setState(() {
+        final lines = stars >= 3 ? const ['미쳤다 ㅋㅋㅋ', '이 맛에 봄', '찐텐 나왔다', '레전드 각', '클립 따야지'] : const ['ㅋㅋ', '오늘 좀 피곤해 보임', '괜찮아요~', '힘내요!'];
+        for (var i = 0; i < 2; i++) {
+          _chat.add(_crowd(lines));
+        }
+        while (_chat.length > 6) {
+          _chat.removeAt(0);
+        }
+      });
+    }
 
     // 드물게 말실수 사고. 아니면 평소처럼 방송 중 사건
     final gaffe = game.rollGaffe(c);
@@ -406,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (await _checkOver()) return;
       }
     }
-    final stars = max(0, _stars);
+    final stars = game.todayStars;
     _stopLive();
     r = game.boostStream(r, stars, hype: _hype);
 
@@ -428,13 +433,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ('후원', shortWon(r.donation)),
           ('광고 수익', r.ads > 0 ? shortWon(r.ads) : (s.followers >= 1000 ? '0원' : '구독자 1천 명부터')),
         ]),
-        if (_stars >= 0) ...[
-          const SizedBox(height: 8),
-          Text(
-            stars > 0 ? '🎮 미니게임 ${'⭐' * stars}${'☆' * (3 - stars)}  시청자·구독자·후원 보너스!' : '🎮 미니게임 ☆☆☆… 다음엔 더 잘할 수 있어요',
-            style: TextStyle(color: stars > 0 ? Pal.good : Pal.muted, fontSize: 13, fontWeight: FontWeight.w700),
-          ),
-        ],
+        const SizedBox(height: 8),
+        Text(
+          stars > 0
+              ? '🎮 오늘의 컨디션 ${starText(stars)}${_playedMini ? '' : ' (첫 방송 미니게임)'} · 시청자 +${(stars * 4).round()}% · 후원 +${(stars * 6).round()}%'
+              : '🎮 오늘의 컨디션 0/5… 내일 첫 방송에서 다시 도전!',
+          style: TextStyle(color: stars > 0 ? Pal.good : Pal.muted, fontSize: 13, fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 6),
         mutedText(game.hintFor(c), size: 13),
       ],
@@ -680,7 +685,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _scheduleExtras(StreamResult r) {
-    _stars = -1;
     _hype = 0;
     final d = widget.liveDuration.inMilliseconds;
     Timer at(double frac, void Function() f) {

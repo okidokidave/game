@@ -406,14 +406,14 @@ class GameController extends ChangeNotifier {
 
   /// 미니게임 별 개수만큼 방송 결과를 키운다 (별 하나에 시청자 +8%, 구독자 +10%, 후원 +15%)
   /// 시청자 질문에 잘 대답한 분위기([hype])도 같은 만큼 결과를 키운다
-  StreamResult boostStream(StreamResult r, int hits, {int hype = 0}) {
-    if (hits > 0) progress('react', hits);
-    hits += hype;
-    if (hits <= 0) return r;
+  /// 오늘의 컨디션(별 0~5)과 시청자 질문 분위기([hype])만큼 방송 결과를 키운다.
+  /// 별 하나에 시청자 +4%, 구독자 +5%, 후원 +6% (별 5개면 +20% / +25% / +30%)
+  StreamResult boostStream(StreamResult r, double stars, {int hype = 0}) {
+    if (stars <= 0 && hype <= 0) return r;
     return StreamResult(
-      viewers: (r.viewers * (1 + 0.08 * hits)).round(),
-      gain: (r.gain * (1 + 0.10 * hits)).round(),
-      donation: ((r.donation * (1 + 0.15 * hits)) / 100).round() * 100,
+      viewers: (r.viewers * (1 + 0.04 * stars + 0.08 * hype)).round(),
+      gain: (r.gain * (1 + 0.05 * stars + 0.10 * hype)).round(),
+      donation: ((r.donation * (1 + 0.06 * stars + 0.15 * hype)) / 100).round() * 100,
       ads: r.ads,
       viral: r.viral,
       flop: r.flop,
@@ -1054,6 +1054,20 @@ class GameController extends ChangeNotifier {
 
   /// 위기가 찾아올 확률: 구독자 5천부터, 10배 늘 때마다 +4%p (최대 15%)
   double get crisisChance => s.followers < 5000 ? 0 : min(0.08, 0.025 + 0.02 * _log10(s.followers / 5000));
+
+  // ───── 오늘의 컨디션 (하루 첫 방송 미니게임) ─────
+  /// 오늘 아직 미니게임을 안 했으면 true
+  bool get needMinigame => s.miniDay != s.day;
+
+  /// 오늘의 별 (미니게임 전이면 0)
+  double get todayStars => s.miniDay == s.day ? s.miniStars : 0;
+
+  void setTodayStars(double stars) {
+    s.miniDay = s.day;
+    s.miniStars = stars.clamp(0, 5).toDouble();
+    progress('react', stars.floor());
+    save();
+  }
 
   // ───── 단계별로 열리는 기능 ─────
   static const featureNames = {

@@ -37,8 +37,21 @@ MiniSpec miniFor(Content c, {String petIcon = '🐾'}) => switch (c.id) {
       _ => const MiniSpec(MiniKind.hold, '📚 집중 유지', '꾹 누르면 집중이 올라가요. 너무 높지도 낮지도 않게!', icon: '📚'),
     };
 
-/// 점수 → 별 0~3개
-int starsOf(double score) => score >= 0.8 ? 3 : (score >= 0.55 ? 2 : (score >= 0.25 ? 1 : 0));
+/// 점수(0~1) → 별 0~5개 (0.5개 단위)
+double starsOf(double score) => ((score.clamp(0.0, 1.0) * 10).round() / 2);
+
+/// 건너뛰면 별 2.5개
+const skipScore = 0.5;
+
+/// 별 표시 (예: ⭐⭐⭐½ 3.5/5)
+String starText(double stars) {
+  final full = stars.floor();
+  final half = stars - full >= 0.5;
+  final n = stars == stars.roundToDouble() ? stars.toInt().toString() : stars.toString();
+  return '${'⭐' * full}${half ? '½' : ''} $n/5';
+}
+
+String starWord(double stars) => stars >= 4.5 ? '완벽해요!' : (stars >= 3.5 ? '잘했어요!' : (stars >= 2 ? '괜찮아요' : '아쉬워요'));
 
 /// 미니게임을 띄우고 점수(0~1)를 돌려준다
 Future<double> playMinigame(BuildContext context, MiniSpec spec, {required Duration duration, Random? rng}) async {
@@ -305,7 +318,7 @@ class _MinigameViewState extends State<MinigameView> with SingleTickerProviderSt
               height: 24,
               child: _over
                   ? Text(
-                      '${'⭐' * starsOf(_final!)}${'☆' * (3 - starsOf(_final!))}  ${const ['아쉬워요', '괜찮아요', '잘했어요!', '완벽해요!'][starsOf(_final!)]}',
+                      '${starText(starsOf(_final!))}  ${starWord(starsOf(_final!))}',
                       style: const TextStyle(color: Pal.gold, fontSize: 16, fontWeight: FontWeight.w900),
                     )
                   : AnimatedOpacity(
@@ -313,6 +326,18 @@ class _MinigameViewState extends State<MinigameView> with SingleTickerProviderSt
                       duration: const Duration(milliseconds: 150),
                       child: Text(_feedback, style: const TextStyle(color: Pal.text, fontWeight: FontWeight.w800)),
                     ),
+            ),
+            const SizedBox(height: 4),
+            // 귀찮으면 건너뛰기: 별 2.5개 고정
+            TextButton(
+              key: const ValueKey('mini-skip'),
+              onPressed: _over
+                  ? null
+                  : () {
+                      _over = true;
+                      widget.onDone(skipScore);
+                    },
+              child: const Text('건너뛰기 (⭐ 2.5 고정)', style: TextStyle(color: Pal.muted, fontWeight: FontWeight.w700)),
             ),
           ],
         ),

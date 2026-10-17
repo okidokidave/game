@@ -60,14 +60,29 @@ void main() {
     });
   });
 
-  test('채팅 반응을 성공할수록 방송 결과가 커진다', () async {
+  test('오늘의 컨디션(별 0~5)만큼 방송 결과가 커지되 과하지 않다', () async {
     final g = await make();
     const r = StreamResult(viewers: 100, gain: 100, donation: 10000, ads: 0, viral: false, flop: false);
-    final b = g.boostStream(r, 2);
-    expect(b.viewers, 116);
-    expect(b.gain, 120);
+    final b = g.boostStream(r, 5);
+    expect(b.viewers, 120);
+    expect(b.gain, 125);
     expect(b.donation, 13000);
+    // 건너뛰기(별 2.5)는 그 절반
+    final skip = g.boostStream(r, 2.5);
+    expect(skip.viewers, 110);
     expect(identical(g.boostStream(r, 0), r), isTrue);
+  });
+
+  test('미니게임은 하루 첫 방송만, 별은 그날 내내 유지된다', () async {
+    final g = await make();
+    expect(g.needMinigame, isTrue);
+    expect(g.todayStars, 0);
+    g.setTodayStars(3.5);
+    expect(g.needMinigame, isFalse);
+    expect(g.todayStars, 3.5);
+    g.endDay(0);
+    expect(g.needMinigame, isTrue);
+    expect(g.todayStars, 0);
   });
 
   group('SNS 대응', () {
@@ -191,10 +206,10 @@ void main() {
     }
     expect(good, greaterThan(2));
     // 방송 끝까지 (사건이 나오면 첫 선택지)
-    for (var i = 0; i < 120 && find.textContaining('🎮 미니게임').evaluate().isEmpty; i++) {
+    for (var i = 0; i < 120 && find.textContaining('🎮 오늘의 컨디션').evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 50));
       final d = find.byKey(const ValueKey('dlg-0'));
-      if (d.evaluate().isNotEmpty && find.textContaining('🎮 미니게임').evaluate().isEmpty) {
+      if (d.evaluate().isNotEmpty && find.textContaining('🎮 오늘의 컨디션').evaluate().isEmpty) {
         await tester.tap(d);
         await wait(300);
         final close = find.byKey(const ValueKey('phone-close'));

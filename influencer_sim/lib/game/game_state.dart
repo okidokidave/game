@@ -311,6 +311,8 @@ class GameState {
     this.adDay = 0,
     this.pet,
     Set<String>? owned,
+    this.miniDay = 0,
+    this.miniStars = 0,
     List<Mission>? missions,
     List<DayStat>? history,
     List<BestStream>? best,
@@ -438,6 +440,10 @@ class GameState {
   /// 분양한 반려동물 (data.dart의 pets)
   String? pet;
 
+  /// 오늘의 컨디션: 하루 첫 방송 미니게임을 한 날과 그 별 개수 (0~5)
+  int miniDay;
+  double miniStars;
+
   /// 뷰티샵에서 산 아이템 (기본 아이템은 빼고)
   final Set<String> owned;
 
@@ -504,6 +510,8 @@ class GameState {
         'lastEventDay': lastEventDay,
         'adDay': adDay,
         'pet': pet,
+        'miniDay': miniDay,
+        'miniStars': miniStars,
         'owned': owned.toList(),
         'missions': missions.map((m) => m.toJson()).toList(),
         'history': history.map((h) => h.toJson()).toList(),
@@ -564,6 +572,8 @@ class GameState {
         lastEventDay: j['lastEventDay'] as int? ?? 0,
         adDay: j['adDay'] as int? ?? 0,
         pet: j['pet'] as String?,
+        miniDay: j['miniDay'] as int? ?? 0,
+        miniStars: (j['miniStars'] as num?)?.toDouble() ?? 0,
         owned: Set<String>.from(j['owned'] as List? ?? const []),
         missions: (j['missions'] as List? ?? const []).map((m) => Mission.fromJson(m as Map<String, dynamic>)).toList(),
         history: (j['history'] as List? ?? const []).map((h) => DayStat.fromJson(h as List)).toList(),

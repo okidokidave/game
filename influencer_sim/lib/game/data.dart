@@ -2484,7 +2484,7 @@ const missionKinds = [
   MissionKind('night', '🌙', '밤 방송 하기'),
   MissionKind('gain', '👥', '구독자 {n}명 늘리기'),
   MissionKind('donation', '💰', '후원 {n} 받기'),
-  MissionKind('react', '🎮', '미니게임 별 {n}개 모으기'),
+  MissionKind('react', '🎮', '첫 방송 미니게임 별 {n}개 이상'),
   MissionKind('question', '🙋', '시청자 질문에 대답하기'),
   MissionKind('upload', '✂️', '영상 업로드 하기'),
   MissionKind('rest', '🛋️', '휴식으로 멘탈 챙기기'),
