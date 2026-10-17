@@ -114,7 +114,7 @@ class _TitleScreenState extends State<TitleScreen> {
               ),
               const SizedBox(height: 10),
               const Text(
-                '스마트폰 하나로 시작해 60일 안에 최고의 스트리머가 되어 보세요.\n당신의 모든 행동은 SNS에서 토론거리가 됩니다.',
+                '스마트폰 하나로 시작해 최고의 스트리머가 되어 보세요.\n당신의 모든 행동은 SNS에서 토론거리가 됩니다.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Pal.muted, height: 1.6, fontSize: 14),
               ),

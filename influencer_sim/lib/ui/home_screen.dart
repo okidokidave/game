@@ -64,6 +64,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   SoundService? get _sound => widget.sound;
 
+  /// 결과 창 버튼: 확인 + (SNS 반응이 있으면) SNS 보기. SNS는 원할 때만 연다
+  List<DialogButton> _snsButtons(Trend? t) => [const DialogButton('확인', primary: true), if (t != null) const DialogButton('📱 SNS 반응 보기')];
+
   Future<void> _phone({bool trendTab = false, Trend? trend, bool dmTab = false}) {
     _sfx(Sfx.notify);
     return showPhone(context, game, trendTab: trendTab, trend: trend, dmTab: dmTab);
@@ -205,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     if (i == 1) {
       if (out.fired) _sfx(Sfx.alert, Buzz.heavy);
-      await ask(
+      final snsPick = await ask(
         context,
         out.fired ? '알바에서 잘렸다!' : (out.caught ? '점장님께 걸렸다…' : '알바 브이로그 완성'),
         [
@@ -219,10 +222,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           changeChips([Change('알바비', '+${shortWon(out.pay)}', true), Change('구독자', '+${shortNum(out.gain)}', true)]),
           if (out.fired) ...[const SizedBox(height: 8), mutedText('일주일 동안 알바를 할 수 없어요. 그 뒤 새 알바를 구할 수 있어요.')],
         ],
-        [DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)],
+        _snsButtons(out.trend),
         icon: out.fired ? '🚫' : (out.caught ? '😬' : '🎥'),
       );
-      if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
+      if (snsPick == 1 && mounted) await _phone(trendTab: true, trend: out.trend);
     }
     await _advance();
     if (s.ended == null && s.slot != 0) game.setMode('away');
@@ -246,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _sfx(out.backlash ? Sfx.alert : Sfx.coin);
     await Future<void>.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
-    await ask(
+    final snsPick = await ask(
       context,
       i == 0 ? '효도 브이로그 완성' : (out.backlash ? '"가족 장사" 논란…' : '주문 폭주!'),
       [
@@ -257,10 +260,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 : '방송이 끝나자마자 가게 전화가 불이 났다. 아빠가 "덕분에 닭이 다 떨어졌다"며 웃으셨다.'),
         changeChips(out.changes),
       ],
-      [DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)],
+      _snsButtons(out.trend),
       icon: i == 0 ? '🎥' : (out.backlash ? '😥' : '🍗'),
     );
-    if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
+    if (snsPick == 1 && mounted) await _phone(trendTab: true, trend: out.trend);
     await _advance();
     if (s.ended == null && s.slot != 0) game.setMode('away');
   }
@@ -273,11 +276,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     final report = game.endDay(remaining);
-    if (report.seasonOver) return _finish(game.seasonEndingKey());
     if (await _checkOver()) return;
+    if (report.goal != null) return _goalEnding(report.goal!);
     if (report.news != null) {
       await _runEvent(report.news!, news: true);
       await _checkOver();
+    }
+  }
+
+  /// 목표 엔딩 달성: 엔딩 도감에 오르고, 계속 방송하거나 은퇴할 수 있다
+  Future<void> _goalEnding(String key) async {
+    final e = endings[key]!;
+    _sfx(Sfx.fanfare, Buzz.heavy);
+    game.emit('heart', 24);
+    final i = await ask(
+      context,
+      e.title,
+      [
+        Center(child: Text('ENDING 달성!', style: TextStyle(color: Pal.endingColor(e.type), fontWeight: FontWeight.w800, letterSpacing: 3))),
+        const SizedBox(height: 6),
+        eventText(e.text),
+        const SizedBox(height: 6),
+        mutedText('엔딩 도감에 기록됐어요. 여기서 은퇴할 수도, 더 높은 곳을 향해 계속 방송할 수도 있어요.', size: 13),
+      ],
+      const [DialogButton('📡 계속 방송하기', primary: true), DialogButton('🏳️ 여기서 은퇴하기')],
+      icon: e.type == 'true' ? '👑' : '🏆',
+    );
+    if (i == 1 && mounted) await _finish(key);
+  }
+
+  /// 내 채널: 캐릭터 크게 보기, 기록, 은퇴
+  Future<void> _profile() async {
+    final retire = await openProfile(context, game);
+    if (retire == true && mounted) {
+      final ok = await ask(context, '정말 은퇴할까요?', [mutedText('지금까지의 성적으로 엔딩이 정해지고, 이 게임은 끝나요.', size: 14)],
+          const [DialogButton('은퇴하기', primary: true), DialogButton('더 해 볼래요')], icon: '🏳️');
+      if (ok == 0 && mounted) await _finish(game.retireEndingKey());
     }
   }
 
@@ -297,14 +331,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final idx = await ask(context, ev.title, [eventText(game.eventText(ev))], [for (final c in ev.choices) DialogButton(c.label, choice: true)], icon: crisis ? '🚨' : (news ? '📰' : '⚡'));
     final out = game.resolveEvent(ev, idx);
     if (!mounted) return;
-    await ask(
+    final snsPick = await ask(
       context,
       out.won == null ? ev.title : (out.won! ? '${ev.title} · 성공!' : '${ev.title} · 실패…'),
       [eventText(Sns.fill(out.choice.result, s)), changeChips(out.changes)],
-      [DialogButton(out.trend != null ? '📱 SNS 반응 보러 가기' : '확인', primary: true)],
+      _snsButtons(out.trend),
       icon: out.changes.where((c) => c.good == false).length > out.changes.where((c) => c.good == true).length ? '😥' : '✨',
     );
-    if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
+    if (snsPick == 1 && mounted) await _phone(trendTab: true, trend: out.trend);
   }
 
   Future<void> _stream() async {
@@ -337,7 +371,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (q != null) await _askQuestion(q, r);
       await Future<void>.delayed(widget.liveDuration * 0.55);
       if (!mounted) return;
-      final ev = game.rollEvent('live', game.liveEventChance(c));
+      // 질문을 받은 방송에는 사건이 겹치지 않는다
+      final ev = q != null ? null : game.rollEvent('live', game.liveEventChance(c));
       if (ev != null) {
         _stopChat();
         await _runEvent(ev);
@@ -353,7 +388,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (r.donation + r.ads > 0) _sfx(Sfx.coin);
     if (!mounted) return;
     final head = r.viral ? '떡상!' : (r.flop ? '오늘은 좀 별로…' : '방송 종료');
-    await ask(
+    // 하루 한 번: 광고를 보면 광고주가 후원한다
+    final adOk = game.canAdDonate && widget.ads.rewardedReady.value;
+    final buttons = [..._snsButtons(out.trend), if (adOk) const DialogButton('🎬 광고 보고 광고주 후원 받기')];
+    final pick = await ask(
       context,
       head,
       [
@@ -373,22 +411,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 6),
         mutedText(game.hintFor(c), size: 13),
       ],
-      [DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)],
+      buttons,
       icon: r.viral ? '🚀' : (r.flop ? '😓' : c.icon),
     );
-    if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
-    // 방송을 보고 DM으로 제안이 왔다
+    final picked = buttons[pick].label;
+    if (picked.startsWith('📱') && mounted) await _phone(trendTab: true, trend: out.trend);
+    if (picked.startsWith('🎬') && mounted) await _adDonation();
+    // 방송을 보고 DM으로 제안이 왔다: 팝업 대신 알림만 (휴대폰 DM 탭에 쌓인다)
     final offer = out.offer;
     if (offer != null && mounted) {
       _sfx(Sfx.notify, Buzz.medium);
-      final open = await ask(
-        context,
-        '📩 새 DM',
-        [eventText('${offer.from}에게서 DM이 왔어요!'), mutedText('"${Sns.fill(offer.text(s), s)}"', size: 13)],
-        const [DialogButton('DM 열어 보기', primary: true), DialogButton('나중에')],
-        icon: '📩',
-      );
-      if (open == 0 && mounted) await _phone(dmTab: true);
+      game.toast('📩 ${offer.from}에게서 DM이 왔어요');
     }
     if (await _checkOver()) return;
     await _advance();
@@ -397,16 +430,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _upload() async {
     final out = game.upload();
     final r = out.result;
-    await ask(
+    final snsPick = await ask(
       context,
       r.viral ? '쇼츠 대박!' : '업로드 완료',
       [
         resultGrid([('조회수', shortNum(r.views)), ('새 구독자', '+${shortNum(r.gain)}'), ('광고 수익', r.ads > 0 ? shortWon(r.ads) : '-')]),
       ],
-      [DialogButton(out.trend != null ? '📱 반응 보러 가기' : '확인', primary: true)],
+      _snsButtons(out.trend),
       icon: r.viral ? '🚀' : '✂️',
     );
-    if (out.trend != null && mounted) await _phone(trendTab: true, trend: out.trend);
+    if (snsPick == 1 && mounted) await _phone(trendTab: true, trend: out.trend);
     await _advance();
   }
 
@@ -499,14 +532,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final out = game.resolveGaffe(g, r, apologize: apologize);
     game.setMode('live');
-    await ask(
+    final snsPick = await ask(
       context,
       apologize ? '사과 방송을 마쳤다' : '분위기가 싸해졌다',
       [eventText(apologize ? '"제 경솔한 발언으로 상처받으신 분들께 진심으로 사과드립니다. 당분간 방송을 쉬며 반성의 시간을 갖겠습니다." 방송을 종료했다.' : '아무 일 없었다는 듯 방송을 이어갔다. 채팅창은 싸늘해졌고, 하나둘 방을 나갔다. 커뮤니티에 클립이 돌기 시작했다.'), changeChips(out.changes)],
-      const [DialogButton('📱 SNS 반응 보러 가기', primary: true)],
+      _snsButtons(out.trend),
       icon: apologize ? '🙇' : '😶',
     );
-    if (mounted) await _phone(trendTab: true, trend: out.trend);
+    if (snsPick == 1 && mounted) await _phone(trendTab: true, trend: out.trend);
     return apologize ? null : out.result;
   }
 
@@ -543,19 +576,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       pageBuilder: (ctx, _, _) => HiatusOverlay(from: from, to: from + report.days, duration: widget.liveDuration * 1.2, onDone: () => Navigator.pop(ctx)),
     );
     if (!mounted) return;
-    if (report.seasonOver) return _finish(game.seasonEndingKey());
-    await ask(
+    final snsPick = await ask(
       context,
       '${report.days ~/ 7}주 후…',
       [eventText('자숙 기간이 끝났다. 쉬는 동안 논란은 가라앉았지만, 기다리다 지친 팬도 있었다. 조심스럽게 복귀 방송을 켠다.'), changeChips(report.changes)],
-      [DialogButton(report.trend != null ? '📱 복귀 반응 보기' : '확인', primary: true)],
+      _snsButtons(report.trend),
       icon: '🌙',
     );
-    if (report.trend != null && mounted) await _phone(trendTab: true, trend: report.trend);
+    if (snsPick == 1 && mounted) await _phone(trendTab: true, trend: report.trend);
     await _checkOver();
   }
 
   /// 방송 중: 후원 팝업 두 번, 채팅 반응 버튼 두 번
+  /// 보상형 광고를 끝까지 보면 광고주가 후원을 보낸다
+  Future<void> _adDonation() async {
+    final ok = await widget.ads.showRewarded();
+    if (!ok || !mounted) return;
+    final amount = game.claimAdDonation();
+    _sfx(Sfx.donate, Buzz.medium);
+    await ask(
+      context,
+      '광고주 후원!',
+      [
+        eventText('"방금 본 광고의 광고주님도 ${s.name}님의 방송을 시청하고 있어요!"'),
+        const SizedBox(height: 6),
+        changeChips([Change('후원', '+${shortWon(amount)}', true)]),
+      ],
+      const [DialogButton('감사합니다!', primary: true)],
+      icon: '💸',
+    );
+  }
+
   /// 시청자 질문에 대답하기
   Future<void> _askQuestion(ChatQuestion q, StreamResult r) async {
     _sfx(Sfx.notify, Buzz.light);
@@ -691,7 +742,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ('총 수입', shortWon(s.earned)),
           ('방송 횟수', '${s.streams}회'),
           ('이미지', imageText(s.image)),
-          ('진행 일수', '${s.day.clamp(1, seasonDays)}일'),
+          ('방송한 날', '${s.day}일'),
         ]),
         const SizedBox(height: 4),
         Center(child: mutedText('엔딩 도감 ${got.length} / ${endings.length}')),
@@ -724,7 +775,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       constraints: BoxConstraints(minHeight: box.maxHeight - 16),
                       child: IntrinsicHeight(
                         child: Column(
-                          children: [_stats(), const SizedBox(height: 8), _todayRow(), const SizedBox(height: 12), const Spacer(), _stage(), const Spacer(), const SizedBox(height: 12), _ticker()],
+                          children: [_stats(), _todayRow(), const SizedBox(height: 12), const Spacer(), _stage(), const Spacer(), const SizedBox(height: 12), _ticker()],
                         ),
                       ),
                     ),
@@ -742,14 +793,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // 프로필 + 구독자 + 통장 + 시즌 진행
   Widget _topBar() {
-    final day = s.day.clamp(1, seasonDays);
+    final day = s.day;
+    // 다음 등급까지 얼마나 남았나
+    final cur = rankOf(s.followers);
+    final nextIdx = ranks.indexOf(cur) + 1;
+    final next = nextIdx < ranks.length ? ranks[nextIdx] : null;
+    final progress = next == null ? 1.0 : ((s.followers - cur.min) / (next.min - cur.min)).clamp(0.0, 1.0);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
       child: Column(
         children: [
           Row(
             children: [
-              Container(
+              GestureDetector(
+                key: const ValueKey('profile-button'),
+                onTap: _profile,
+                child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: const BoxDecoration(gradient: Pal.brand, shape: BoxShape.circle),
                 child: CircleAvatar(
@@ -760,6 +819,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
                   ),
                 ),
+              ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -799,21 +859,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: const TextStyle(color: Pal.text, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
               ),
               const SizedBox(width: 8),
+              // 다음 등급까지 진행도 (기간 제한은 없다)
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: Stack(
-                    children: [
-                      Container(height: 6, color: Pal.surface2),
-                      FractionallySizedBox(
-                        widthFactor: day / seasonDays,
-                        child: Container(height: 6, decoration: const BoxDecoration(gradient: Pal.brand)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: Stack(
+                        children: [
+                          Container(height: 6, color: Pal.surface2),
+                          FractionallySizedBox(
+                            widthFactor: progress,
+                            child: Container(height: 6, decoration: const BoxDecoration(gradient: Pal.brand)),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      next == null ? '최고 등급!' : '다음: ${next.name} ${(progress * 100).floor()}%',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Pal.muted, fontSize: 10, fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
+              if (game.unlocked('ranking'))
               Pressable(
                 key: const ValueKey('rank-button'),
                 onTap: _showRanking,
@@ -865,7 +939,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _stats() {
     return Glass(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      child: Column(children: [_gaugeRow(), _fans()]),
+      child: Column(children: [_gaugeRow(), if (game.unlocked('fans')) _fans()]),
     );
   }
 
@@ -884,35 +958,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _todayRow() {
     final done = s.missions.where((m) => m.done).length;
     final sched = s.schedDay != 0 && s.schedContent != null ? '${s.schedDay == s.day ? '오늘' : '내일'} ${slotNames[s.schedSlot]} ${contentOf(s.schedContent!).icon}' : '방송 예고';
-    Widget chip(String key, String text, VoidCallback onTap, {bool hot = false, int flex = 1}) => Expanded(
+    // 새로 열린 기능에는 빨간 점 (한 번 열어 보면 사라진다)
+    Widget chip(String feature, String key, String text, VoidCallback onTap, {bool hot = false, int flex = 1}) => Expanded(
       flex: flex,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: Pressable(
-          key: ValueKey(key),
-          onTap: s.ended == null || key == 'stats-button' ? onTap : null,
-          radius: 14,
-          color: Pal.surface2,
-          border: Border.all(color: hot ? Pal.pink : Pal.stroke),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          child: Center(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w800),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Pressable(
+              key: ValueKey(key),
+              onTap: s.ended == null || key == 'stats-button'
+                  ? () {
+                      game.seen(feature);
+                      onTap();
+                    }
+                  : null,
+              radius: 14,
+              color: Pal.surface2,
+              border: Border.all(color: hot ? Pal.pink : Pal.stroke),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: Center(
+                child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w800)),
+              ),
             ),
-          ),
+            if (game.isNew(feature))
+              Positioned(
+                top: -3,
+                right: -2,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(color: Pal.live, shape: BoxShape.circle, border: Border.all(color: Pal.bg, width: 1.5)),
+                ),
+              ),
+          ],
         ),
       ),
     );
-    return Row(
-      children: [
-        chip('missions-button', '🎯 미션 $done/${s.missions.length}', () => openMissions(context, game), hot: done < s.missions.length, flex: 5),
-        chip('schedule-button', '📅 $sched', () => openSchedule(context, game), hot: s.schedDay != 0, flex: 6),
-        chip('stats-button', '📊 기록', () => openStats(context, game), flex: 4),
-        chip('achievements-button', '🏅 ${game.achieved.length}', () => openAchievements(context, game), flex: 3),
-      ],
+    final chips = [
+      if (game.unlocked('missions'))
+        chip('missions', 'missions-button', '🎯 미션 $done/${s.missions.length}', () => openMissions(context, game), hot: done < s.missions.length, flex: 5),
+      if (game.unlocked('schedule')) chip('schedule', 'schedule-button', '📅 $sched', () => openSchedule(context, game), hot: s.schedDay != 0, flex: 6),
+      if (game.unlocked('stats')) chip('stats', 'stats-button', '📊 기록', () => openStats(context, game), flex: 4),
+      if (game.achieved.isNotEmpty) chip('achievements', 'achievements-button', '🏅 ${game.achieved.length}', () => openAchievements(context, game), flex: 3),
+    ];
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(children: chips),
     );
   }
 
@@ -1635,7 +1729,7 @@ class HiatusOverlay extends StatelessWidget {
           duration: duration,
           onEnd: () => Future<void>.delayed(const Duration(milliseconds: 600), onDone),
           builder: (context, v, _) {
-            final day = (from + (to - from) * Curves.easeInOut.transform(v)).round().clamp(from, seasonDays);
+            final day = (from + (to - from) * Curves.easeInOut.transform(v)).round().clamp(from, to);
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [

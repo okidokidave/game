@@ -127,6 +127,7 @@ void main() {
       for (var seed = 0; seed < 10 && !seen; seed++) {
         final g = await make(seed);
         g.s.followers = 50000000;
+        g.s.flags.addAll(['goal_mid', 'goal_big', 'goal_celeb', 'goal_top']);
         final report = g.endDay(0);
         expect(g.myRank, 1);
         seen = report.news?.where == 'rank';

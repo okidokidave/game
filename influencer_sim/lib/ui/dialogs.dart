@@ -381,7 +381,13 @@ class _ShopSheetState extends State<_ShopSheet> {
   Widget _segment() => Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(color: Pal.bg, borderRadius: BorderRadius.circular(999)),
-        child: Row(children: [_segBtn('장비', 0), _segBtn('꾸미기', 1), _segBtn('이사', 2), _segBtn('직원', 3), _segBtn('사업', 4)]),
+        child: Row(children: [
+          _segBtn('장비', 0),
+          _segBtn('꾸미기', 1),
+          _segBtn('이사', 2),
+          if (widget.game.unlocked('staff')) _segBtn('직원', 3),
+          if (widget.game.unlocked('business')) _segBtn('사업', 4),
+        ]),
       );
 
   Widget _segBtn(String label, int tab) {
@@ -534,12 +540,13 @@ class _ShopSheetState extends State<_ShopSheet> {
 
 /// 게임 시작 안내
 List<Widget> introBody() => [
-      mutedText('가진 건 스마트폰 한 대와 작은 원룸뿐. 방송으로 돈을 벌어 장비를 하나씩 맞춰 가세요.', size: 14.5),
+      mutedText('가진 건 스마트폰 한 대와 반지하 방 한 칸뿐. 방송으로 돈을 벌어 장비를 맞추고, 스트리머 순위 1위를 향해 가 보세요.', size: 14.5),
       const SizedBox(height: 12),
       for (final (icon, t) in const [
         ('🌙', '하루는 오전·오후·밤 세 번 행동할 수 있어요. 밤 방송이 시청자가 가장 많아요.'),
         ('🏪', '돈이 없으면 편의점 알바! 장비를 사면 화질과 음질이 좋아져요.'),
         ('📱', "모든 행동은 SNS '버즈'에서 토론거리가 돼요. 오른쪽 위 폰을 눌러 반응을 확인하세요."),
+        ('🔓', '구독자가 늘수록 새로운 기능이 하나씩 열려요. 기간 제한은 없으니 천천히 키워 보세요.'),
         ('⚠️', '논란이 100이 되거나 멘탈이 0이 되면 게임 오버예요.'),
       ])
         Container(

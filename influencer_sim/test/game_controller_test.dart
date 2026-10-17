@@ -83,6 +83,8 @@ void main() {
     g.s.followers = 5000;
     g.resolveEvent(gameEvents.firstWhere((e) => e.id == 'diet_ad'), 1);
     expect(g.s.flags, contains('hiddenAd'));
+    // 사건은 하루에 하나: 다음 날 아침부터 폭로될 수 있다
+    g.s.day++;
     final news = [for (var i = 0; i < 200; i++) g.rollEvent('news', 1)].whereType<GameEvent>().map((e) => e.id).toSet();
     expect(news, contains('hidden_ad_exposed'));
   });
@@ -98,19 +100,35 @@ void main() {
     expect(g.endingsSeen, ['scandal']);
   });
 
-  test('시즌 끝 엔딩은 구독자와 이미지로 정해진다', () async {
+  test('은퇴 엔딩은 구독자와 이미지로 정해지고, 기간 제한은 없다', () async {
     final g = await make();
     g.newGame('도트왕', const Look(hair: 0, shirt: 0));
     g.s.followers = 1200000;
     g.s.image = 20;
-    expect(g.seasonEndingKey(), 'celeb_good');
+    expect(g.retireEndingKey(), 'celeb_good');
     g.s.image = -20;
-    expect(g.seasonEndingKey(), 'celeb_bad');
+    expect(g.retireEndingKey(), 'celeb_bad');
     g.s.followers = 50;
-    expect(g.seasonEndingKey(), 'zero');
-    g.s.day = seasonDays;
+    expect(g.retireEndingKey(), 'zero');
+    g.s.day = 200;
     g.s.slot = 2;
-    expect(g.endDay(0).seasonOver, isTrue);
+    g.endDay(0);
+    expect(g.s.day, 201);
+    expect(g.s.ended, isNull);
+  });
+
+  test('목표를 달성하면 엔딩 도감에 오르고 계속 방송할 수 있다', () async {
+    final g = await make();
+    g.newGame('도트왕', const Look(hair: 0, shirt: 0));
+    g.s.followers = 15000;
+    expect(g.endDay(0).goal, 'mid');
+    expect(g.endingsSeen, contains('mid'));
+    expect(g.s.ended, isNull);
+    // 같은 목표는 다시 뜨지 않는다
+    expect(g.endDay(0).goal, isNull);
+    g.s.followers = 1500000;
+    expect(g.endDay(0).goal, 'big');
+    expect(g.endDay(0).goal, 'celeb_good');
   });
 
   test('장비는 한 단계씩, 돈이 있어야 산다', () async {

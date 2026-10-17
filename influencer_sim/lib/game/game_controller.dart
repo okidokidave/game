@@ -56,13 +56,11 @@ class GaffeOutcome {
 
 /// 자숙 결과
 class HiatusReport {
-  const HiatusReport(this.days, this.lostFans, this.cost, this.seasonOver, this.changes, this.trend);
+  const HiatusReport(this.days, this.lostFans, this.cost, this.changes, this.trend);
   final int days;
   final int lostFans;
   final int cost;
 
-  /// 자숙 중에 60일이 다 지났는지
-  final bool seasonOver;
   final List<Change> changes;
   final Trend? trend;
 }
@@ -98,8 +96,10 @@ class UploadOutcome {
 
 /// 하루가 끝났을 때 결과
 class DayReport {
-  const DayReport({this.seasonOver = false, this.news});
-  final bool seasonOver;
+  const DayReport({this.news, this.goal});
+
+  /// 새로 달성한 목표 엔딩 (계속하거나 은퇴할 수 있다)
+  final String? goal;
 
   /// 아침에 터진 뉴스 이벤트 (없으면 null)
   final GameEvent? news;
@@ -140,6 +140,7 @@ class GameController extends ChangeNotifier {
   void save() {
     if (_state == null) return;
     checkAchievements();
+    checkUnlocks();
     if (_state!.ended == null) _repo.save(_state!);
   }
 
@@ -161,7 +162,7 @@ class GameController extends ChangeNotifier {
 
   void newGame(String name, Look look, {int wallColor = 0xE9DCCB}) {
     _state = GameState(name: name, look: look, wallColor: wallColor, trend: _pick(['talk', 'mukbang', 'sing']));
-    log('📱 스마트폰 하나로 방송을 시작했다. 목표: 60일 안에 최고의 스트리머 되기!', 'day');
+    log('📱 스마트폰 하나로 방송을 시작했다. 목표: 스트리머 인기 순위 1위!', 'day');
     _applyPerks();
     _newMissions();
     s.prevRanks = _ranks();
@@ -214,6 +215,12 @@ class GameController extends ChangeNotifier {
 
   void setMode(String mode) {
     s.mode = mode;
+    notifyListeners();
+  }
+
+  /// 화면에 알림 한 줄
+  void toast(String msg) {
+    toasts.add(msg);
     notifyListeners();
   }
 
@@ -330,7 +337,9 @@ class GameController extends ChangeNotifier {
   }
 
   // ───── 이벤트 ─────
+  /// 사건은 하루에 하나만 일어난다
   GameEvent? rollEvent(String where, double chance) {
+    if (s.lastEventDay == s.day) return null;
     if (rng.nextDouble() > chance) return null;
     final recent = s.seen.length > 5 ? s.seen.sublist(s.seen.length - 5) : s.seen;
     final pool = gameEvents.where((e) => e.where == where && e.when(s) && !recent.contains(e.id)).toList();
@@ -355,6 +364,7 @@ class GameController extends ChangeNotifier {
       won = rng.nextDouble() < choice.chance!(s);
       if (!won) choice = choice.lose!;
     }
+    s.lastEventDay = s.day;
     s.flags.add('${ev.id}#$index');
     if (won == true) s.flags.add('${ev.id}Won');
     final changes = applyFx(choice.fx(s), ev.title);
@@ -404,7 +414,7 @@ class GameController extends ChangeNotifier {
   }
 
   /// 방송 중 사건이 생길 확률
-  double liveEventChance(Content c) => 0.38 + (c.risky ? 0.15 : 0) - (c.calm ? 0.15 : 0);
+  double liveEventChance(Content c) => 0.2 + (c.risky ? 0.1 : 0) - (c.calm ? 0.1 : 0);
 
   // ───── 인기 순위 ─────
   /// 라이벌 구독자 (처음이면 시작 값)
@@ -516,7 +526,7 @@ class GameController extends ChangeNotifier {
   // ───── 방송 중 말실수 ─────
   /// 말실수 확률. 한 번 사고가 나면 열흘은 조심하게 된다
   double gaffeChance(Content c) {
-    if (s.day - s.lastGaffe < 10) return 0;
+    if (s.day - s.lastGaffe < 10 || s.lastEventDay == s.day) return 0;
     return 0.03 + (c.risky ? 0.02 : 0) - (c.calm ? 0.015 : 0);
   }
 
@@ -526,6 +536,7 @@ class GameController extends ChangeNotifier {
   /// 말실수 대처. 사과하면 피해가 적고, 강행하면 팬이 떠나고 안티가 생긴다.
   GaffeOutcome resolveGaffe(Gaffe g, StreamResult r, {required bool apologize}) {
     s.lastGaffe = s.day;
+    s.lastEventDay = s.day;
     final changes = <Change>[];
     // 사과 없이 넘어가면 찐팬도 실망한다
     addCore(-(s.coreFans * (apologize ? 0.03 : 0.12)).round());
@@ -583,7 +594,7 @@ class GameController extends ChangeNotifier {
     s.schedDay = 0;
     final fans0 = s.followers, heat0 = s.heat, mental0 = s.mental, image0 = s.image;
     var days = 0;
-    while (days < hiatusDays && s.day <= seasonDays) {
+    while (days < hiatusDays) {
       days++;
       s.followers = (s.followers * 0.9988).floor(); // 3주에 약 2.5%
       s.heat = (s.heat - 7).clamp(0, 100);
@@ -608,8 +619,6 @@ class GameController extends ChangeNotifier {
     s.energy = 100;
     s.slot = 0;
     s.mode = 'idle';
-    final over = s.day > seasonDays;
-
     final changes = <Change>[
       _delta('팬 이탈', s.followers - fans0, shortNum),
       _delta(wages > 0 ? '생활비·일당' : '생활비', -cost, shortWon),
@@ -618,16 +627,14 @@ class GameController extends ChangeNotifier {
       _delta('이미지', s.image - image0),
     ].where((c) => c.good != null).toList();
 
-    Trend? trend;
-    if (!over) {
-      s.trend = _pick(contents.where((c) => c.id != s.trend).toList()).id;
-      log('🎬 $days일간의 자숙을 마치고 복귀했다.', 'day');
-      trend = sns.topicFeed(s, snsComeback);
-      pushTrend(trend);
-    }
+    s.trend = _pick(contents.where((c) => c.id != s.trend).toList()).id;
+    log('🎬 $days일간의 자숙을 마치고 복귀했다.', 'day');
+    final trend = sns.topicFeed(s, snsComeback);
+    pushTrend(trend);
+    s.lastEventDay = s.day;
     save();
     notifyListeners();
-    return HiatusReport(days, fans0 - s.followers, cost, over, changes, trend);
+    return HiatusReport(days, fans0 - s.followers, cost, changes, trend);
   }
 
   // 콘텐츠마다 새로 들어오는 팬의 성비가 조금씩 다르다
@@ -915,7 +922,6 @@ class GameController extends ChangeNotifier {
     _expireOffers();
     s.slot = 0;
     s.mode = 'idle';
-    if (s.day > seasonDays) return const DayReport(seasonOver: true);
 
     final notes = <String>[];
     if (broke) {
@@ -938,13 +944,15 @@ class GameController extends ChangeNotifier {
       log(n, 'note');
     }
     final over = overKey() != null;
+    // 목표를 달성했으면 그날 아침은 축하만 한다
+    final goal = over ? null : _goalEnding();
     // 폭로될 일이 있거나 유명해질수록 아침 소식이 자주 온다
-    final newsChance = s.flags.contains('hiddenAd') || s.flags.contains('lieDating') ? 0.2 : (s.followers >= 30000 ? 0.12 : 0.06);
+    final newsChance = s.flags.contains('hiddenAd') || s.flags.contains('lieDating') ? 0.2 : (s.followers >= 30000 ? 0.08 : 0.04);
     // 순위표 상위권이면 순위 이벤트(CF·뉴스·공중파·1위)가 먼저 찾아온다
-    final news = over ? null : (rollEvent('rank', 0.45) ?? rollEvent('crisis', crisisChance) ?? rollEvent('news', newsChance));
+    final news = over || goal != null ? null : (rollEvent('rank', 0.3) ?? rollEvent('crisis', crisisChance) ?? rollEvent('news', newsChance));
     save();
     notifyListeners();
-    return DayReport(news: news);
+    return DayReport(news: news, goal: goal);
   }
 
   // ───── DM ─────
@@ -1036,7 +1044,64 @@ class GameController extends ChangeNotifier {
   }
 
   /// 위기가 찾아올 확률: 구독자 5천부터, 10배 늘 때마다 +4%p (최대 15%)
-  double get crisisChance => s.followers < 5000 ? 0 : min(0.15, 0.04 + 0.04 * _log10(s.followers / 5000));
+  double get crisisChance => s.followers < 5000 ? 0 : min(0.08, 0.025 + 0.02 * _log10(s.followers / 5000));
+
+  // ───── 단계별로 열리는 기능 ─────
+  static const featureNames = {
+    'fans': '💖 팬 성비·찐팬',
+    'ranking': '🏆 스트리머 인기 순위',
+    'missions': '🎯 오늘의 미션',
+    'schedule': '📅 방송 예고',
+    'stats': '📊 방송 기록',
+    'staff': '🧑‍💼 직원 고용 (상점)',
+    'business': '🛍️ 사업 (상점)',
+  };
+
+  bool unlocked(String f) => switch (f) {
+        'fans' => s.followers >= 30 || s.streams >= 3,
+        'ranking' => s.followers >= 50,
+        'missions' => s.day >= 2,
+        'schedule' => s.followers >= 100,
+        'stats' => s.day >= 3,
+        'staff' => s.followers >= 3000,
+        'business' => s.followers >= 8000,
+        _ => true,
+      };
+
+  /// 새로 열린 기능을 알린다. 열어 볼 때까지 'new_' 표시가 남는다
+  void checkUnlocks() {
+    for (final f in featureNames.keys) {
+      if (!unlocked(f) || s.flags.contains('unlock_$f')) continue;
+      s.flags
+        ..add('unlock_$f')
+        ..add('new_$f');
+      toasts.add('🔓 새 기능: ${featureNames[f]}');
+    }
+  }
+
+  bool isNew(String f) => s.flags.contains('new_$f');
+
+  void seen(String f) {
+    if (s.flags.remove('new_$f')) notifyListeners();
+  }
+
+  // ───── 광고주 후원 (보상형 광고) ─────
+  /// 오늘 광고주 후원을 받을 수 있는지
+  bool get canAdDonate => s.adDay != s.day && s.streams > 0;
+
+  int get adDonation => scaleMoney(s, 30000);
+
+  /// 광고를 끝까지 보면 광고주가 후원을 보낸다
+  int claimAdDonation() {
+    final amount = adDonation;
+    s.adDay = s.day;
+    money(amount, '광고주 후원');
+    log('🎬 광고주님이 방송을 보고 ${shortWon(amount)}을 후원했다!', 'event');
+    emit('coin', 10);
+    save();
+    notifyListeners();
+    return amount;
+  }
 
   // ───── 찐팬 ─────
   void addCore(int n) => s.coreFans = (s.coreFans + n).clamp(0, s.followers);
@@ -1051,7 +1116,7 @@ class GameController extends ChangeNotifier {
   String? _lastQuestion;
 
   /// 방송 중에 시청자 질문이 올라온다 (없으면 null)
-  ChatQuestion? rollQuestion([double chance = 0.45]) {
+  ChatQuestion? rollQuestion([double chance = 0.3]) {
     if (rng.nextDouble() >= chance) return null;
     final pool = chatQuestions.where((q) => s.followers >= q.min && q.id != _lastQuestion).toList();
     if (pool.isEmpty) return null;
@@ -1144,7 +1209,7 @@ class GameController extends ChangeNotifier {
 
   /// 미션 진행. 다 채우면 보상을 바로 받는다
   void progress(String kind, int amount) {
-    if (amount <= 0) return;
+    if (amount <= 0 || !unlocked('missions')) return;
     for (final m in s.missions.where((m) => m.kind == kind && !m.done)) {
       m.progress = min(m.goal, m.progress + amount);
       if (m.progress < m.goal) continue;
@@ -1308,8 +1373,29 @@ class GameController extends ChangeNotifier {
     return null;
   }
 
-  String seasonEndingKey() {
+  /// 목표 엔딩: 1만 → 10만 → 100만 → 순위 1위. 달성하면 엔딩 도감에 오르고, 계속 방송할 수 있다
+  String? _goalEnding() {
     final f = s.followers;
+    final goals = <(String, String, bool)>[
+      ('mid', 'mid', f >= 10000),
+      ('big', 'big', f >= 100000),
+      ('celeb', s.image >= 0 ? 'celeb_good' : 'celeb_bad', f >= 1000000),
+      ('top', 'top', s.lastRanks['me'] == 1),
+    ];
+    for (final (flag, key, ok) in goals) {
+      if (!ok || s.flags.contains('goal_$flag')) continue;
+      s.flags.add('goal_$flag');
+      _repo.addEnding(key);
+      log('🎬 엔딩 달성: ${endings[key]!.title}', 'milestone');
+      return key;
+    }
+    return null;
+  }
+
+  /// 은퇴하면 지금까지의 성적으로 엔딩이 정해진다
+  String retireEndingKey() {
+    final f = s.followers;
+    if (s.lastRanks['me'] == 1) return 'top';
     if (f >= 1000000) return s.image >= 0 ? 'celeb_good' : 'celeb_bad';
     if (f >= 100000) return 'big';
     if (f >= 10000) return 'mid';
@@ -1326,12 +1412,12 @@ class GameController extends ChangeNotifier {
     final t = sns.topicFeed(
       s,
       SnsTopic(
-        tag: key == 'scandal' ? '{name}_자숙' : (key == 'burnout' ? '{name}_휴방' : '{name}_60일'),
+        tag: key == 'scandal' ? '{name}_자숙' : (key == 'burnout' ? '{name}_휴방' : '{name}_은퇴'),
         headline: key == 'scandal'
             ? '{name}, 잇단 논란에 결국 자숙 선언'
             : key == 'burnout'
                 ? '{name}, 건강 문제로 무기한 휴방'
-                : '{name}, 방송 60일 만에 구독자 ${shortNum(s.followers)}',
+                : '{name}, 방송 ${s.day}일 만에 은퇴 선언… 구독자 ${shortNum(s.followers)}',
         tone: key == 'scandal' ? -0.5 : 0.5,
         hate: key == 'scandal' ? const ['자숙이 아니라 은퇴해라', '결국 이렇게 될 줄 알았다'] : const ['별로 대단한 것도 아닌데'],
         shield: const ['그동안 고생 많았어요', '{name} 꼭 다시 돌아와요', '덕분에 즐거웠다 진짜'],

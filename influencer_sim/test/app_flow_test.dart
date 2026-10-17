@@ -115,7 +115,7 @@ void main() {
     expect(find.textContaining('트렌드에 오른 적이 없어요'), findsOneWidget);
   });
 
-  testWidgets('60일을 버튼으로 끝까지 플레이하면 엔딩이 나온다', (tester) async {
+  testWidgets('60일을 버튼으로 플레이하고 은퇴하면 엔딩이 나온다 (기간 제한은 없다)', (tester) async {
     final game = await pumpApp(tester, seed: 11);
     await startNewGame(tester);
     final rng = Random(11);
@@ -124,6 +124,17 @@ void main() {
       if (game.s.ended != null && find.text('ENDING').evaluate().isNotEmpty) {
         ended = true;
         break;
+      }
+      // 60일이 지나도 게임은 계속된다. 프로필에서 직접 은퇴한다
+      if (game.s.day > 60 && game.s.ended == null && find.byKey(const ValueKey('profile-button')).hitTestable().evaluate().isNotEmpty) {
+        await tester.tap(find.byKey(const ValueKey('profile-button')));
+        await wait(tester, 600);
+        await tester.ensureVisible(find.byKey(const ValueKey('retire')));
+        await tester.tap(find.byKey(const ValueKey('retire')));
+        await wait(tester, 600);
+        await tester.tap(find.byKey(const ValueKey('dlg-0')));
+        await wait(tester, 800);
+        continue;
       }
       if (await handlePopup(tester, rng)) continue;
       final s = game.s;

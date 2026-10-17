@@ -108,19 +108,9 @@ void main() {
     expect(g.s.slot, 0);
     expect(g.s.money, money - 21 * g.rent);
     expect(g.s.heat, 0);
-    expect(h.seasonOver, isFalse);
     expect(h.trend!.tag, '도트왕_복귀');
     // 강행(6% 즉시 이탈 + 안티)보다 팬이 덜 떠난다
     expect(h.lostFans, inInclusiveRange(150, 400));
-  });
-
-  test('자숙 중에 60일이 끝나면 시즌 종료', () async {
-    final g = GameController(await repo(), rng: Random(4));
-    g.newGame('도트왕', const Look(hair: 0, shirt: 0));
-    g.s.day = 50;
-    final h = g.startHiatus();
-    expect(h.days, 11);
-    expect(h.seasonOver, isTrue);
   });
 
   test('통장 내역: 생활비가 매일 나가고, 수입·지출이 기록된다', () async {
@@ -178,7 +168,7 @@ void main() {
     expect(find.text('죄송합니다'), findsOneWidget);
     await wait(600);
     expect(find.text('사과 방송을 마쳤다'), findsOneWidget);
-    await tester.tap(find.text('📱 SNS 반응 보러 가기'));
+    await tester.tap(find.text('📱 SNS 반응 보기'));
     await wait(600);
     expect(find.text('#도트왕_사과방송'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('phone-close')));
@@ -188,7 +178,7 @@ void main() {
     await wait(1500);
     expect(find.text('3주 후…'), findsWidgets);
     expect(game.s.day, 22);
-    await tester.tap(find.text('📱 복귀 반응 보기'));
+    await tester.tap(find.text('📱 SNS 반응 보기'));
     await wait(600);
     expect(find.text('#도트왕_복귀'), findsOneWidget);
     expect(game.s.antis, 0);

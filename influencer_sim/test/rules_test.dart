@@ -10,7 +10,7 @@ GameState fresh() => GameState(name: '테스트', look: const Look(hair: 0, shir
 /// 웹 버전 밸런스 확인에 쓴 단순한 플레이 방식 (장비는 싼 것부터, 알바로 초반 자금)
 int simulate(Random rng) {
   final s = fresh();
-  for (var d = 1; d <= seasonDays; d++) {
+  for (var d = 1; d <= 60; d++) {
     s.day = d;
     if (d % 7 == 1) s.trend = contents[rng.nextInt(contents.length)].id;
     var bought = true;

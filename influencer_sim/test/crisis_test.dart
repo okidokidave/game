@@ -101,11 +101,11 @@ void main() {
 
     test('아침에 위기 이벤트가 찾아온다', () async {
       var seen = false;
-      for (var seed = 0; seed < 60 && !seen; seed++) {
+      for (var seed = 0; seed < 300 && !seen; seed++) {
         final g = await make(seed);
         g.s.followers = 300000;
         // 순위 이벤트는 이미 겪은 것으로
-        g.s.flags.addAll(['cfDone', 'newsDone', 'varietyDone', 'crownDone']);
+        g.s.flags.addAll(['cfDone', 'newsDone', 'varietyDone', 'crownDone', 'goal_mid', 'goal_big']);
         seen = g.endDay(0).news?.where == 'crisis';
       }
       expect(seen, isTrue);

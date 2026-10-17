@@ -140,6 +140,7 @@ void main() {
     tester.view.devicePixelRatio = 2.75;
     addTearDown(tester.view.reset);
     final g = await make(3);
+    g.s.followers = 60; // 순위표는 구독자 50명부터 열린다
     g.save();
     await tester.pumpWidget(InfluencerApp(game: g, ads: NoAdService(), liveDuration: const Duration(milliseconds: 2000)));
     Future<void> wait(int ms) async {

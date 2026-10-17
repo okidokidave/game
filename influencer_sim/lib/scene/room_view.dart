@@ -57,7 +57,9 @@ class _RoomViewState extends State<RoomView> with SingleTickerProviderStateMixin
   // 방 모양을 바꾸는 값들. 이 값이 그대로면 다시 그리지 않는다.
   String _sig(GameState s) {
     final trophies = s.followers >= 1000000 ? 3 : (s.followers >= 100000 ? 2 : (s.followers >= 10000 ? 1 : 0));
-    return '${s.gear.values.join(',')}|${s.deco.join(',')}|$trophies|${min(s.slot, 2)}|${s.wallColor}|${widget.mode == 'apology'}|${s.house}';
+    final gifts = s.coreFans >= 50000 ? 4 : (s.coreFans >= 5000 ? 3 : (s.coreFans >= 500 ? 2 : (s.coreFans >= 50 ? 1 : 0)));
+    return '${s.gear.values.join(',')}|${s.deco.join(',')}|$trophies|${min(s.slot, 2)}|${s.wallColor}|${widget.mode == 'apology'}|${s.house}'
+        '|${s.business.join(',')}|${s.flags.contains('mcn')}|${s.flags.contains('goodsDone')}|$gifts';
   }
 
   void _redrawIfNeeded() {

@@ -146,6 +146,7 @@ const _spr = <String, List<String>>{
   'figure': ['r.', 'rr', 'kk'],
   'figure2': ['.y', 'yy', 'bb'],
   'cushion': ['..pppppp..', '.pPPPPPPp.', 'pPPPPPPPPp', '.pppppppp.'],
+  'plush': ['p..p', 'pPPp', 'PkkP', 'pPPp'],
 };
 
 // ───── 캐릭터 스프라이트 (12칸) ─────
@@ -442,6 +443,32 @@ ui.Image drawBack(GameState s, {bool apology = false}) {
     }
   }
 
+  // 굿즈를 내면 선반에 인형이 놓인다
+  if (s.business.contains('goods') || s.flags.contains('goodsDone')) {
+    _sprite(r, at(22, 3, 40), _spr['plush']!, {'p': 0xFFFF8FB8, 'P': 0xFFFFC2D6, 'k': 0xFF2A2230});
+  }
+
+  // 사업을 열 때마다 침대 위 벽에 액자가 걸린다
+  const frameColors = {'goods': 0xFFFF8FB8, 'cafe': 0xFFB07A4A, 'beauty': 0xFFE85D8F, 'agency': 0xFF5B7CFA};
+  var fi = 0;
+  for (final e in frameColors.entries) {
+    if (!s.business.contains(e.key)) continue;
+    final x0 = 64.0 + fi * 8;
+    _sideY(r, 0.5, x0, x0 + 6, 42, 50, (x, z) {
+      if (x < 1 || x >= 5 || z < 1 || z >= 7) return 0xFFC9A04E; // 금색 테두리
+      return z > 3.5 && x > 2 && x < 3.5 ? 0xFFFFFFFF : e.value;
+    });
+    fi++;
+  }
+
+  // MCN 소속 상패 (왼쪽 벽)
+  if (s.flags.contains('mcn')) {
+    _sideX(r, 0.5, 34, 42, 40, 47, (y, z) {
+      if (y < 1 || y >= 7 || z < 1 || z >= 6) return 0xFF6B4A2E;
+      return z > 3 ? 0xFFF2C14E : 0xFFEDE6D6;
+    });
+  }
+
   // 사과 방송: 벽 뒤로 초록 크로마키 천을 내린다
   if (apology) {
     int? green(double u, double z) {
@@ -461,6 +488,16 @@ ui.Image drawBack(GameState s, {bool apology = false}) {
       if (x < 2 || y < 2 || x > 54 || y > 42) return 0xFFE7A9B8;
       return ((x / 6).floor() + (y / 6).floor()).isOdd ? 0xFFF5D6DD : 0xFFF0C4CF;
     });
+  }
+
+  // 찐팬이 보낸 선물 상자 (왼쪽 벽 앞)
+  final gifts = s.coreFans >= 50000 ? 4 : (s.coreFans >= 5000 ? 3 : (s.coreFans >= 500 ? 2 : (s.coreFans >= 50 ? 1 : 0)));
+  const giftColors = [(0xFFFF7AB6, 0xFFFFE066), (0xFF5BC0EB, 0xFFFFFFFF), (0xFFFFB347, 0xFFE8463C), (0xFF9B7BF7, 0xFFFFE066)];
+  for (var i = 0; i < gifts; i++) {
+    final (box, ribbon) = giftColors[i];
+    final y = 58.0 + i * 6;
+    _box(r, 2, y, 0, 5, 5, 4, box);
+    _box(r, 4, y, 4, 1, 5, 0.6, ribbon);
   }
 
   // 침대 (오른쪽 벽). 반지하는 바닥에 매트리스만
@@ -668,6 +705,30 @@ class RoomPainter extends CustomPainter {
       if (live && _g(s, 'light') >= 2) _rect(canvas, x0 - 2, y0 - 2, 16, total + 4.0, 0xFFFFFADC, 0.18);
     }
 
+    // 직원이 방에 들른다: 오전엔 편집자(노트북), 오후엔 매니저(정장)
+    if (mode == 'idle' || mode == 'live') {
+      final visitor = s.slot == 0 && s.staff.contains('editor')
+          ? const Look(hair: 0x6B4A2E, shirt: 0x4FA36B, gender: 'm')
+          : s.slot == 1 && s.staff.contains('manager')
+              ? const Look(hair: 0x222222, shirt: 0x2E3448, long: true)
+              : null;
+      if (visitor != null) {
+        final v = at(72, 72);
+        final vpal = _charPalette(visitor, blink: tick % 50 == 7, talk: false);
+        final vb = tick % 24 < 12 ? 0 : -1;
+        _rows(canvas, _bodyStand, vpal, v.dx - 6, v.dy - 18 + 10);
+        _rows(canvas, _headRows(visitor, false), vpal, v.dx - 6, v.dy - 18 + vb);
+        // 편집자는 노트북, 매니저는 서류판을 들고 있다
+        if (s.slot == 0) {
+          _rect(canvas, v.dx - 3, v.dy - 7, 6, 3, 0xFFB8C0CC);
+          _rect(canvas, v.dx - 2, v.dy - 7, 4, 1, 0xFF5FD3FF);
+        } else {
+          _rect(canvas, v.dx + 3, v.dy - 8, 3, 4, 0xFFC9A04E);
+          _rect(canvas, v.dx + 3, v.dy - 7, 3, 1, 0xFFFFFFFF);
+        }
+      }
+    }
+
     canvas.drawImage(front, Offset.zero, img);
 
     // 시간대 조명
@@ -737,4 +798,46 @@ List<Particle> burstParticles(String kind, int n, Random rng) {
 Particle sleepParticle(GameState s) {
   final p = at(_pillowX, _pillowY, _pillowZ(s) + 10);
   return Particle('z', p.dx + 2, p.dy - 6, -0.4, 26);
+}
+
+/// 캐릭터 크게 보기 (프로필 화면)
+class PortraitPainter extends CustomPainter {
+  PortraitPainter(this.look, this.tick);
+  final Look look;
+  final int tick;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final head = _headRows(look, false);
+    final rows = [...head.take(10), ..._bodyStand];
+    final extra = head.length > 10 ? head.sublist(10) : const <String>[];
+    const w = 12.0;
+    final h = rows.length.toDouble();
+    final scale = min(size.width / (w + 2), size.height / (h + 2)).floorToDouble();
+    final x0 = (size.width - w * scale) / 2;
+    final y0 = (size.height - h * scale) / 2 + (tick % 20 < 10 ? 0 : -scale);
+    final pal = _charPalette(look, blink: tick % 30 == 0, talk: false);
+    final paint = Paint()..isAntiAlias = false;
+    void cell(int i, int j, int c) {
+      paint.color = Color(c);
+      canvas.drawRect(Rect.fromLTWH(x0 + i * scale, y0 + j * scale, scale + 0.5, scale + 0.5), paint);
+    }
+
+    for (var j = 0; j < rows.length; j++) {
+      for (var i = 0; i < rows[j].length; i++) {
+        final c = pal[rows[j][i]];
+        if (c != null) cell(i, j, c);
+      }
+    }
+    // 긴 머리는 몸 위로 내려온다
+    for (var k = 0; k < extra.length; k++) {
+      for (var i = 0; i < extra[k].length; i++) {
+        final c = pal[extra[k][i]];
+        if (c != null) cell(i, 10 + k, c);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(PortraitPainter old) => old.tick != tick || old.look != look;
 }

@@ -283,6 +283,8 @@ class GameState {
     this.schedKept = 0,
     this.missionsDone = 0,
     this.todayPeak = 0,
+    this.lastEventDay = 0,
+    this.adDay = 0,
     List<Mission>? missions,
     List<DayStat>? history,
     List<BestStream>? best,
@@ -400,6 +402,12 @@ class GameState {
   /// 오늘 최고 시청자 (그래프용)
   int todayPeak;
 
+  /// 마지막으로 사건이 터진 날 (하루에 사건은 하나만)
+  int lastEventDay;
+
+  /// 광고주 후원을 받은 날 (하루 한 번)
+  int adDay;
+
   /// 오늘의 미션
   List<Mission> missions;
 
@@ -460,6 +468,8 @@ class GameState {
         'schedKept': schedKept,
         'missionsDone': missionsDone,
         'todayPeak': todayPeak,
+        'lastEventDay': lastEventDay,
+        'adDay': adDay,
         'missions': missions.map((m) => m.toJson()).toList(),
         'history': history.map((h) => h.toJson()).toList(),
         'best': best.map((b) => b.toJson()).toList(),
@@ -516,6 +526,8 @@ class GameState {
         schedKept: j['schedKept'] as int? ?? 0,
         missionsDone: j['missionsDone'] as int? ?? 0,
         todayPeak: j['todayPeak'] as int? ?? 0,
+        lastEventDay: j['lastEventDay'] as int? ?? 0,
+        adDay: j['adDay'] as int? ?? 0,
         missions: (j['missions'] as List? ?? const []).map((m) => Mission.fromJson(m as Map<String, dynamic>)).toList(),
         history: (j['history'] as List? ?? const []).map((h) => DayStat.fromJson(h as List)).toList(),
         best: (j['best'] as List? ?? const []).map((b) => BestStream.fromJson(b as List)).toList(),

@@ -67,6 +67,7 @@ void main() {
     test('질문에 대답하면 찐팬·분위기가 바뀌고 미션이 진행된다', () async {
       final g = await make();
       g.s.followers = 2000;
+      g.s.day = 2; // 미션은 2일째부터 열린다
       g.s.missions = [Mission('question', 1, 5000)];
       final q = chatQuestions.firstWhere((q) => q.id == 'birthday');
       final (reactions, hype, changes) = g.answerQuestion(q, 0, 300);
@@ -142,6 +143,7 @@ void main() {
     test('매일 아침 미션 3개, 다 채우면 보상', () async {
       final g = await make();
       expect(g.s.missions.length, 3);
+      g.s.day = 2;
       g.s.missions = [Mission('stream', 2, 7000)];
       final m = g.s.money;
       g.progress('stream', 1);
@@ -243,6 +245,52 @@ void main() {
     });
   });
 
+  group('다듬기', () {
+    test('기능은 성장에 맞춰 하나씩 열리고, 열릴 때 알림이 뜬다', () async {
+      final g = await make();
+      expect(g.unlocked('missions'), isFalse);
+      expect(g.unlocked('schedule'), isFalse);
+      expect(g.unlocked('business'), isFalse);
+      g.s.followers = 120;
+      g.save();
+      expect(g.unlocked('schedule'), isTrue);
+      expect(g.toasts.any((t) => t.contains('방송 예고')), isTrue);
+      expect(g.isNew('schedule'), isTrue);
+      g.seen('schedule');
+      expect(g.isNew('schedule'), isFalse);
+      // 미션은 열리기 전엔 진행되지 않는다
+      g.s.missions = [Mission('stream', 1, 5000)];
+      g.progress('stream', 1);
+      expect(g.s.missions.first.done, isFalse);
+    });
+
+    test('사건은 하루에 하나만 일어난다', () async {
+      final g = await make();
+      g.s.followers = 2000;
+      final ev = g.rollEvent('live', 1)!;
+      g.resolveEvent(ev, 0);
+      expect(g.rollEvent('live', 1), isNull);
+      expect(g.gaffeChance(contentOf('react')), 0);
+      g.s.day++;
+      expect(g.rollEvent('live', 1), isNotNull);
+    });
+
+    test('광고주 후원은 하루 한 번', () async {
+      final g = await make();
+      expect(g.canAdDonate, isFalse); // 방송을 한 번은 해야 한다
+      g.finishStream(contentOf('talk'), plain);
+      expect(g.canAdDonate, isTrue);
+      final m = g.s.money;
+      final amount = g.claimAdDonation();
+      expect(amount, greaterThan(0));
+      expect(g.s.money, m + amount);
+      expect(g.s.ledger.first.label, '광고주 후원');
+      expect(g.canAdDonate, isFalse);
+      g.s.day++;
+      expect(g.canAdDonate, isTrue);
+    });
+  });
+
   testWidgets('미션·예고·기록·업적 버튼과 상점 사업 탭', (tester) async {
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 2.75;
@@ -251,6 +299,7 @@ void main() {
     await tester.runAsync(() async => g = await make(3));
     g.s.followers = 20000;
     g.s.money = 5000000;
+    g.s.day = 3;
     g.save();
     await tester.pumpWidget(InfluencerApp(game: g, ads: NoAdService(), liveDuration: const Duration(milliseconds: 2000)));
     Future<void> wait(int ms) async {

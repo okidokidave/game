@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../game/data.dart';
 import '../game/game_controller.dart';
 import '../game/game_state.dart';
+import '../game/rules.dart';
+import '../scene/room_painter.dart';
 import 'dialogs.dart';
 import 'palette.dart';
 
@@ -402,3 +405,70 @@ Future<void> openAchievements(BuildContext context, GameController game) => show
     );
 
 int endingsCount() => endings.length;
+
+// ───── 내 채널 (캐릭터 크게 보기 · 은퇴) ─────
+/// 은퇴하기를 누르면 true
+Future<bool?> openProfile(BuildContext context, GameController game) => showSheet<bool>(context, (ctx) => _ProfileSheet(game: game));
+
+class _ProfileSheet extends StatefulWidget {
+  const _ProfileSheet({required this.game});
+  final GameController game;
+
+  @override
+  State<_ProfileSheet> createState() => _ProfileSheetState();
+}
+
+class _ProfileSheetState extends State<_ProfileSheet> {
+  int _tick = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 120), (_) => setState(() => _tick++));
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final game = widget.game;
+    final s = game.s;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        sheetHeader(context, '📺 내 채널', sub: 'DAY ${s.day} · ${rankOf(s.followers).name}'),
+        Flexible(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            children: [
+              Container(
+                height: 220,
+                decoration: BoxDecoration(gradient: Pal.brandSoft, borderRadius: BorderRadius.circular(24), border: Border.all(color: Pal.stroke)),
+                child: CustomPaint(painter: PortraitPainter(s.look, _tick), size: Size.infinite),
+              ),
+              const SizedBox(height: 12),
+              Center(child: Text(s.name, style: const TextStyle(color: Pal.text, fontSize: 20, fontWeight: FontWeight.w900))),
+              const SizedBox(height: 12),
+              resultGrid([
+                ('구독자', shortNum(s.followers)),
+                ('찐팬', shortNum(s.coreFans)),
+                ('인기 순위', '${game.myRank}위'),
+                ('총 수입', shortWon(s.earned)),
+                ('방송 횟수', '${s.streams}회'),
+                ('이미지', imageText(s.image)),
+              ]),
+              const SizedBox(height: 16),
+              GhostButton(key: const ValueKey('retire'), label: '🏳️ 은퇴하고 엔딩 보기', onTap: () => Navigator.pop(context, true)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
