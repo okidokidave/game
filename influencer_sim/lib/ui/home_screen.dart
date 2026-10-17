@@ -13,6 +13,7 @@ import '../game/sns.dart';
 import '../scene/room_view.dart';
 import 'dialogs.dart';
 import 'palette.dart';
+import 'minigame.dart';
 import 'sheets.dart';
 import 'sns_phone.dart';
 
@@ -55,9 +56,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // 방송 중 후원 팝업과 채팅 반응 버튼
   final List<Timer> _extraTimers = [];
   (String, int, String)? _donation; // 닉네임, 금액, 메시지
-  Alignment? _reactAt; // 반응 버튼 위치 (없으면 숨김)
-  int _reactHits = 0;
-  int _reactShown = 0;
+  // 방송 미니게임 결과 (별 0~3개, 안 했으면 -1)
+  int _stars = -1;
 
   // 시청자 질문에 잘 대답해서 오른 분위기
   int _hype = 0;
@@ -357,10 +357,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _startLive(r.viewers, () => game.chatLine(c));
     _scheduleExtras(r);
 
+    // 콘텐츠별 미니게임: 잘할수록 시청자·구독자·후원 보너스
+    await Future<void>.delayed(widget.liveDuration * 0.15);
+    if (!mounted) return;
+    final spec = miniFor(c, petIcon: s.pet == null ? '🐾' : petOf(s.pet!).icon);
+    final score = await playMinigame(context, spec, duration: widget.liveDuration * 1.5, rng: game.rng);
+    if (!mounted) return;
+    _stars = starsOf(score);
+    _sfx(_stars >= 2 ? Sfx.sparkle : Sfx.pop, Buzz.light);
+    if (_stars > 0) game.emit('heart', 6 * _stars);
+    setState(() {
+      final lines = _stars >= 2 ? const ['미쳤다 ㅋㅋㅋ', '이 맛에 봄', '찐텐 나왔다', '레전드 각', '클립 따야지'] : const ['ㅋㅋ', '오늘 좀 피곤해 보임', '괜찮아요~', '힘내요!'];
+      for (var i = 0; i < 2; i++) {
+        _chat.add(_crowd(lines));
+      }
+      while (_chat.length > 6) {
+        _chat.removeAt(0);
+      }
+    });
+
     // 드물게 말실수 사고. 아니면 평소처럼 방송 중 사건
     final gaffe = game.rollGaffe(c);
     if (gaffe != null) {
-      await Future<void>.delayed(widget.liveDuration ~/ 2);
+      await Future<void>.delayed(widget.liveDuration * 0.3);
       if (!mounted) return;
       final kept = await _handleGaffe(gaffe, r);
       if (!mounted || await _checkOver()) return;
@@ -373,11 +392,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       r = kept;
     } else {
       // 방송 중간에 시청자 질문이 올라온다
-      await Future<void>.delayed(widget.liveDuration * 0.45);
+      await Future<void>.delayed(widget.liveDuration * 0.25);
       if (!mounted) return;
       final q = game.rollQuestion();
       if (q != null) await _askQuestion(q, r);
-      await Future<void>.delayed(widget.liveDuration * 0.55);
+      await Future<void>.delayed(widget.liveDuration * 0.35);
       if (!mounted) return;
       // 질문을 받은 방송에는 사건이 겹치지 않는다
       final ev = q != null ? null : game.rollEvent('live', game.liveEventChance(c));
@@ -387,9 +406,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (await _checkOver()) return;
       }
     }
-    final hits = _reactHits, shown = _reactShown;
+    final stars = max(0, _stars);
     _stopLive();
-    r = game.boostStream(r, hits, hype: _hype);
+    r = game.boostStream(r, stars, hype: _hype);
 
     final out = game.finishStream(c, r);
     if (r.viral) _sfx(Sfx.sparkle, Buzz.heavy);
@@ -409,11 +428,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ('후원', shortWon(r.donation)),
           ('광고 수익', r.ads > 0 ? shortWon(r.ads) : (s.followers >= 1000 ? '0원' : '구독자 1천 명부터')),
         ]),
-        if (shown > 0) ...[
+        if (_stars >= 0) ...[
           const SizedBox(height: 8),
           Text(
-            hits > 0 ? '💬 채팅 반응 $hits/$shown 성공! 시청자·후원 보너스' : '💬 채팅 반응 0/$shown… 다음엔 놓치지 마세요',
-            style: TextStyle(color: hits > 0 ? Pal.good : Pal.muted, fontSize: 13, fontWeight: FontWeight.w700),
+            stars > 0 ? '🎮 미니게임 ${'⭐' * stars}${'☆' * (3 - stars)}  시청자·구독자·후원 보너스!' : '🎮 미니게임 ☆☆☆… 다음엔 더 잘할 수 있어요',
+            style: TextStyle(color: stars > 0 ? Pal.good : Pal.muted, fontSize: 13, fontWeight: FontWeight.w700),
           ),
         ],
         const SizedBox(height: 6),
@@ -661,8 +680,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _scheduleExtras(StreamResult r) {
-    _reactHits = 0;
-    _reactShown = 0;
+    _stars = -1;
     _hype = 0;
     final d = widget.liveDuration.inMilliseconds;
     Timer at(double frac, void Function() f) {
@@ -685,27 +703,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         at(frac + 0.3, () => setState(() => _donation = null));
       }
     }
-    for (final frac in const [0.28, 0.7]) {
-      at(frac, () {
-        setState(() {
-          _reactShown++;
-          _reactAt = Alignment(game.rng.nextDouble() * 1.2 - 0.6, game.rng.nextDouble() * 0.9 - 0.45);
-        });
-      });
-      at(frac + 0.2, () => setState(() => _reactAt = null));
-    }
-  }
-
-  void _react() {
-    if (_reactAt == null) return;
-    _sfx(Sfx.pop, Buzz.light);
-    game.emit('heart', 8);
-    setState(() {
-      _reactHits++;
-      _reactAt = null;
-      _chat.add(_crowd(const ['리액션 미쳤다 ㅋㅋㅋ', 'ㅋㅋㅋㅋㅋㅋ', '찐텐 나왔다', '이 맛에 봄', '반응 개빠름 ㅋㅋ']));
-      if (_chat.length > 6) _chat.removeAt(0);
-    });
   }
 
   void _stopChat() {
@@ -713,7 +710,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tm.cancel();
     }
     _extraTimers.clear();
-    _reactAt = null;
     _donation = null;
     _chatTimer?.cancel();
     _viewerTimer?.cancel();
@@ -1095,8 +1091,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           if (extra.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Row(
-              children: [for (final w in extra) Padding(padding: const EdgeInsets.only(right: 12), child: w)],
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(spacing: 12, runSpacing: 4, children: extra),
             ),
           ],
         ],
@@ -1299,31 +1296,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
             ),
           ),
-          // 채팅 반응 버튼: 뜰 때 누르면 보너스
-          if (_reactAt != null)
-            Positioned.fill(
-              child: Align(
-                alignment: _reactAt!,
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.6, end: 1),
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutBack,
-                  builder: (context, v, child) => Transform.scale(scale: v, child: child),
-                  child: Pressable(
-                    key: const ValueKey('react-button'),
-                    onTap: _react,
-                    gradient: Pal.brand,
-                    glow: Pal.pink,
-                    radius: 999,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    child: const Text(
-                      '💬 반응하기!',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           Positioned(top: 10, right: 10, child: _phoneButton()),
         ],
       ),

@@ -135,7 +135,7 @@ void main() {
     });
   });
 
-  testWidgets('방송 중 반응 버튼을 누르면 보너스, 순위표와 이사 탭이 열린다', (tester) async {
+  testWidgets('방송 미니게임을 잘하면 별 보너스, 순위표와 이사 탭이 열린다', (tester) async {
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 2.75;
     addTearDown(tester.view.reset);
@@ -175,21 +175,26 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('act-stream')));
     await wait(500);
     await tester.tap(find.byKey(const ValueKey('content-talk')));
-    var tapped = false;
-    for (var i = 0; i < 60 && !tapped; i++) {
+    // 잡담 방송 미니게임: 좋은 채팅만 골라 누른다
+    var good = 0;
+    for (var i = 0; i < 90; i++) {
       await tester.pump(const Duration(milliseconds: 50));
-      final b = find.byKey(const ValueKey('react-button'));
-      if (b.evaluate().isNotEmpty) {
-        await tester.tap(b);
-        tapped = true;
+      if (find.byKey(const ValueKey('mini-area')).evaluate().isEmpty) {
+        if (i > 20) break;
+        continue;
+      }
+      final targets = find.byWidgetPredicate((w) => w.key is ValueKey && '${(w.key as ValueKey).value}'.startsWith('mini-good-'));
+      if (targets.evaluate().isNotEmpty) {
+        await tester.tap(targets.first, warnIfMissed: false);
+        good++;
       }
     }
-    expect(tapped, isTrue);
+    expect(good, greaterThan(2));
     // 방송 끝까지 (사건이 나오면 첫 선택지)
-    for (var i = 0; i < 80 && find.textContaining('채팅 반응').evaluate().isEmpty; i++) {
+    for (var i = 0; i < 120 && find.textContaining('🎮 미니게임').evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 50));
       final d = find.byKey(const ValueKey('dlg-0'));
-      if (d.evaluate().isNotEmpty && find.textContaining('채팅 반응').evaluate().isEmpty) {
+      if (d.evaluate().isNotEmpty && find.textContaining('🎮 미니게임').evaluate().isEmpty) {
         await tester.tap(d);
         await wait(300);
         final close = find.byKey(const ValueKey('phone-close'));
@@ -199,6 +204,6 @@ void main() {
         }
       }
     }
-    expect(find.textContaining('채팅 반응 1/'), findsOneWidget);
+    expect(find.textContaining('⭐'), findsWidgets);
   });
 }

@@ -404,7 +404,7 @@ class GameController extends ChangeNotifier {
     return r;
   }
 
-  /// 채팅 반응을 성공한 만큼 방송 결과를 키운다 (한 번에 시청자 +8%, 구독자 +10%, 후원 +15%)
+  /// 미니게임 별 개수만큼 방송 결과를 키운다 (별 하나에 시청자 +8%, 구독자 +10%, 후원 +15%)
   /// 시청자 질문에 잘 대답한 분위기([hype])도 같은 만큼 결과를 키운다
   StreamResult boostStream(StreamResult r, int hits, {int hype = 0}) {
     if (hits > 0) progress('react', hits);
@@ -1204,7 +1204,7 @@ class GameController extends ChangeNotifier {
             'stream' => 2,
             'gain' => max(10, (s.followers * 0.03 / 10).round() * 10),
             'donation' => scaleMoney(s, 20000),
-            'react' => 2,
+            'react' => 3,
             _ => 1,
           },
           reward,

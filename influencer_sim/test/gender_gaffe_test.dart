@@ -160,7 +160,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('act-stream')));
     await wait(500);
     await tester.tap(find.byKey(const ValueKey('content-talk')));
-    await wait(500);
+    // 미니게임이 끝나면 말실수가 터진다
+    await wait(1500);
     expect(find.text('방송 사고! 말실수'), findsOneWidget);
     await tester.tap(find.text('사과하고 3주간 자숙한다'));
     await wait(150);
