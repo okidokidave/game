@@ -183,6 +183,13 @@ class Sns {
       final line = (side == 'fan' && rng.nextDouble() < 0.35 ? _genderedLine('fan', g, s, {}) : null) ?? pick<String>(pool);
       out.add(post(s, line, side, boost: viral ? 4 : 1, g: g));
     }
+    // 가끔 팬아트·밈·비교 글 같은 다른 종류의 글이 섞인다
+    if (rng.nextDouble() < 0.5) {
+      final r = rng.nextDouble();
+      final side = r < 0.6 ? 'fan' : (r < 0.88 ? 'neutral' : 'hate');
+      final rival = rivals[rng.nextInt(rivals.length)].name;
+      out.add(post(s, pick<String>(snsExtra[side]!).replaceAll('{rival}', rival), side, g: fanGender(s)));
+    }
     // 장비가 부족하면 지적하는 글
     final g = s.gear;
     if (g['camera'] == 0 && rng.nextDouble() < 0.45) {

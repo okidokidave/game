@@ -313,11 +313,13 @@ class GameState {
     Set<String>? owned,
     this.miniDay = 0,
     this.miniStars = 0,
+    Map<String, int>? genreFans,
     List<Mission>? missions,
     List<DayStat>? history,
     List<BestStream>? best,
     List<String>? business,
-  })  : owned = owned ?? {},
+  })  : genreFans = genreFans ?? {},
+        owned = owned ?? {},
         missions = missions ?? [],
         history = history ?? [],
         best = best ?? [],
@@ -444,6 +446,9 @@ class GameState {
   int miniDay;
   double miniStars;
 
+  /// 장르별 팬 (그 콘텐츠로 방송해서 얻은 구독자). 장르별 순위에 쓴다
+  final Map<String, int> genreFans;
+
   /// 뷰티샵에서 산 아이템 (기본 아이템은 빼고)
   final Set<String> owned;
 
@@ -512,6 +517,7 @@ class GameState {
         'pet': pet,
         'miniDay': miniDay,
         'miniStars': miniStars,
+        'genreFans': genreFans,
         'owned': owned.toList(),
         'missions': missions.map((m) => m.toJson()).toList(),
         'history': history.map((h) => h.toJson()).toList(),
@@ -574,6 +580,7 @@ class GameState {
         pet: j['pet'] as String?,
         miniDay: j['miniDay'] as int? ?? 0,
         miniStars: (j['miniStars'] as num?)?.toDouble() ?? 0,
+        genreFans: Map<String, int>.from(j['genreFans'] as Map? ?? const {}),
         owned: Set<String>.from(j['owned'] as List? ?? const []),
         missions: (j['missions'] as List? ?? const []).map((m) => Mission.fromJson(m as Map<String, dynamic>)).toList(),
         history: (j['history'] as List? ?? const []).map((h) => DayStat.fromJson(h as List)).toList(),

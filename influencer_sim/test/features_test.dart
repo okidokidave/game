@@ -140,7 +140,7 @@ void main() {
     test('누군가를 제치면 순위 상승 알림과 SNS 글', () async {
       final g = await make();
       g.toasts.clear();
-      g.s.followers = 20000; // 수아·토리·곰돌이·민지를 한 번에 제침
+      g.s.followers = 400000; // 한 번에 10위 안으로 (10위 안에 들 때만 알림)
       g.endDay(0);
       expect(g.myRank, lessThan(rivals.length + 1));
       expect(g.toasts.any((m) => m.startsWith('🏆 순위 상승')), isTrue);

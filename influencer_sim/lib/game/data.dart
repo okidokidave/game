@@ -110,31 +110,68 @@ const snsMoving = ['{name} 이사했네?? 방 미쳤다', '{name} 새 집 투어
 
 // ───── 라이벌 스트리머 (인기 순위) ─────
 class Rival {
-  const Rival(this.id, this.name, this.icon, this.start, this.growth);
+  const Rival(this.id, this.name, this.genre, this.start, this.growth, this.peak);
   final String id;
   final String name;
 
-  /// 주력 콘텐츠
-  final String icon;
+  /// 주력 콘텐츠 (contents의 id). 장르별 순위는 이걸로 나뉜다
+  final String genre;
 
-  /// 시즌 시작 때 구독자
+  /// 시작 때 구독자
   final int start;
 
   /// 하루 평균 성장률
   final double growth;
+
+  /// 성장 한계: 가까워질수록 느려진다 (기간 제한이 없어도 끝없이 커지지 않게)
+  final int peak;
+
+  String get icon => contentOf(genre).icon;
 }
 
+// 장르마다 3명씩. 기존 9명은 그대로 두고 18명을 더했다
 const rivals = [
-  Rival('sua', '새벽감성 수아', '🎤', 120, 0.06),
-  Rival('tori', '고양이집사 토리', '🐱', 900, 0.05),
-  Rival('gombear', '롤하는 곰돌이', '🎮', 4000, 0.045),
-  Rival('minji', '공부하는 민지', '📚', 15000, 0.035),
-  Rival('mukbo', '먹보대장', '🍜', 60000, 0.03),
-  Rival('jjin', '찐텐형', '💬', 300000, 0.02),
-  Rival('minsu', '갓겜민수', '🎮', 800000, 0.015),
-  Rival('hana', '대식가 하나', '🍜', 1200000, 0.012),
-  Rival('kimpd', '레전드 김피디', '🎬', 2500000, 0.008),
+  Rival('jjin', '찐텐형', 'talk', 300000, 0.02, 1500000),
+  Rival('mina', '수다왕 미나', 'talk', 8000, 0.045, 600000),
+  Rival('radio', '새벽라디오', 'talk', 900, 0.05, 200000),
+  Rival('minji', '공부하는 민지', 'study', 15000, 0.035, 500000),
+  Rival('haru', '의대생 하루', 'study', 3000, 0.04, 300000),
+  Rival('notes', '필기요정', 'study', 300, 0.055, 120000),
+  Rival('hana', '대식가 하나', 'mukbang', 1200000, 0.012, 4000000),
+  Rival('mukbo', '먹보대장', 'mukbang', 60000, 0.03, 900000),
+  Rival('spicy', '맵부심 철수', 'mukbang', 2000, 0.05, 350000),
+  Rival('diva', '고음장인 윤', 'sing', 40000, 0.03, 800000),
+  Rival('guitar', '기타 치는 형', 'sing', 5000, 0.04, 300000),
+  Rival('sua', '새벽감성 수아', 'sing', 120, 0.06, 200000),
+  Rival('minsu', '갓겜민수', 'game', 800000, 0.015, 3000000),
+  Rival('speed', '스피드런 진', 'game', 20000, 0.035, 600000),
+  Rival('gombear', '롤하는 곰돌이', 'game', 4000, 0.045, 400000),
+  Rival('teo', '영화 리뷰어 테오', 'react', 100000, 0.02, 1200000),
+  Rival('dongdong', '리액션왕 동동', 'react', 25000, 0.04, 900000),
+  Rival('clip', '클립 장인', 'react', 1500, 0.05, 250000),
+  Rival('kimpd', '레전드 김피디', 'vlog', 2500000, 0.008, 6000000),
+  Rival('sora', '여행 가는 소라', 'vlog', 50000, 0.03, 800000),
+  Rival('jachi', '자취생 일상', 'vlog', 800, 0.05, 150000),
+  Rival('yuri', '속삭임 유리', 'asmr', 30000, 0.035, 700000),
+  Rival('rain', '빗소리 연구소', 'asmr', 5000, 0.04, 300000),
+  Rival('slime', '슬라임 공장', 'asmr', 500, 0.055, 150000),
+  Rival('dogdad', '댕댕이 아빠', 'pet', 60000, 0.03, 900000),
+  Rival('hamhouse', '햄찌하우스', 'pet', 3000, 0.045, 250000),
+  Rival('tori', '고양이집사 토리', 'pet', 900, 0.05, 250000),
 ];
+
+/// 장르 1위를 하면 오는 제안 (DM)
+const genreTitles = {
+  'talk': '💬 수다왕',
+  'study': '📚 공부왕',
+  'mukbang': '🍜 먹방왕',
+  'sing': '🎤 음색 여신',
+  'game': '🎮 게임왕',
+  'react': '😲 리액션왕',
+  'vlog': '🎬 브이로그 장인',
+  'asmr': '🎧 ASMR 장인',
+  'pet': '🐾 랜선 집사왕',
+};
 
 const snsOvertake = ['{name}, {rival} 제쳤다 ㄷㄷ', '{name} 순위 실화냐 {rival}보다 위네', '{rival} 팬인데 {name}도 보러 감 ㅋㅋ', '{name} 요즘 상승세 미쳤다'];
 
@@ -301,6 +338,12 @@ const snsPool = <String, List<String>>{
     '요즘 {name} 좀 변한 듯',
     '관심 끌려고 별짓을 다 하네',
     '이래서 방송인은 뜨면 안 됨',
+    '{name} 팬들 단체로 몰려와서 쉴드치는 거 웃기다',
+    '초심 잃은 거 티 남',
+    '해명 기다린다 ㅋㅋ 안 하겠지만',
+    '나만 {name} 별로임?',
+    '알고리즘 아니었으면 아무도 몰랐을 사람',
+    '{name} 방송 보는 시간이 아깝다',
   ],
   'shield': [
     '이게 이렇게까지 욕먹을 일인가?',
@@ -310,6 +353,12 @@ const snsPool = <String, List<String>>{
     '{name} 힘내요 ㅠㅠ 항상 응원함',
     '사람이 실수할 수도 있지',
     '꼬투리 잡을 거 찾는 사람들 피곤하다',
+    '원본 풀영상 보고 오세요 제발',
+    '{name} 반지하 시절부터 봤는데 한결같음',
+    '선 넘는 악플은 신고합니다',
+    '이 정도면 마녀사냥 아님?',
+    '{name} 같은 사람이 잘돼야 함',
+    '댓글 여론이랑 실제 시청자 반응은 완전 다름',
   ],
   'neutral': [
     '{name}이 누군데 트렌드에 있음?',
@@ -318,24 +367,127 @@ const snsPool = <String, List<String>>{
     '이거 원본 클립 어디서 봄?',
     '타임라인 {name} 얘기밖에 없네',
     '일단 지켜봅시다',
+    '요약해 줄 사람?',
+    '{name} 검색했다가 3시간 정주행함',
+    '이 사건 정리 글 올라왔던데',
+    '나 {name} 처음 알았는데 재밌어 보이네',
+    '커뮤마다 반응이 완전 다르다 ㅋㅋ',
   ],
 };
 
 /// 방송만 하고 이벤트가 없을 때 피드에 올라오는 글
 const snsStream = <String, List<String>>{
-  'talk': ['{name} 잡담 방송 듣다가 잠듦 ㅋㅋ 목소리 ASMR급', '오늘도 {name} 썰 미쳤다', '{name} 토크 들으면 하루 피로가 풀림'],
-  'study': ['{name} 공부방송 틀어놓고 3시간 공부함. 효과 ㄹㅇ', '{name} 공방 보면서 자격증 땄다 고마워요', '공부방송인데 왜 이렇게 힐링되지'],
-  'mukbang': ['{name} 먹방 보다가 야식 시킴. 책임져라', '{name} 한입 크기 실화냐', '{name} 먹는 소리 중독됨'],
-  'sing': ['{name} 노래 원곡보다 좋은 듯', '{name} 오늘 고음 소름 돋음', '음정 살짝 나갔는데 그것도 귀여움'],
-  'game': ['{name} 겜 실력 실화냐 ㅋㅋㅋ', '{name} 보스전 30트째 보는 중', '{name} 샷 클립 따놨다'],
-  'react': ['{name} 리액션 보려고 영상 다시 봄', '{name} 표정 짤 저장함 ㅋㅋ', '리액션 장인 인정'],
-  'vlog': ['{name} 브이로그 감성 미쳤다', '{name} 방 꾸민 거 너무 예쁨', '{name} 일상 보면서 대리만족 중'],
-  'asmr': ['{name} ASMR 틀자마자 기절함', '불면증 있는데 {name} 덕에 잠', '{name} 팅글 장인'],
-  'lowcam': ['{name} 방송 재밌는데 화질이 너무 아쉬움', '{name} 캠 좀 바꿨으면 ㅠ 얼굴이 안 보임'],
-  'lowmic': ['{name} 마이크 바꾸면 진짜 뜰 듯', '{name} 방송 소리가 너무 웅웅거려서 못 보겠음'],
-  'dark': ['{name} 조명만 사면 완벽할 듯', '{name} 방 너무 어두움 ㅋㅋ 동굴 방송'],
-  'flop': ['{name} 오늘 방송 좀 노잼이었다', '{name} 컨디션 안 좋아 보이던데'],
-  'viral': ['알고리즘이 {name} 띄워줌 ㅋㅋ', '{name} 클립 조회수 터졌네', '갑자기 {name} 영상이 추천에 계속 뜸', '{name} 떡상 축하합니다!!'],
+  'talk': [
+    '{name} 잡담 방송 듣다가 잠듦 ㅋㅋ 목소리 ASMR급',
+    '오늘도 {name} 썰 미쳤다',
+    '{name} 토크 들으면 하루 피로가 풀림',
+    '{name} 오늘 편의점 썰 레전드 ㅋㅋㅋ',
+    '{name} 말빨 점점 늘어서 무서움',
+    '라디오처럼 틀어 놓기 딱 좋은 방송',
+    '{name} 고민 상담 해 줬는데 진짜 도움 됨',
+  ],
+  'study': [
+    '{name} 공부방송 틀어놓고 3시간 공부함. 효과 ㄹㅇ',
+    '{name} 공방 보면서 자격증 땄다 고마워요',
+    '공부방송인데 왜 이렇게 힐링되지',
+    '{name} 필기 너무 예뻐서 공부보다 필기 구경함',
+    '같이 뽀모도로 하니까 집중 잘 됨',
+    '{name} 공방 출석 30일째 ✍️',
+  ],
+  'mukbang': [
+    '{name} 먹방 보다가 야식 시킴. 책임져라',
+    '{name} 한입 크기 실화냐',
+    '{name} 먹는 소리 중독됨',
+    '{name}이 먹으면 다 맛있어 보임',
+    '다이어트 중인데 {name} 먹방 보면 안 됐다',
+    '{name} 오늘 메뉴 어디 거임?? 주소 알려 줘',
+    '{name} 리뷰 믿고 시켰는데 진짜 맛있음',
+  ],
+  'sing': [
+    '{name} 노래 원곡보다 좋은 듯',
+    '{name} 오늘 고음 소름 돋음',
+    '음정 살짝 나갔는데 그것도 귀여움',
+    '{name} 커버곡 무한 반복 중',
+    '{name} 음원 내 줘요 제발',
+    '출근길에 {name} 노래 클립 들음 🎧',
+    '{name} 라이브 실력 실화냐',
+  ],
+  'game': [
+    '{name} 겜 실력 실화냐 ㅋㅋㅋ',
+    '{name} 보스전 30트째 보는 중',
+    '{name} 샷 클립 따놨다',
+    '{name} 트롤링 당하는 거 너무 웃김',
+    '{name} 게임 못하는데 재밌음. 이게 재능',
+    '{name}이랑 같이 겜 하고 싶다',
+    '역대급 역전승 나옴 ㄷㄷ',
+  ],
+  'react': [
+    '{name} 리액션 보려고 영상 다시 봄',
+    '{name} 표정 짤 저장함 ㅋㅋ',
+    '리액션 장인 인정',
+    '{name} 놀라는 소리 알람으로 해놨다',
+    '{name} 공포 영상 리액션 레전드',
+    '이 영상은 {name} 리액션으로 봐야 함',
+  ],
+  'vlog': [
+    '{name} 브이로그 감성 미쳤다',
+    '{name} 방 꾸민 거 너무 예쁨',
+    '{name} 일상 보면서 대리만족 중',
+    '{name} 브이로그 BGM 뭐예요?',
+    '자취생 공감 100% ㅋㅋ',
+    '{name} 아침 루틴 따라 해 봄',
+  ],
+  'asmr': [
+    '{name} ASMR 틀자마자 기절함',
+    '불면증 있는데 {name} 덕에 잠',
+    '{name} 팅글 장인',
+    '{name} 속삭이는 목소리 반칙',
+    '중간에 잠들어서 끝을 못 봄 ㅋㅋ 매일 그럼',
+    '{name} ASMR은 수면제임',
+  ],
+  'pet': [
+    '{name}네 애기 너무 귀여워 ㅠㅠㅠ',
+    '오늘 방송 주인공은 {name} 아니고 펫임',
+    '{name} 펫 이름 부를 때 목소리 바뀌는 거 웃김',
+    '펫 방송 보고 입양 고민 중',
+    '{name}네 애기 사진 배경화면 했다',
+    '랜선 이모·삼촌 출석합니다',
+  ],
+  'lowcam': ['{name} 방송 재밌는데 화질이 너무 아쉬움', '{name} 캠 좀 바꿨으면 ㅠ 얼굴이 안 보임', '감자 화질 방송 오랜만이다 ㅋㅋ'],
+  'lowmic': ['{name} 마이크 바꾸면 진짜 뜰 듯', '{name} 방송 소리가 너무 웅웅거려서 못 보겠음', '{name} 목소리 좋은데 마이크가 다 깎아 먹음'],
+  'dark': ['{name} 조명만 사면 완벽할 듯', '{name} 방 너무 어두움 ㅋㅋ 동굴 방송', '{name} 밤 방송 얼굴이 안 보여요'],
+  'flop': ['{name} 오늘 방송 좀 노잼이었다', '{name} 컨디션 안 좋아 보이던데', '{name} 오늘은 쉬는 게 나았을 듯', '이번 방송은 패스해도 될 듯'],
+  'viral': ['알고리즘이 {name} 띄워줌 ㅋㅋ', '{name} 클립 조회수 터졌네', '갑자기 {name} 영상이 추천에 계속 뜸', '{name} 떡상 축하합니다!!', '{name} 클립 단톡방에 세 번 공유됨', '{name} 이제 우리만 아는 방송 아님 ㅠ'],
+};
+
+/// 방송 뒤에 가끔 섞여 올라오는 여러 종류의 글 (팬아트, 밈, 비교, 질문, 굿즈 요청 등)
+const snsExtra = <String, List<String>>{
+  'fan': [
+    '{name} 팬아트 그려 봤어요 🎨 (도트 감성)',
+    '{name} 방송 명장면 모음 만들었음 ✂️',
+    '{name} 짤 공유합니다 ㅋㅋㅋ 표정 봐',
+    '{name} 굿즈 언제 나와요?? 지갑 열려 있음',
+    '{name} 다음 방송 몇 시예요?',
+    '{name} 덕분에 오늘 하루 버팀',
+    '친구한테 {name} 영업했는데 걔가 더 빠짐',
+    '{name} 방송 보면서 밥 먹는 게 일상',
+    '{name} 오늘 옷 잘 어울렸다',
+    '{name} 말투 따라 하게 됨 ㅋㅋ',
+  ],
+  'neutral': [
+    '{name}이랑 {rival} 중에 누가 더 재밌음?',
+    '{rival} 보다가 {name}로 넘어옴',
+    '요즘 뜨는 스트리머 추천 좀. {name} 말고',
+    '{name} 방송 시간 좀 일정했으면',
+    '{name} 실물 본 사람?',
+    '{name} 나이 몇 살임?',
+    '{name} 밈 어디서 시작된 거임',
+  ],
+  'hate': [
+    '{name} 요즘 광고만 하는 듯',
+    '{name} 방송 반복적이라 질림',
+    '{name} 팬덤 좀 무섭다',
+  ],
 };
 
 const snsMilestone = <int, List<String>>{
@@ -1402,7 +1554,7 @@ final gameEvents = <GameEvent>[
     where: 'rank',
     title: '📺 CF 광고 모델 제안',
     weight: 4,
-    when: (s) => rankNow(s) <= 6 && !s.flags.contains('cfDone'),
+    when: (s) => rankNow(s) <= 10 && !s.flags.contains('cfDone'),
     text: (s) => '인기 순위 ${rankNow(s)}위에 오르자 음료 회사에서 연락이 왔다. "{name}님을 이번 여름 광고 모델로 모시고 싶습니다!"',
     choices: [
       EventChoice(
@@ -1443,7 +1595,7 @@ final gameEvents = <GameEvent>[
     where: 'rank',
     title: '📰 9시 뉴스 인터뷰',
     weight: 4,
-    when: (s) => rankNow(s) <= 5 && !s.flags.contains('newsDone'),
+    when: (s) => rankNow(s) <= 8 && !s.flags.contains('newsDone'),
     text: (s) => '공중파 9시 뉴스 기자에게 연락이 왔다. "요즘 MZ세대가 가장 많이 보는 방송인"으로 {name}을(를) 인터뷰하고 싶다고 한다.',
     choices: [
       EventChoice(
@@ -1479,7 +1631,7 @@ final gameEvents = <GameEvent>[
     where: 'rank',
     title: '📡 공중파 예능 고정 출연',
     weight: 4,
-    when: (s) => rankNow(s) <= 4 && !s.flags.contains('varietyDone'),
+    when: (s) => rankNow(s) <= 6 && !s.flags.contains('varietyDone'),
     text: (s) => '공중파 토요 예능 "아이돌 대작전" PD에게서 연락이 왔다. 아이돌들과 함께 고정 멤버로 출연해 달라고 한다!',
     choices: [
       EventChoice(
@@ -2267,6 +2419,125 @@ class DmOffer {
 }
 
 final dmOffers = <DmOffer>[
+  // 장르 1위 제안 (방송 뒤에는 오지 않고, 장르 1위가 되면 온다)
+  DmOffer(
+    id: 'genre_talk',
+    from: 'KBC 라디오',
+    color: 0xFF0EA5E9,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '잡담 방송 1위 축하드려요! 저희 심야 라디오에 게스트 DJ로 한 주 모시고 싶어요. 출연료는 ${won(scaleMoney(s, 300000))}입니다.',
+    accept: '게스트 DJ 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 300000), followers: 0.03, image: 3, energy: -15),
+    result: '라디오 부스에서 사연을 읽었다. "목소리가 귀에 착 감긴다"는 문자가 쏟아졌다.',
+    declined: '"다음 개편 때 꼭 다시 연락드릴게요!"',
+  ),
+  DmOffer(
+    id: 'genre_study',
+    from: '공부해 인강',
+    color: 0xFF22C55E,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '공부 방송 1위 {name}님! 저희 인강 플랫폼에서 "공부 루틴" 특강을 열어 주실 수 있을까요? 강의료 ${won(scaleMoney(s, 300000))}.',
+    accept: '특강 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 300000), followers: 0.03, image: 3, energy: -15),
+    result: '"같이 공부해요" 특강에 수강생이 몰렸다. 후기가 줄줄이 달렸다.',
+    declined: '"언제든 문 열어 둘게요!"',
+  ),
+  DmOffer(
+    id: 'genre_mukbang',
+    from: '바삭치킨 본사',
+    color: 0xFFF97316,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '먹방 1위 {name}님, 신메뉴 광고 모델이 되어 주세요! 모델료 ${won(scaleMoney(s, 500000))}에 치킨 평생 무료 쿠폰까지 드려요.',
+    accept: '광고 모델 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 500000), followers: 0.03, image: 3, energy: -15),
+    result: '광고 속 한입 리액션이 밈이 됐다. 신메뉴가 품절됐다.',
+    declined: '"아쉽지만 쿠폰은 보내 드릴게요 🍗"',
+  ),
+  DmOffer(
+    id: 'genre_sing',
+    from: '블루노트 레코드',
+    color: 0xFF8B5CF6,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '노래 방송 1위 축하해요! 디지털 싱글을 함께 내 보면 어떨까요? 계약금 ${won(scaleMoney(s, 400000))}.',
+    accept: '음원 발매 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 400000), followers: 0.03, image: 3, energy: -15),
+    result: '첫 싱글이 음원 차트 100위 안에 들었다! 댓글에 "방송에서 듣던 그 목소리"가 가득했다.',
+    declined: '"목소리가 아까워요… 다음에 꼭!"',
+  ),
+  DmOffer(
+    id: 'genre_game',
+    from: 'LCK 중계팀',
+    color: 0xFF3B82F6,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '게임 방송 1위 {name}님, 이번 주 경기 객원 해설로 모시고 싶습니다. 해설료 ${won(scaleMoney(s, 400000))}.',
+    accept: '객원 해설 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 400000), followers: 0.03, image: 3, energy: -15),
+    result: '특유의 텐션으로 해설했다. "해설 고정해 주세요" 청원이 올라왔다.',
+    declined: '"다음 시즌에 다시 연락드릴게요!"',
+  ),
+  DmOffer(
+    id: 'genre_react',
+    from: '시네마나라',
+    color: 0xFFE11D48,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '리액션 1위 {name}님을 신작 영화 시사회에 초대합니다! 리액션 리뷰 영상 한 편에 ${won(scaleMoney(s, 300000))}.',
+    accept: '시사회 참석',
+    fx: (s) => Fx(money: scaleMoney(s, 300000), followers: 0.03, image: 3, energy: -15),
+    result: '시사회 리액션 영상이 예고편보다 더 많이 봤다는 말이 나왔다.',
+    declined: '"좌석은 늘 비워 둘게요!"',
+  ),
+  DmOffer(
+    id: 'genre_vlog',
+    from: '떠나요 여행사',
+    color: 0xFF14B8A6,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '브이로그 1위 {name}님, 제주 2박 3일 여행 브이로그 협찬 어떠세요? 여행비 전액에 ${won(scaleMoney(s, 400000))}.',
+    accept: '여행 협찬 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 400000), followers: 0.03, image: 3, energy: -15),
+    result: '제주 바다 브이로그가 조회수 폭발. 여행사 문의 전화가 끊이지 않았다.',
+    declined: '"성수기 지나면 다시 연락드릴게요!"',
+  ),
+  DmOffer(
+    id: 'genre_asmr',
+    from: '꿀잠 앱',
+    color: 0xFF6366F1,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => 'ASMR 1위 {name}님의 목소리로 수면 사운드를 만들고 싶어요. 녹음료 ${won(scaleMoney(s, 300000))}.',
+    accept: '녹음 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 300000), followers: 0.03, image: 3, energy: -15),
+    result: '"이거 틀고 3분 만에 잠들었다"는 리뷰가 쏟아졌다.',
+    declined: '"언제든 기다릴게요 😴"',
+  ),
+  DmOffer(
+    id: 'genre_pet',
+    from: '멍냥 펫푸드',
+    color: 0xFFF59E0B,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '펫 방송 1위 축하드려요! 반려동물과 함께 펫푸드 광고를 찍어 주실 수 있을까요? 모델료 ${won(scaleMoney(s, 300000))}.',
+    accept: '펫 광고 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 300000), followers: 0.03, image: 3, energy: -15),
+    result: '반려동물이 광고 속에서 간식을 먹는 장면이 화제가 됐다.',
+    declined: '"간식 샘플만 보내 드릴게요!"',
+  ),
+
   DmOffer(
     id: 'idol_collab',
     from: '스타라이트 엔터테인먼트',
@@ -2548,6 +2819,8 @@ final achievements = <Achievement>[
   Achievement('missions', '🎯', '미션 마스터', '오늘의 미션 30개 완료', (s) => s.missionsDone >= 30),
   Achievement('mom', '👩', '어머님 팬클럽', '엄마를 방송에 소개했다', (s) => s.flags.contains('family_intrude#0')),
   Achievement('pet', '🐾', '랜선 집사', '반려동물을 분양했다', (s) => s.pet != null),
+  Achievement('genreKing', '👑', '장르의 왕', '한 장르에서 1위를 했다', (s) => s.flags.any((f) => f.startsWith('crown_'))),
+  Achievement('allround', '🌈', '올라운더', '세 장르에서 1위를 했다', (s) => s.flags.where((f) => f.startsWith('crown_')).length >= 3),
   Achievement('fashion', '👗', '패셔니스타', '뷰티샵 아이템 5개를 모았다', (s) => s.owned.length >= 5),
 ];
 
@@ -2700,3 +2973,109 @@ const snsPet = SnsTopic(
   shield: ['너무 귀여워 ㅠㅠ', '매일 보여 주세요', '이 방송은 펫이 주인공임', '랜선 집사 됨'],
   neutral: ['이름이 뭐예요?', '품종 궁금'],
 );
+
+// ───── 생뚱맞은 DM (방송과 상관없이 아무 때나 온다) ─────
+class WeirdReply {
+  const WeirdReply(this.label, this.note, [this.fx = const Fx()]);
+  final String label;
+
+  /// 답장한 뒤 결과
+  final String note;
+  final Fx fx;
+}
+
+class WeirdDm {
+  const WeirdDm(this.id, this.texts, this.replies, {this.min = 0, this.color = 0xFF9CA3AF});
+  final String id;
+
+  /// 보낸 글 (하나를 고른다)
+  final List<String> texts;
+  final List<WeirdReply> replies;
+
+  /// 구독자가 이만큼은 되어야 온다
+  final int min;
+  final int color;
+}
+
+const weirdDms = [
+  WeirdDm('loan', [
+    '{name}님 진짜 죄송한데… 5만 원만 빌려주실 수 있나요? 다음 달에 꼭 갚을게요 ㅠㅠ',
+    '저 오래된 팬인데요 급하게 돈이 필요해서요… 5만 원만 안 될까요? 이자 쳐 드림',
+  ], [
+    WeirdReply('돈을 보내 준다', '돈을 보냈다… 다음 날 그 계정은 사라졌다.', Fx(money: -50000, mental: -4)),
+    WeirdReply('정중히 거절한다', '"죄송해요, 그건 어려워요." 답장은 오지 않았다.'),
+  ], color: 0xFFB45309),
+  WeirdDm('religion', [
+    '혹시 도에 관심 있으세요? 방송 보니까 얼굴에 기운이 참 좋으셔서요 🙏',
+    '{name}님, 오늘 좋은 말씀 전해 드리고 싶어서 연락드렸어요. 잠깐 시간 되시나요?',
+  ], [
+    WeirdReply('관심 없다고 답한다', '"다음에 또 연락드릴게요~" …또 온다고?'),
+    WeirdReply('조용히 읽고 넘긴다', '읽음 표시만 남기고 넘어갔다.'),
+  ], color: 0xFF7C3AED),
+  WeirdDm('crush', [
+    '방송 처음 보고 첫눈에 반했어요… 실례지만 혹시 연애하세요? 🌹',
+    '{name}님 목소리 듣고 심장이 멈췄어요. 저랑 커피 한잔만…',
+  ], [
+    WeirdReply('팬으로서 고맙다고 답한다', '"방송으로 자주 만나요!" 상대는 하트를 백 개 보냈다.', Fx(mental: 3)),
+    WeirdReply('정중히 선을 긋는다', '"마음은 고맙지만 사적인 만남은 어려워요." 깔끔하게 정리했다.'),
+  ], min: 50, color: 0xFFEC4899),
+  WeirdDm('mlm', [
+    '좋은 사업 기회가 있어서요! 하루 1시간 투자로 월 천만 원 가능합니다 💰',
+    '{name}님 정도 영향력이면 저희 사업에서 금방 다이아 직급 가요!',
+  ], [
+    WeirdReply('설명이나 들어 본다', '2시간짜리 설명회 영상 링크가 왔다. 시간만 날렸다.', Fx(energy: -10)),
+    WeirdReply('차단한다', '차단 완료. 속이 다 시원하다.'),
+  ], min: 300),
+  WeirdDm('coin', [
+    '{name}님만 특별히 코인 리딩방 VIP 초대합니다 🚀 수익률 300% 보장!',
+  ], [
+    WeirdReply('들어가 본다', '"원금 보장"이라던 코인이 -80%가 됐다. 다행히 소액이었다.', Fx(money: -30000, mental: -4)),
+    WeirdReply('신고하고 팬들에게 알린다', '신고했다. "사칭 리딩방 조심하세요" 공지에 팬들이 고마워했다.', Fx(image: 2)),
+  ], min: 1000, color: 0xFFF59E0B),
+  WeirdDm('classmate', [
+    '야 나 기억나? 초등학교 3학년 때 짝꿍! 요즘 잘나가더라 ㅋㅋ 밥 한번 사',
+    '{name} 맞지? 중학교 때 같은 반이었는데! 사인 좀 해 줘 ㅋㅋ',
+  ], [
+    WeirdReply('반갑게 답장한다', '추억 얘기로 한참 수다를 떨었다. 기분이 좋아졌다.', Fx(mental: 4)),
+    WeirdReply('"누구세요…?"', '"와 서운하다 진짜…" 기억이 안 나는 걸 어떡해.'),
+  ], min: 100, color: 0xFF10B981),
+  WeirdDm('fortune', [
+    '사주 봐 드릴게요! {name}님 올해 대운이 들어왔어요 ✨ 상세 풀이는 5만 원',
+  ], [
+    WeirdReply('재미로 봐 본다', '"올해 구독자가 크게 늘 운세"라고 한다. 기분은 좋다.', Fx(money: -50000, mental: 3)),
+    WeirdReply('거절한다', '"운이 아까워요~"라는 답장이 왔다.'),
+  ], color: 0xFF6366F1),
+  WeirdDm('fakebrand', [
+    '안녕하세요 글로벌 브랜드 마케팅팀입니다. 협찬 진행을 위해 계좌 확인용 소액 입금 부탁드립니다.',
+  ], [
+    WeirdReply('입금한다', '협찬은 없었다. 사기였다.', Fx(money: -30000, mental: -5)),
+    WeirdReply('사기 같아서 무시한다', '역시 사기였다. 다른 스트리머들도 같은 DM을 받았다고 한다.', Fx(mental: 1)),
+  ], min: 2000),
+  WeirdDm('dinner', [
+    '안녕하세요 저녁 메뉴 좀 골라 주세요. {name}님이 정해 주는 대로 먹을게요',
+    '지금 치킨이랑 피자 사이에서 30분째 고민 중… 골라 주세요',
+  ], [
+    WeirdReply('진지하게 추천해 준다', '"국밥 어떠세요?" 잠시 후 국밥 인증샷이 왔다.', Fx(mental: 2)),
+    WeirdReply('"알아서 드세요 ㅋㅋ"', '"치사해…" 그래도 웃는 이모티콘이 왔다.'),
+  ]),
+  WeirdDm('homework', [
+    '숙제 좀 대신 해 주세요 ㅠㅠ 방송에서 공부 잘하는 것 같던데',
+  ], [
+    WeirdReply('공부하는 법만 알려 준다', '"감사합니다 쌤!" 의외로 뿌듯하다.', Fx(image: 1, mental: 2)),
+    WeirdReply('거절한다', '"치사해…"'),
+  ]),
+  WeirdDm('phishing', [
+    '[보안팀] {name}님 계정에서 이상 로그인이 감지됐습니다. 아래 링크에서 비밀번호를 확인해 주세요.',
+  ], [
+    WeirdReply('링크를 눌러 본다', '가짜 사이트였다! 급히 비밀번호를 바꿨다. 십년감수했다.', Fx(mental: -6, energy: -10)),
+    WeirdReply('무시하고 직접 확인한다', '공식 앱에는 아무 기록도 없었다. 피싱이었다.'),
+  ], min: 500, color: 0xFFEF4444),
+  WeirdDm('exfan', [
+    '예전엔 팬이었는데 요즘 방송 보니까 좀 변한 것 같아요. 그냥 그렇다고요.',
+  ], [
+    WeirdReply('진지하게 답장한다', '"초심 잃지 않을게요." 답장에 상대도 마음이 풀린 듯했다.', Fx(mental: -2, image: 1)),
+    WeirdReply('흘려듣는다', '신경 쓰지 않기로 했다. 그래도 조금 마음에 남는다.', Fx(mental: -1)),
+  ], min: 3000),
+];
+
+WeirdDm weirdOf(String id) => weirdDms.firstWhere((w) => w.id == id);

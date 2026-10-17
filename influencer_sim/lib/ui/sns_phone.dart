@@ -241,11 +241,48 @@ class _PhoneState extends State<_Phone> {
                   child: Text(d.text, style: TextStyle(fontSize: 14, height: 1.45, color: hate ? const Color(0xFF9F1239) : _text)),
                 ),
                 if (offer) _offerBar(d),
+                if (d.kind == 'weird') _weirdBar(d),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // 생뚱맞은 DM: 답장 고르기
+  Widget _weirdBar(Dm d) {
+    final game = widget.game;
+    if (d.status != 'open') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text('↪ ${_dmResult[d.id] ?? d.note ?? ''}', style: const TextStyle(fontSize: 12.5, color: _muted, fontWeight: FontWeight.w700, height: 1.4)),
+      );
+    }
+    final w = weirdOf(d.offer!.substring(6));
+    return Wrap(
+      children: [
+        for (final (i, r) in w.replies.indexed)
+          Padding(
+            padding: const EdgeInsets.only(right: 6, top: 8),
+            child: Material(
+              color: const Color(0xFFEFF3F4),
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                key: ValueKey('dm-reply-${d.id}-$i'),
+                borderRadius: BorderRadius.circular(999),
+                onTap: () {
+                  final (text, changes) = game.answerWeird(d, i);
+                  setState(() => _dmResult[d.id] = [text, for (final c in changes) '${c.label} ${c.text}'].join('  '));
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  child: Text(r.label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: _text)),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

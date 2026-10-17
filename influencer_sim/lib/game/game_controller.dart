@@ -446,7 +446,8 @@ class GameController extends ChangeNotifier {
     final before = s.lastRanks.isEmpty ? _ranks() : s.lastRanks;
     for (final r in rivals) {
       final f = rivalFollowers(r);
-      final rate = r.growth * (0.3 + rng.nextDouble() * 1.4);
+      // 성장 한계에 가까워질수록 느려진다
+      final rate = r.growth * (0.3 + rng.nextDouble() * 1.4) * max(0.0, 1 - f / r.peak);
       s.rivals[r.id] = (f * (1 + rate)).round();
     }
     final after = ranking();
@@ -457,9 +458,55 @@ class GameController extends ChangeNotifier {
     if (rankNow < rankBefore) {
       // 바로 아래로 내려간 라이벌 = 방금 제친 사람
       final passed = after[rankNow];
-      toasts.add('🏆 순위 상승! $rankBefore위 → $rankNow위');
+      // 라이벌이 많아서, 알림은 10위 안에 들었을 때만
+      if (rankNow <= 10) toasts.add('🏆 순위 상승! $rankBefore위 → $rankNow위');
       log('🏆 인기 순위 $rankNow위! ${passed.$2}을(를) 제쳤다.', 'milestone');
       pushFeed([sns.post(s, _pick(snsOvertake).replaceAll('{rival}', passed.$2), 'fan', g: sns.fanGender(s), boost: 2)]);
+    }
+  }
+
+  // ───── 장르별 순위 ─────
+  /// 내 장르 팬 (구독자보다 많을 수는 없다)
+  int genreFansOf(String g) => min(s.genreFans[g] ?? 0, s.followers);
+
+  void addGenreFans(String g, int n) {
+    if (n > 0) s.genreFans[g] = (s.genreFans[g] ?? 0) + n;
+  }
+
+  /// 장르 순위표: (id, 이름, 아이콘, 팬) 순서대로. 나는 id 'me'
+  List<(String, String, String, int)> genreRanking(String g) {
+    final rows = [
+      for (final r in rivals.where((r) => r.genre == g)) (r.id, r.name, r.icon, rivalFollowers(r)),
+      ('me', s.name, '⭐', genreFansOf(g)),
+    ]..sort((a, b) => b.$4.compareTo(a.$4));
+    return rows;
+  }
+
+  int genreRank(String g) => genreRanking(g).indexWhere((r) => r.$1 == 'me') + 1;
+
+  /// 가장 순위가 높은 내 장르 (방송한 적이 없으면 null)
+  (String, int)? get bestGenre {
+    (String, int)? best;
+    for (final c in contents) {
+      if (genreFansOf(c.id) <= 0) continue;
+      final r = genreRank(c.id);
+      if (best == null || r < best.$2 || (r == best.$2 && genreFansOf(c.id) > genreFansOf(best.$1))) best = (c.id, r);
+    }
+    return best;
+  }
+
+  /// 장르 1위가 되면 칭호와 그 장르의 특별 제안 DM
+  void _checkGenreCrowns() {
+    for (final c in contents) {
+      if (genreFansOf(c.id) < 100 || genreRank(c.id) != 1 || s.flags.contains('crown_${c.id}')) continue;
+      s.flags.add('crown_${c.id}');
+      final title = genreTitles[c.id]!;
+      toasts.add('👑 ${c.name} 1위! 칭호 "$title"');
+      log('👑 ${c.name} 순위 1위! "$title" 칭호를 얻었다.', 'milestone');
+      pushFeed([sns.post(s, _pick(['{name} ${c.name} 1위 먹었다 ㄷㄷ', '${c.name} 하면 이제 {name}이지', '{name} ${c.name} 1위 축하해!!']), 'fan', g: sns.fanGender(s), boost: 2)]);
+      final o = dmOfferOf('genre_${c.id}');
+      _dm(o.text(s), 'offer', nick: o.from, color: o.color, offer: o.id);
+      emit('heart', 20);
     }
   }
 
@@ -658,6 +705,7 @@ class GameController extends ChangeNotifier {
   StreamOutcome finishStream(Content c, StreamResult r) {
     _shiftFans(c, r.gain);
     s.followers += r.gain;
+    addGenreFans(c.id, r.gain);
     final income = r.donation + r.ads;
     money(r.donation, '${c.name} 후원');
     money(r.ads, '${c.name} 광고 수익');
@@ -745,6 +793,7 @@ class GameController extends ChangeNotifier {
     s.followers += r.gain;
     money(r.ads, '영상 광고 수익');
     s.uploads++;
+    addGenreFans(s.lastContent ?? 'talk', r.gain);
     progress('upload', 1);
     s.mental = (s.mental - 1).clamp(0, 100);
     final c = contentOf(s.lastContent ?? 'talk');
@@ -927,6 +976,7 @@ class GameController extends ChangeNotifier {
     s.heat = (s.heat - 7).clamp(0, 100);
     s.antis = (s.antis * 0.97).floor();
     _updateRanking();
+    _checkGenreCrowns();
     s.day++;
     _expireOffers();
     s.slot = 0;
@@ -948,6 +998,7 @@ class GameController extends ChangeNotifier {
     }
     log('D+${s.day} 아침이 밝았다.', 'day');
     _newMissions();
+    _weirdDm();
     if (s.firedUntil > 0 && s.day == s.firedUntil) notes.add('${job.icon} 새 알바를 구했다: ${job.name}');
     for (final n in notes) {
       log(n, 'note');
@@ -997,6 +1048,31 @@ class GameController extends ChangeNotifier {
       return o;
     }
     return null;
+  }
+
+  /// 방송과 상관없는 생뚱맞은 DM이 가끔 온다 (유명할수록 자주)
+  void _weirdDm() {
+    if (s.followers < 10) return;
+    final chance = min(0.4, 0.15 + 0.05 * _log10(max(1, s.followers) / 100));
+    if (rng.nextDouble() >= chance) return;
+    final recent = s.dms.take(8).map((d) => d.offer).toSet();
+    final pool = weirdDms.where((w) => s.followers >= w.min && !recent.contains('weird_${w.id}')).toList();
+    if (pool.isEmpty) return;
+    final w = _pick(pool);
+    _dm(_pick(w.texts), 'weird', color: w.color, offer: 'weird_${w.id}');
+  }
+
+  /// 생뚱맞은 DM에 답장한다. (결과 글, 변화)
+  (String, List<Change>) answerWeird(Dm d, int index) {
+    if (d.status != 'open' || d.offer == null) return (d.note ?? '', const <Change>[]);
+    final w = weirdOf(d.offer!.substring(6));
+    final reply = w.replies[index];
+    d.status = 'answered';
+    d.note = '${reply.label} → ${Sns.fill(reply.note, s)}';
+    final changes = applyFx(reply.fx, 'DM: ${reply.label}');
+    save();
+    notifyListeners();
+    return (d.note!, changes);
   }
 
   /// 답장 안 한 제안은 4일 뒤 사라진다
@@ -1396,6 +1472,7 @@ class GameController extends ChangeNotifier {
       final u = calcUpload(s, rng);
       final gain = (u.gain * 0.6).round();
       s.followers += gain;
+      addGenreFans(s.lastContent ?? 'talk', gain);
       money((u.ads * 0.6 / 100).round() * 100, '편집자 영상 광고 수익');
       log('✂️ 편집자가 하이라이트 영상을 올렸다. 조회수 ${shortNum((u.views * 0.6).round())} · 구독자 +${shortNum(gain)}');
     }

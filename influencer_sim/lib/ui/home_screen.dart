@@ -905,7 +905,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   color: Pal.surface2,
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   child: Text(
-                    '🏆 ${game.myRank}위',
+                    // 가장 높은 장르 순위가 3위 안이면 같이 보여 준다
+                    '🏆 ${game.myRank}위${switch (game.bestGenre) { (final g, final r) when r <= 3 => ' · ${contentOf(g).icon}$r위', _ => '' }}',
                     style: const TextStyle(color: Pal.gold, fontSize: 12, fontWeight: FontWeight.w900),
                   ),
                 ),
@@ -1383,28 +1384,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // 스트리머 인기 순위표
   void _showRanking() {
-    final rows = game.ranking();
+    // 'all'이면 전체 순위, 아니면 장르(콘텐츠 id)별 순위
+    var tab = 'all';
     showSheet<void>(
       context,
-      (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          sheetHeader(ctx, '🏆 스트리머 인기 순위', sub: '구독자 순 · ▲▼는 하루 전 대비'),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-              children: [for (final (i, (id, name, icon, followers)) in rows.indexed) _rankRow(i + 1, id, name, icon, followers)],
-            ),
-          ),
-        ],
+      (ctx) => StatefulBuilder(
+        builder: (ctx, setTab) {
+          final all = tab == 'all';
+          final rows = all ? game.ranking() : game.genreRanking(tab);
+          final title = all ? null : genreTitles[tab];
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              sheetHeader(ctx, '🏆 스트리머 인기 순위', sub: all ? '구독자 순 · ▲▼는 하루 전 대비' : '이 장르로 모은 구독자 순 · 1위 칭호 "$title"'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final (id, label) in [('all', '전체'), for (final c in contents) (c.id, '${c.icon} ${c.name.replaceAll(' 방송', '')}')])
+                      ChoiceChip(
+                        key: ValueKey('rank-tab-$id'),
+                        visualDensity: VisualDensity.compact,
+                        label: Text(id != 'all' && s.flags.contains('crown_$id') ? '👑 $label' : label),
+                        selected: tab == id,
+                        onSelected: (_) => setTab(() => tab = id),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                  children: [for (final (i, (id, name, icon, followers)) in rows.indexed) _rankRow(i + 1, id, name, icon, followers, showMove: all)],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _rankRow(int rank, String id, String name, String icon, int followers) {
+  Widget _rankRow(int rank, String id, String name, String icon, int followers, {bool showMove = true}) {
     final me = id == 'me';
-    final prev = s.prevRanks[id];
+    final prev = showMove ? s.prevRanks[id] : null;
     final move = prev == null ? 0 : prev - rank;
     const medals = {1: Color(0xFFFFC94D), 2: Color(0xFFD9DDE3), 3: Color(0xFFE0A06A)};
     return Container(

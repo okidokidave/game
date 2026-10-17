@@ -111,7 +111,7 @@ void main() {
 
     test('상위권이 되면 CF·뉴스·공중파·1위 이벤트가 열린다', () async {
       final g = await make();
-      g.s.lastRanks = {'me': 6};
+      g.s.lastRanks = {'me': 10};
       expect(gameEvents.where((e) => e.where == 'rank' && e.when(g.s)).map((e) => e.id), ['cf_model']);
       g.s.lastRanks = {'me': 1};
       final ids = gameEvents.where((e) => e.where == 'rank' && e.when(g.s)).map((e) => e.id).toSet();
