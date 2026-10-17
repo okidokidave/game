@@ -10,10 +10,10 @@ double quality(GameState s, Content? c) {
   final g = s.gear;
   final q = g['camera']! + g['light']! * 0.8 + g['mic']! * (c?.mic ?? 1) + g['pc']! * (c?.pc ?? 0.4);
   // MCN 소속이면 회사 홍보로 시청자 +15%
-  return 1 + q * 0.13 + s.deco.length * 0.03 + houseOf(s.house).bonus + (s.flags.contains('mcn') ? 0.15 : 0);
+  return 1 + q * 0.13 + s.deco.length * 0.03 + houseOf(s.house).bonus + (s.flags.contains('mcn') ? 0.15 : 0) + styleBonus(s.look);
 }
 
-bool canStream(GameState s, Content c) => c.need.entries.every((e) => s.gear[e.key]! >= e.value);
+bool canStream(GameState s, Content c) => (c.id != 'pet' || s.pet != null) && c.need.entries.every((e) => s.gear[e.key]! >= e.value);
 
 Rank rankOf(int followers) => ranks.lastWhere((r) => followers >= r.min);
 

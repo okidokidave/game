@@ -137,6 +137,12 @@ class GameController extends ChangeNotifier {
   GameState? get saved => _repo.load();
   List<String> get endingsSeen => _repo.endings();
 
+  /// 지금까지 끝낸 판들 (오래된 것부터)
+  List<RunRecord> get runs => _repo.runs();
+
+  /// 방금 끝낸 판의 기록
+  RunRecord? lastRun;
+
   void save() {
     if (_state == null) return;
     checkAchievements();
@@ -252,6 +258,7 @@ class GameController extends ChangeNotifier {
 
   /// 콘텐츠를 고를 수 없는 이유 (가능하면 null)
   String? contentBlock(Content c) {
+    if (c.id == 'pet' && s.pet == null) return '반려동물 필요 (뷰티샵·펫샵)';
     if (!canStream(s, c)) {
       return c.need.entries.where((e) => s.gear[e.key]! < e.value).map((e) => '${gearOf(e.key).label}: ${gearOf(e.key).tiers[e.value].name} 필요').join(', ');
     }
@@ -612,8 +619,9 @@ class GameController extends ChangeNotifier {
     toasts.removeWhere((m) => m.startsWith('🏆 순위'));
     // 자숙 중에도 생활비와 직원 일당은 나간다
     final wages = staffList.where((x) => hasStaff(x.id)).fold(0, (a, x) => a + x.wage);
-    final cost = days * (rent + wages);
+    final cost = days * (rent + wages + petFood);
     money(-days * rent, '자숙 기간 생활비 ($days일)');
+    money(-days * petFood, '자숙 기간 사료·간식 ($days일)');
     if (wages > 0) money(-days * wages, '자숙 기간 직원 일당 ($days일)');
     s.image = (s.image + 4).clamp(-100, 100);
     s.energy = 100;
@@ -627,7 +635,7 @@ class GameController extends ChangeNotifier {
       _delta('이미지', s.image - image0),
     ].where((c) => c.good != null).toList();
 
-    s.trend = _pick(contents.where((c) => c.id != s.trend).toList()).id;
+    s.trend = _pick(contents.where((c) => c.id != s.trend && (c.id != 'pet' || s.pet != null)).toList()).id;
     log('🎬 $days일간의 자숙을 마치고 복귀했다.', 'day');
     final trend = sns.topicFeed(s, snsComeback);
     pushTrend(trend);
@@ -638,7 +646,7 @@ class GameController extends ChangeNotifier {
   }
 
   // 콘텐츠마다 새로 들어오는 팬의 성비가 조금씩 다르다
-  static const _contentLean = {'game': 0.12, 'react': 0.05, 'sing': -0.08, 'asmr': -0.06, 'vlog': -0.08};
+  static const _contentLean = {'game': 0.12, 'react': 0.05, 'sing': -0.08, 'asmr': -0.06, 'vlog': -0.08, 'pet': -0.06};
 
   void _shiftFans(Content c, int gain) {
     if (gain <= 0) return;
@@ -904,6 +912,7 @@ class GameController extends ChangeNotifier {
 
   DayReport endDay(int remaining) {
     money(-rent, '생활비 (${houseOf(s.house).name})');
+    money(-petFood, '🐾 사료·간식');
     _staffNight();
     for (final b in ownedBusinesses) {
       money(businessIncome(b), '${b.icon} ${b.name} 수익');
@@ -933,7 +942,7 @@ class GameController extends ChangeNotifier {
       notes.add('밤새 악플 알림이 울렸다. 멘탈 -8');
     }
     if (s.day % 7 == 1) {
-      s.trend = _pick(contents.where((c) => c.id != s.trend).toList()).id;
+      s.trend = _pick(contents.where((c) => c.id != s.trend && (c.id != 'pet' || s.pet != null)).toList()).id;
       final c = contentOf(s.trend);
       notes.add('이번 주 대세 콘텐츠는 ${c.icon} ${c.name}! 시청자 1.5배');
     }
@@ -1055,6 +1064,7 @@ class GameController extends ChangeNotifier {
     'stats': '📊 방송 기록',
     'staff': '🧑‍💼 직원 고용 (상점)',
     'business': '🛍️ 사업 (상점)',
+    'beauty': '👗 뷰티샵·펫샵 (왼쪽 위 프로필)',
   };
 
   bool unlocked(String f) => switch (f) {
@@ -1065,6 +1075,7 @@ class GameController extends ChangeNotifier {
         'stats' => s.day >= 3,
         'staff' => s.followers >= 3000,
         'business' => s.followers >= 8000,
+        'beauty' => s.followers >= 100,
         _ => true,
       };
 
@@ -1251,6 +1262,57 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
+  // ───── 뷰티샵 · 펫샵 ─────
+  bool owns(StyleItem it) => freeStyles.contains(it.id) || s.owned.contains(it.id);
+
+  String? styleBlock(StyleItem it) {
+    if (owns(it)) return null;
+    if (s.money < it.price) return '돈 부족';
+    return null;
+  }
+
+  /// 사면 바로 입는다
+  bool buyStyle(StyleItem it) {
+    if (owns(it) || s.money < it.price) return false;
+    money(-it.price, '뷰티샵: ${it.name}');
+    s.owned.add(it.id);
+    log('👗 뷰티샵에서 ${it.name}을(를) 샀다. (-${shortWon(it.price)})', 'buy');
+    wear(it);
+    pushFeed([sns.post(s, _pick(['{name} 스타일 바뀌었네?? 잘 어울림', '{name} ${it.name} 찰떡이다', '오늘 {name} 비주얼 미쳤다', '{name} 꾸민 거 티 난다 ㅋㅋ']), 'fan', g: sns.fanGender(s))]);
+    toasts.add('👗 ${it.name} 착용!');
+    return true;
+  }
+
+  void wear(StyleItem it) {
+    if (!owns(it)) return;
+    s.look = tryOn(s.look, it);
+    save();
+    notifyListeners();
+  }
+
+  String? petBlock(Pet p) {
+    if (s.pet == p.id) return '함께 사는 중';
+    if (s.pet != null) return '반려동물은 한 마리';
+    if (s.money < p.price) return '돈 부족';
+    return null;
+  }
+
+  bool adoptPet(Pet p) {
+    if (petBlock(p) != null) return false;
+    money(-p.price, '${p.name} 분양');
+    s.pet = p.id;
+    log('${p.icon} ${p.name}를 가족으로 맞았다! 이제 펫 방송을 할 수 있다.', 'buy');
+    toasts.add('${p.icon} ${p.name} 분양 완료! 🐾 펫 방송이 열렸어요');
+    pushFeed([sns.post(s, _pick(['{name} ${p.name} 키운대!!! 빨리 보여 줘', '{name} 집사 됐다 ㅋㅋ 부럽', '${p.name} 이름 뭐예요??']), 'fan', g: sns.fanGender(s), boost: 2)]);
+    emit('heart', 16);
+    save();
+    notifyListeners();
+    return true;
+  }
+
+  /// 반려동물 하루 사료·간식비
+  int get petFood => s.pet == null ? 0 : petOf(s.pet!).food;
+
   // ───── 상점 ─────
   bool buyGear(String key) {
     final g = gearOf(key);
@@ -1408,6 +1470,21 @@ class GameController extends ChangeNotifier {
     s.ended = key;
     _repo.addEnding(key);
     _repo.clear();
+    // 회차 비교용 기록 (판이 바뀌어도 남는다)
+    lastRun = RunRecord(
+      name: s.name,
+      ending: key,
+      days: s.day,
+      followers: s.followers,
+      peak: s.peak,
+      earned: s.earned,
+      streams: s.streams,
+      core: s.coreFans,
+      rank: myRank,
+      image: s.image,
+      at: DateTime.now().millisecondsSinceEpoch,
+    );
+    _repo.addRun(lastRun!);
     final bad = key == 'scandal' || key == 'burnout';
     final t = sns.topicFeed(
       s,

@@ -233,17 +233,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// 전업 방송인이 된 뒤의 알바 버튼: 부모님 가게 홍보
   Future<void> _promote() async {
-    final i = await ask(context, '🍗 부모님 가게 홍보', [
-      mutedText('부모님이 차리신 치킨집을 도와드리자.', size: 14),
-      const SizedBox(height: 10),
-      _tradeoff('🎥 가게 일 돕기 브이로그', '체력 -20. 구독자 조금, 찐팬 증가, 부모님 용돈.'),
-      const SizedBox(height: 6),
-      _tradeoff('📢 방송에서 대놓고 홍보', '체력 -12. 잘되면 이미지·찐팬·용돈이 크게 늘지만 "가족 장사" 논란이 날 수도 있어요.'),
-    ], const [
-      DialogButton('🎥 가게 일 돕기 브이로그', choice: true),
-      DialogButton('📢 방송에서 홍보하기', choice: true),
-      DialogButton('취소'),
-    ], icon: '🍗');
+    final i = await ask(
+      context,
+      '🍗 부모님 가게 홍보',
+      [
+        mutedText('부모님이 차리신 치킨집을 도와드리자.', size: 14),
+        const SizedBox(height: 10),
+        _tradeoff('🎥 가게 일 돕기 브이로그', '체력 -20. 구독자 조금, 찐팬 증가, 부모님 용돈.'),
+        const SizedBox(height: 6),
+        _tradeoff('📢 방송에서 대놓고 홍보', '체력 -12. 잘되면 이미지·찐팬·용돈이 크게 늘지만 "가족 장사" 논란이 날 수도 있어요.'),
+      ],
+      const [DialogButton('🎥 가게 일 돕기 브이로그', choice: true), DialogButton('📢 방송에서 홍보하기', choice: true), DialogButton('취소')],
+      icon: '🍗',
+    );
     if (i == 2 || !mounted) return;
     final out = game.promote(onAir: i == 1);
     _sfx(out.backlash ? Sfx.alert : Sfx.coin);
@@ -253,11 +255,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context,
       i == 0 ? '효도 브이로그 완성' : (out.backlash ? '"가족 장사" 논란…' : '주문 폭주!'),
       [
-        eventText(i == 0
-            ? '앞치마를 두르고 치킨을 튀겼다. 손님들이 알아보고 사진을 찍어 갔다. 엄마가 몰래 용돈을 쥐여 주셨다.'
-            : out.backlash
-                ? '"방송을 광고판으로 쓰냐"는 채팅이 올라왔다. 부모님 가게 이야기가 커뮤니티에 퍼지고 있다.'
-                : '방송이 끝나자마자 가게 전화가 불이 났다. 아빠가 "덕분에 닭이 다 떨어졌다"며 웃으셨다.'),
+        eventText(
+          i == 0
+              ? '앞치마를 두르고 치킨을 튀겼다. 손님들이 알아보고 사진을 찍어 갔다. 엄마가 몰래 용돈을 쥐여 주셨다.'
+              : out.backlash
+              ? '"방송을 광고판으로 쓰냐"는 채팅이 올라왔다. 부모님 가게 이야기가 커뮤니티에 퍼지고 있다.'
+              : '방송이 끝나자마자 가게 전화가 불이 났다. 아빠가 "덕분에 닭이 다 떨어졌다"며 웃으셨다.',
+        ),
         changeChips(out.changes),
       ],
       _snsButtons(out.trend),
@@ -293,7 +297,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context,
       e.title,
       [
-        Center(child: Text('ENDING 달성!', style: TextStyle(color: Pal.endingColor(e.type), fontWeight: FontWeight.w800, letterSpacing: 3))),
+        Center(
+          child: Text(
+            'ENDING 달성!',
+            style: TextStyle(color: Pal.endingColor(e.type), fontWeight: FontWeight.w800, letterSpacing: 3),
+          ),
+        ),
         const SizedBox(height: 6),
         eventText(e.text),
         const SizedBox(height: 6),
@@ -309,8 +318,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _profile() async {
     final retire = await openProfile(context, game);
     if (retire == true && mounted) {
-      final ok = await ask(context, '정말 은퇴할까요?', [mutedText('지금까지의 성적으로 엔딩이 정해지고, 이 게임은 끝나요.', size: 14)],
-          const [DialogButton('은퇴하기', primary: true), DialogButton('더 해 볼래요')], icon: '🏳️');
+      final ok = await ask(context, '정말 은퇴할까요?', [mutedText('지금까지의 성적으로 엔딩이 정해지고, 이 게임은 끝나요.', size: 14)], const [DialogButton('은퇴하기', primary: true), DialogButton('더 해 볼래요')], icon: '🏳️');
       if (ok == 0 && mounted) await _finish(game.retireEndingKey());
     }
   }
@@ -736,23 +744,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 6),
         eventText(e.text),
         const SizedBox(height: 6),
-        resultGrid([
-          ('구독자', shortNum(s.followers)),
-          ('최고 시청자', '${shortNum(s.peak)}명'),
-          ('총 수입', shortWon(s.earned)),
-          ('방송 횟수', '${s.streams}회'),
-          ('이미지', imageText(s.image)),
-          ('방송한 날', '${s.day}일'),
-        ]),
+        resultGrid([('구독자', shortNum(s.followers)), ('최고 시청자', '${shortNum(s.peak)}명'), ('총 수입', shortWon(s.earned)), ('방송 횟수', '${s.streams}회'), ('이미지', imageText(s.image)), ('방송한 날', '${s.day}일')]),
         const SizedBox(height: 4),
         Center(child: mutedText('엔딩 도감 ${got.length} / ${endings.length}')),
       ],
-      const [DialogButton('새 게임', primary: true), DialogButton('📱 마지막 반응 보기')],
+      const [DialogButton('📜 발자취 보기', primary: true), DialogButton('📱 마지막 반응 보기'), DialogButton('새 게임')],
       icon: e.type == 'bad' ? '🥀' : (e.type == 'true' ? '👑' : '🏆'),
     );
     if (!mounted) return;
+    if (i == 0) await openCareer(context, game);
     if (i == 1) await _phone(trendTab: true);
-    if (i == 0) widget.onExit?.call();
+    if (i == 2) widget.onExit?.call();
   }
 
   // ───── 화면 ─────
@@ -774,9 +776,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: ConstrainedBox(
                       constraints: BoxConstraints(minHeight: box.maxHeight - 16),
                       child: IntrinsicHeight(
-                        child: Column(
-                          children: [_stats(), _todayRow(), const SizedBox(height: 12), const Spacer(), _stage(), const Spacer(), const SizedBox(height: 12), _ticker()],
-                        ),
+                        child: Column(children: [_stats(), _todayRow(), const SizedBox(height: 12), const Spacer(), _stage(), const Spacer(), const SizedBox(height: 12), _ticker()]),
                       ),
                     ),
                   ),
@@ -808,18 +808,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               GestureDetector(
                 key: const ValueKey('profile-button'),
                 onTap: _profile,
-                child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(gradient: Pal.brand, shape: BoxShape.circle),
-                child: CircleAvatar(
-                  radius: 19,
-                  backgroundColor: Color(0xFF000000 | s.look.shirt),
-                  child: Text(
-                    s.name.characters.first,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                child: Badge(
+                  isLabelVisible: game.isNew('beauty'),
+                  smallSize: 10,
+                  backgroundColor: Pal.live,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(gradient: Pal.brand, shape: BoxShape.circle),
+                    child: CircleAvatar(
+                      radius: 19,
+                      backgroundColor: Color(0xFF000000 | outfitColor(s.look)),
+                      child: Text(
+                        s.name.characters.first,
+                        // 밝은 옷 색이면 글자를 어둡게
+                        style: TextStyle(
+                          color: Color(0xFF000000 | outfitColor(s.look)).computeLuminance() > 0.6 ? Pal.bg : Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -888,17 +898,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               const SizedBox(width: 8),
               if (game.unlocked('ranking'))
-              Pressable(
-                key: const ValueKey('rank-button'),
-                onTap: _showRanking,
-                radius: 999,
-                color: Pal.surface2,
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                child: Text(
-                  '🏆 ${game.myRank}위',
-                  style: const TextStyle(color: Pal.gold, fontSize: 12, fontWeight: FontWeight.w900),
+                Pressable(
+                  key: const ValueKey('rank-button'),
+                  onTap: _showRanking,
+                  radius: 999,
+                  color: Pal.surface2,
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  child: Text(
+                    '🏆 ${game.myRank}위',
+                    style: const TextStyle(color: Pal.gold, fontSize: 12, fontWeight: FontWeight.w900),
+                  ),
                 ),
-              ),
               const SizedBox(width: 6),
               _slotChip(),
               _soundToggle(),
@@ -979,7 +989,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               border: Border.all(color: hot ? Pal.pink : Pal.stroke),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
               child: Center(
-                child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w800)),
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Pal.text, fontSize: 12, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
             if (game.isNew(feature))
@@ -989,7 +1004,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: Container(
                   width: 10,
                   height: 10,
-                  decoration: BoxDecoration(color: Pal.live, shape: BoxShape.circle, border: Border.all(color: Pal.bg, width: 1.5)),
+                  decoration: BoxDecoration(
+                    color: Pal.live,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Pal.bg, width: 1.5),
+                  ),
                 ),
               ),
           ],
@@ -997,8 +1016,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
     );
     final chips = [
-      if (game.unlocked('missions'))
-        chip('missions', 'missions-button', '🎯 미션 $done/${s.missions.length}', () => openMissions(context, game), hot: done < s.missions.length, flex: 5),
+      if (game.unlocked('missions')) chip('missions', 'missions-button', '🎯 미션 $done/${s.missions.length}', () => openMissions(context, game), hot: done < s.missions.length, flex: 5),
       if (game.unlocked('schedule')) chip('schedule', 'schedule-button', '📅 $sched', () => openSchedule(context, game), hot: s.schedDay != 0, flex: 6),
       if (game.unlocked('stats')) chip('stats', 'stats-button', '📊 기록', () => openStats(context, game), flex: 4),
       if (game.achieved.isNotEmpty) chip('achievements', 'achievements-button', '🏅 ${game.achieved.length}', () => openAchievements(context, game), flex: 3),
@@ -1638,10 +1656,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              for (final (id, icon, label) in _small)
-                id == 'work' && game.isPro && s.flags.contains('parentShop') ? _roundAction(id, '🍗', '가게 홍보') : _roundAction(id, icon, label),
-            ],
+            children: [for (final (id, icon, label) in _small) id == 'work' && game.isPro && s.flags.contains('parentShop') ? _roundAction(id, '🍗', '가게 홍보') : _roundAction(id, icon, label)],
           ),
         ],
       ),
@@ -1699,7 +1714,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     child: Row(
       children: [
         Expanded(
-          child: GhostButton(label: '📱 마지막 반응', onTap: () => _phone(trendTab: true)),
+          child: GhostButton(key: const ValueKey('career'), label: '📜 발자취', onTap: () => openCareer(context, game)),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GhostButton(label: '📱 반응', onTap: () => _phone(trendTab: true)),
         ),
         const SizedBox(width: 10),
         Expanded(

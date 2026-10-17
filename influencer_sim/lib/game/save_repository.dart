@@ -11,6 +11,7 @@ class SaveRepository {
   static const _key = 'influencer_save_v1';
   static const _endingsKey = 'influencer_endings';
   static const _achievementsKey = 'influencer_achievements';
+  static const _runsKey = 'influencer_runs';
 
   final SharedPreferences _prefs;
 
@@ -43,5 +44,23 @@ class SaveRepository {
   Future<void> addAchievement(String id) async {
     final got = achievements();
     if (!got.contains(id)) await _prefs.setStringList(_achievementsKey, [...got, id]);
+  }
+
+  /// 끝난 판들의 기록 (오래된 것부터)
+  List<RunRecord> runs() {
+    final raw = _prefs.getStringList(_runsKey) ?? const [];
+    final out = <RunRecord>[];
+    for (final r in raw) {
+      try {
+        out.add(RunRecord.fromJson(jsonDecode(r) as Map<String, dynamic>));
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  Future<void> addRun(RunRecord r) async {
+    final raw = [...(_prefs.getStringList(_runsKey) ?? const <String>[]), jsonEncode(r.toJson())];
+    // 최근 30판까지만 남긴다
+    await _prefs.setStringList(_runsKey, raw.length > 30 ? raw.sublist(raw.length - 30) : raw);
   }
 }

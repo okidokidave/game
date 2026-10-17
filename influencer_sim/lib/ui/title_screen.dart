@@ -185,6 +185,10 @@ class _TitleScreenState extends State<TitleScreen> {
               _saved == null
                   ? GradientButton(key: const ValueKey('new-game'), icon: '📡', label: '방송 시작하기', onTap: _start, height: 58)
                   : GhostButton(key: const ValueKey('new-game'), label: '새로 시작하기', onTap: _start),
+              if (widget.game.runs.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                GhostButton(key: const ValueKey('runs-title'), label: '📜 지난 회차 기록 ${widget.game.runs.length}판', onTap: () => openRuns(context, widget.game)),
+              ],
               if (got.isNotEmpty || widget.game.achieved.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 GhostButton(

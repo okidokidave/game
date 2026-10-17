@@ -12,6 +12,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 
+import '../game/data.dart';
 import '../game/game_state.dart';
 
 const roomW = 216;
@@ -23,7 +24,8 @@ const _rh = 72.0;
 
 typedef ColFn = int? Function(double a, double b);
 
-ColFn solid(int c) => (_, _) => c;
+ColFn solid(int c) =>
+    (_, _) => c;
 
 /// 0xRRGGBB 또는 0xAARRGGBB → 불투명 ARGB
 int argb(int c) => c > 0xFFFFFF ? c : 0xFF000000 | c;
@@ -140,7 +142,26 @@ const _spr = <String, List<String>>{
   'boom': ['....kkk', '...k...', '..k....', '.k.....', 'kk.....', 'kk.....', 'kk.....', '.k.....'],
   'studio': ['.sss.', 'sSsSs', 'sSsSs', 'sSsSs', '.sss.', '..k..', '..k..', '.kkk.'],
   'lamp': ['wwww.', 'wyyw.', '..k..', '..k..', '.k...', 'kkk..'],
-  'ring': ['..wwww..', '.w....w.', 'w......w', 'w..kk..w', 'w......w', '.w....w.', '..wwww..', '...kk...', '...k....', '...k....', '...k....', '...k....', '...k....', '...k....', '...k....', '..k.k...', '.k...k..', 'k.....k.'],
+  'ring': [
+    '..wwww..',
+    '.w....w.',
+    'w......w',
+    'w..kk..w',
+    'w......w',
+    '.w....w.',
+    '..wwww..',
+    '...kk...',
+    '...k....',
+    '...k....',
+    '...k....',
+    '...k....',
+    '...k....',
+    '...k....',
+    '...k....',
+    '..k.k...',
+    '.k...k..',
+    'k.....k.',
+  ],
   'softbox': ['kwwwwwk', 'kwwwwwk', 'kwwwwwk', 'kwwwwwk', '.kkkkk.', '...k...', '...k...', '...k...', '...k...', '...k...', '...k...', '...k...', '...k...', '..k.k..', '.k...k.', 'k.....k'],
   'beanbag': ['....bbbb....', '..bbBBBBbb..', '.bBBBBBBBBb.', 'bBBBBBBBBBBb', 'bBBBbbbbBBBb', 'bbBbbbbbbbBb', '.bbbbbbbbbb.', '..dddddddd..'],
   'figure': ['r.', 'rr', 'kk'],
@@ -148,6 +169,42 @@ const _spr = <String, List<String>>{
   'cushion': ['..pppppp..', '.pPPPPPPp.', 'pPPPPPPPPp', '.pppppppp.'],
   'plush': ['p..p', 'pPPp', 'PkkP', 'pPPp'],
 };
+
+// ───── 반려동물 스프라이트 (옆모습, 오른쪽을 본다) ─────
+const _petSpr = <String, List<String>>{
+  'cat': ['b......b.b', 'b.....bbbb', 'b.....bebe', '.bbbbbbbnb', '.bbbbbbbb.', '.dbbbbbd..', '.b.b..b.b.'],
+  'dog': ['.......dd.', 'b.....bbbb', '.b....bbeb', '.bbbbbbbbn', '.bbbbbbbb.', '.dbbbbbbd.', '.b.b..b.b.'],
+  'hamster': ['..d..d.', '.bbbbbb', 'bbbbbeb', 'bbbbbbn', '.dbbbb.'],
+};
+
+/// 펫샵 미리보기
+class PetPainter extends CustomPainter {
+  PetPainter(this.pet, this.tick);
+  final Pet pet;
+  final int tick;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rows = _petSpr[pet.id]!;
+    final w = rows.first.length.toDouble(), h = rows.length.toDouble();
+    final scale = min(size.width / (w + 4), size.height / (h + 4)).floorToDouble();
+    final x0 = (size.width - w * scale) / 2;
+    final y0 = (size.height - h * scale) / 2 + (tick % 10 < 5 ? 0 : -scale / 2);
+    final pal = {'b': argb(pet.body), 'd': argb(pet.shade), 'e': 0xFF2A2230, 'n': 0xFFFF8FA8};
+    final paint = Paint()..isAntiAlias = false;
+    for (var j = 0; j < rows.length; j++) {
+      for (var i = 0; i < rows[j].length; i++) {
+        final c = pal[rows[j][i]];
+        if (c == null) continue;
+        paint.color = Color(c);
+        canvas.drawRect(Rect.fromLTWH(x0 + i * scale, y0 + j * scale, scale + 0.5, scale + 0.5), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(PetPainter old) => old.tick != tick || old.pet != pet;
+}
 
 // ───── 캐릭터 스프라이트 (12칸) ─────
 // h 머리, s 피부, e 눈, m 입, b 볼, t 옷, d 옷 그림자, p 바지, k 신발
@@ -159,29 +216,133 @@ const _heart = ['.#.#.', '#####', '#####', '.###.', '..#..'];
 const _zz = ['###', '..#', '.#.', '###'];
 
 Map<String, int> _charPalette(Look look, {required bool blink, required bool talk}) => {
-      'h': argb(look.hair),
-      's': 0xFFF3C9A5,
-      'e': blink ? 0xFFE0A98A : 0xFF2A2230,
-      // 여자 캐릭터는 핑크 입술과 진한 볼, 남자 캐릭터는 눈썹
-      'm': talk ? 0xFFA33B3B : (look.male ? 0xFFE0A98A : 0xFFE77C8E),
-      'b': look.male ? 0xFFF3B3A0 : 0xFFF19A9A,
-      'r': shade(look.hair, -0.3),
-      'l': 0xFF2A2230,
-      't': argb(look.shirt),
-      'd': shade(look.shirt, -0.25),
-      'p': 0xFF3B4A6B,
-      'k': 0xFF2A2230,
-    };
+  'h': argb(look.hair),
+  's': 0xFFF3C9A5,
+  'e': blink ? 0xFFE0A98A : 0xFF2A2230,
+  // 여자 캐릭터는 핑크 입술과 진한 볼, 남자 캐릭터는 눈썹
+  'm': talk ? 0xFFA33B3B : (look.male ? 0xFFE0A98A : 0xFFE77C8E),
+  'b': look.male ? 0xFFF3B3A0 : 0xFFF19A9A,
+  'r': shade(look.hair, -0.3),
+  'l': 0xFF2A2230,
+  't': argb(outfitColor(look)),
+  'd': shade(outfitColor(look), -0.25),
+  // 옷·액세서리 무늬
+  'w': 0xFFF7F7F2,
+  'x': argb(outfitAccent(look)),
+  'g': 0xFF3A2E2A,
+  'c': 0xFFE8463C,
+  'C': 0xFFB8322A,
+  'u': shade(look.hair, -0.45),
+  'o': 0xFF5FD38A,
+  'p': 0xFF3B4A6B,
+  'k': 0xFF2A2230,
+};
+
+/// 한 칸 바꾸기
+String _put(String row, int i, String ch) => i < 0 || i >= row.length ? row : row.substring(0, i) + ch + row.substring(i + 1);
 
 List<String> _headRows(Look look, bool closed) {
   var rows = [..._head];
   // 5번째 줄: 남자는 눈썹(r), 여자는 속눈썹(l)
   rows[5] = look.male ? '.hsrrssrrsh.' : '.hslsssslsh.';
-  if (look.long) {
-    rows = [for (var i = 0; i < rows.length; i++) i >= 4 ? 'h${rows[i].substring(1, 11)}h' : rows[i]];
-    rows.addAll(['hh........hh', 'h..........h']);
+  switch (look.hairStyle) {
+    case 'long':
+      rows = [for (var i = 0; i < rows.length; i++) i >= 4 ? 'h${rows[i].substring(1, 11)}h' : rows[i]];
+      rows.addAll(['hh........hh', 'h..........h']);
+    case 'bob':
+      // 일자 앞머리 + 턱선까지 오는 옆머리
+      rows[4] = '.hhhhhhhhhh.';
+      rows[9] = _put(_put(rows[9], 1, 'h'), 10, 'h');
+    case 'pony':
+      // 오른쪽으로 묶은 머리
+      for (var i = 2; i <= 7; i++) {
+        rows[i] = _put(rows[i], 11, 'h');
+      }
+    case 'twoblock':
+      // 옆은 짧게 (진한 색), 위는 넘긴 머리
+      rows[4] = '.hhhhhhsssh.';
+      for (var i = 5; i <= 8; i++) {
+        rows[i] = _put(_put(rows[i], 1, 'u'), 10, 'u');
+      }
+    case 'spiky':
+      rows[0] = '.h.h.hh.h.h.';
+      rows[1] = '.hhhhhhhhhh.';
+  }
+  switch (look.acc) {
+    case 'glasses':
+      for (final i in const [2, 4, 5, 6, 7, 9]) {
+        rows[6] = _put(rows[6], i, 'g');
+      }
+      for (final i in const [2, 4, 7, 9]) {
+        rows[7] = _put(rows[7], i, 'g');
+      }
+    case 'sunglasses':
+      for (final r in const [6, 7]) {
+        for (final i in const [2, 3, 4, 7, 8, 9]) {
+          rows[r] = _put(rows[r], i, 'k');
+        }
+      }
+      rows[6] = _put(_put(rows[6], 5, 'k'), 6, 'k');
+    case 'cap':
+      rows[0] = '..CCCCCCCC..';
+      rows[1] = '.cccccccccc.';
+      rows[2] = '.cccccccccc.';
+      rows[3] = '.ccccccccccc';
+    case 'headset':
+      rows[1] = '.kkkkkkkkkk.';
+      for (final r in const [5, 6, 7]) {
+        rows[r] = _put(_put(rows[r], 0, r == 6 ? 'o' : 'k'), 11, r == 6 ? 'o' : 'k');
+      }
+      rows[8] = _put(rows[8], 11, 'k');
+      rows[9] = _put(rows[9], 10, 'k');
   }
   if (closed) rows = rows.map((r) => r.replaceAll('e', 'm')).toList();
+  return rows;
+}
+
+/// 머리 위로 올라가는 것 (고양이 귀 머리띠). 머리 위 2줄
+List<String>? _topRows(Look look) => look.acc == 'catears' ? const ['.k........k.', '.kpk....kpk.'] : null;
+
+const _earPal = {'k': 0xFF2A2230, 'p': 0xFFFF9FC0};
+
+/// 옷 무늬를 몸 스프라이트에 입힌다
+List<String> _bodyRows(Look look, List<String> base) {
+  final rows = [...base];
+  String putT(String row, int i, String ch) => i < row.length && row[i] == 't' ? _put(row, i, ch) : row;
+  switch (look.outfit) {
+    case 'hoodie':
+      rows[0] = putT(putT(rows[0], 4, 'w'), 7, 'w');
+      rows[1] = putT(putT(rows[1], 4, 'w'), 7, 'w');
+    case 'shirt':
+      rows[0] = _put(_put(rows[0], 3, 'w'), 8, 'w');
+      for (var i = 1; i <= 3; i++) {
+        rows[i] = putT(rows[i], 6, 'w');
+      }
+    case 'suit':
+      rows[0] = putT(putT(putT(putT(rows[0], 4, 'w'), 5, 'x'), 6, 'x'), 7, 'w');
+      rows[1] = putT(putT(rows[1], 5, 'x'), 6, 'x');
+      rows[2] = putT(rows[2], 5, 'x');
+    case 'training':
+      for (var i = 1; i <= 3; i++) {
+        rows[i] = putT(putT(rows[i], 2, 'w'), 9, 'w');
+      }
+    case 'pajama':
+      rows[1] = putT(putT(rows[1], 3, 'x'), 8, 'x');
+      rows[3] = putT(putT(rows[3], 5, 'x'), 6, 'x');
+    case 'stage':
+      rows[4] = rows[4].replaceAll('d', 'x');
+      rows[1] = putT(putT(rows[1], 3, 'x'), 8, 'x');
+      rows[2] = putT(putT(rows[2], 5, 'x'), 6, 'x');
+    case 'dress':
+      // 바지 대신 치마, 서 있으면 다리가 보인다
+      final i = rows.indexWhere((r) => r.contains('p'));
+      if (i >= 0) {
+        rows[i] = '..tttttttt..';
+        for (var j = i + 1; j < rows.length; j++) {
+          rows[j] = rows[j].replaceAll('p', 's');
+        }
+      }
+  }
   return rows;
 }
 
@@ -190,6 +351,7 @@ const _seatX = 30.0;
 const _seatY = 40.0;
 const _pillowX = 70.0;
 const _pillowY = 13.0;
+
 /// 베개 높이 (반지하는 바닥 매트리스라 낮다)
 double _pillowZ(GameState s) => s.house == 'banjiha' ? 6 : 14;
 const _deskX = 42.0;
@@ -201,11 +363,7 @@ class _Sky {
   final int sun;
 }
 
-const _skies = [
-  _Sky(0xFF9FD8F5, 0xFFD5F0FF, 0xFFFFF3B0),
-  _Sky(0xFFF5B37A, 0xFFFFD9A8, 0xFFFF8A5C),
-  _Sky(0xFF1B2350, 0xFF2D3A78, 0xFFF5F0C8),
-];
+const _skies = [_Sky(0xFF9FD8F5, 0xFFD5F0FF, 0xFFFFF3B0), _Sky(0xFFF5B37A, 0xFFFFD9A8, 0xFFFF8A5C), _Sky(0xFF1B2350, 0xFF2D3A78, 0xFFF5F0C8)];
 
 int _g(GameState s, String k) => s.gear[k]!;
 
@@ -345,7 +503,11 @@ void _modern(Raster r, int slot, _Sky sky, int wall, int wallR, {required int fl
     if (z < height) {
       final lit = slot == 2 && (y % 5 > 1.5 && y % 5 < 3.5) && (z % 4 > 1.5) && _hash(y, z) % 3 == 0;
       if (lit) return 0xFFFFE08A;
-      return switch (slot) { 0 => 0xFF8FA3B8, 1 => 0xFF7A6A80, _ => 0xFF1E2238 };
+      return switch (slot) {
+        0 => 0xFF8FA3B8,
+        1 => 0xFF7A6A80,
+        _ => 0xFF1E2238,
+      };
     }
     if (apartment && z < height + 3 && slot != 2) return 0xFF5E9B5A; // 나무
     if (slot == 2 && _hash(y * 3, z * 5) % 41 == 0) return 0xFFFFFFFF;
@@ -386,7 +548,11 @@ void _penthouse(Raster r, int slot) {
       return day ? (slot == 0 ? 0xFF8494A8 : 0xFF6E5A78) : 0xFF141830;
     }
     if (!day && _hash(y * 3, z * 7) % 37 == 0) return 0xFFFFFFFF;
-    return switch (slot) { 0 => 0xFFAED8F2, 1 => 0xFFF2A97A, _ => 0xFF0D1030 };
+    return switch (slot) {
+      0 => 0xFFAED8F2,
+      1 => 0xFFF2A97A,
+      _ => 0xFF0D1030,
+    };
   });
 }
 
@@ -423,11 +589,7 @@ ui.Image drawBack(GameState s, {bool apology = false}) {
   }
 
   // 선반 + 트로피 (오른쪽 벽)
-  final buttons = <int>[
-    if (s.followers >= 10000) 0xFFD9DDE3,
-    if (s.followers >= 100000) 0xFFF2C14E,
-    if (s.followers >= 1000000) 0xFF8FE3F5,
-  ];
+  final buttons = <int>[if (s.followers >= 10000) 0xFFD9DDE3, if (s.followers >= 100000) 0xFFF2C14E, if (s.followers >= 1000000) 0xFF8FE3F5];
   if (buttons.isNotEmpty || deco.contains('figure')) {
     _box(r, 8, 0, 38, 30, 6, 2, 0xFF8A6040);
     for (var i = 0; i < buttons.length; i++) {
@@ -506,8 +668,16 @@ ui.Image drawBack(GameState s, {bool apology = false}) {
     _box(r, 64, 3, 4, 8, 20, 3, 0xFFF4F1EA);
     _box(r, 74, 1, 4, 20, 26, 2, 0xFF8C9AA8);
   } else {
-    final frame = switch (s.house) { 'penthouse' => 0xFF3A3A44, 'officetel' => 0xFFB89A74, _ => 0xFF8A6040 };
-    final blanket = switch (s.house) { 'penthouse' => 0xFFE9E6F0, 'apartment' => 0xFFD9A7B0, _ => 0xFF7FB3D5 };
+    final frame = switch (s.house) {
+      'penthouse' => 0xFF3A3A44,
+      'officetel' => 0xFFB89A74,
+      _ => 0xFF8A6040,
+    };
+    final blanket = switch (s.house) {
+      'penthouse' => 0xFFE9E6F0,
+      'apartment' => 0xFFD9A7B0,
+      _ => 0xFF7FB3D5,
+    };
     _box(r, 62, 0, 0, 32, 28, 8, frame);
     _box(r, 62, 0, 8, 32, 28, 4, 0xFFF5F2EC);
     _box(r, 64, 3, 12, 8, 20, 3, 0xFFFFFFFF);
@@ -684,8 +854,10 @@ class RoomPainter extends CustomPainter {
       final head = _headRows(s.look, bowing);
       final x0 = c.dx - 6;
       final y0 = c.dy - 18;
-      _rows(canvas, _bodyStand, apal, x0, y0 + 10);
+      _rows(canvas, _bodyRows(s.look, _bodyStand), apal, x0, y0 + 10);
       _rows(canvas, head, apal, x0, y0 + (bowing ? 3 : 0));
+      final top = _topRows(s.look);
+      if (top != null) _rows(canvas, top, _earPal, x0, y0 - 2 + (bowing ? 3 : 0));
     } else if (mode != 'away') {
       final seated = live || mode == 'idle';
       final c = seated ? at(_seatX, _seatY, _g(s, 'pc') == 0 ? 0 : 12) : at(48, 74);
@@ -693,14 +865,16 @@ class RoomPainter extends CustomPainter {
       final body = !seated
           ? _bodyStand
           : live && tick % 14 < 4
-              ? _armsUp
-              : _bodySit;
+          ? _armsUp
+          : _bodySit;
       final head = _headRows(s.look, false);
       final total = 10 + body.length;
       final x0 = c.dx - 6;
       final y0 = c.dy - total + bob;
-      _rows(canvas, body, pal, x0, y0 + 10 - bob);
+      _rows(canvas, _bodyRows(s.look, body), pal, x0, y0 + 10 - bob);
       _rows(canvas, head, pal, x0, y0);
+      final top = _topRows(s.look);
+      if (top != null) _rows(canvas, top, _earPal, x0, y0 - 2);
       if (_g(s, 'mic') == 1) _rect(canvas, x0 + 4, y0 + 11 - bob, 1, 1, 0xFF222222);
       if (live && _g(s, 'light') >= 2) _rect(canvas, x0 - 2, y0 - 2, 16, total + 4.0, 0xFFFFFADC, 0.18);
     }
@@ -710,8 +884,8 @@ class RoomPainter extends CustomPainter {
       final visitor = s.slot == 0 && s.staff.contains('editor')
           ? const Look(hair: 0x6B4A2E, shirt: 0x4FA36B, gender: 'm')
           : s.slot == 1 && s.staff.contains('manager')
-              ? const Look(hair: 0x222222, shirt: 0x2E3448, long: true)
-              : null;
+          ? const Look(hair: 0x222222, shirt: 0x2E3448, long: true)
+          : null;
       if (visitor != null) {
         final v = at(72, 72);
         final vpal = _charPalette(visitor, blink: tick % 50 == 7, talk: false);
@@ -727,6 +901,25 @@ class RoomPainter extends CustomPainter {
           _rect(canvas, v.dx + 3, v.dy - 7, 3, 1, 0xFFFFFFFF);
         }
       }
+    }
+
+    // 반려동물: 평소엔 방바닥을 돌아다니고, 방송 중엔 의자 옆, 잘 때는 침대 옆
+    if (s.pet != null && mode != 'apology') {
+      final p = petOf(s.pet!);
+      final phase = (tick ~/ 12) % 16;
+      final walkRight = phase < 8;
+      final Offset at0;
+      if (mode == 'live') {
+        at0 = at(22, 54);
+      } else if (mode == 'sleep') {
+        at0 = at(56, 34);
+      } else {
+        at0 = at(46 + (walkRight ? phase : 16 - phase) * 2.0, 82);
+      }
+      var rows = _petSpr[p.id]!;
+      if (mode != 'live' && mode != 'sleep' && !walkRight) rows = [for (final r in rows) r.split('').reversed.join()];
+      final hop = mode == 'idle' && tick % 6 < 3 ? -1 : 0;
+      _rows(canvas, rows, {'b': argb(p.body), 'd': argb(p.shade), 'e': 0xFF2A2230, 'n': 0xFFFF8FA8}, at0.dx - rows.first.length / 2, at0.dy - rows.length + hop);
     }
 
     canvas.drawImage(front, Offset.zero, img);
@@ -747,8 +940,7 @@ class RoomPainter extends CustomPainter {
       final a = (slot == 2 ? 0.35 : 0.15) + (tick % 10 < 5 ? 0.05 : 0);
       canvas.drawRect(
         Rect.fromCenter(center: n, width: 52, height: 52),
-        Paint()
-          ..shader = ui.Gradient.radial(n, 26, [const Color(0xFFFF5FA8).withValues(alpha: a), const Color(0x00FF5FA8)], [2 / 26, 1]),
+        Paint()..shader = ui.Gradient.radial(n, 26, [const Color(0xFFFF5FA8).withValues(alpha: a), const Color(0x00FF5FA8)], [2 / 26, 1]),
       );
     }
 
@@ -790,9 +982,7 @@ class RoomPainter extends CustomPainter {
 /// 방 효과 입자 만들기
 List<Particle> burstParticles(String kind, int n, Random rng) {
   final c = at(_seatX, _seatY, 26);
-  return [
-    for (var i = 0; i < n; i++) Particle(kind, c.dx + (rng.nextDouble() * 24 - 12), c.dy + rng.nextDouble() * 6, -(0.6 + rng.nextDouble() * 0.8), 22 + rng.nextDouble() * 14),
-  ];
+  return [for (var i = 0; i < n; i++) Particle(kind, c.dx + (rng.nextDouble() * 24 - 12), c.dy + rng.nextDouble() * 6, -(0.6 + rng.nextDouble() * 0.8), 22 + rng.nextDouble() * 14)];
 }
 
 Particle sleepParticle(GameState s) {
@@ -809,13 +999,14 @@ class PortraitPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final head = _headRows(look, false);
-    final rows = [...head.take(10), ..._bodyStand];
+    final top = _topRows(look);
+    final rows = [...head.take(10), ..._bodyRows(look, _bodyStand)];
     final extra = head.length > 10 ? head.sublist(10) : const <String>[];
     const w = 12.0;
-    final h = rows.length.toDouble();
+    final h = rows.length.toDouble() + 2;
     final scale = min(size.width / (w + 2), size.height / (h + 2)).floorToDouble();
     final x0 = (size.width - w * scale) / 2;
-    final y0 = (size.height - h * scale) / 2 + (tick % 20 < 10 ? 0 : -scale);
+    final y0 = (size.height - h * scale) / 2 + 2 * scale + (tick % 20 < 10 ? 0 : -scale);
     final pal = _charPalette(look, blink: tick % 30 == 0, talk: false);
     final paint = Paint()..isAntiAlias = false;
     void cell(int i, int j, int c) {
@@ -827,6 +1018,14 @@ class PortraitPainter extends CustomPainter {
       for (var i = 0; i < rows[j].length; i++) {
         final c = pal[rows[j][i]];
         if (c != null) cell(i, j, c);
+      }
+    }
+    if (top != null) {
+      for (var j = 0; j < top.length; j++) {
+        for (var i = 0; i < top[j].length; i++) {
+          final c = _earPal[top[j][i]];
+          if (c != null) cell(i, j - 2, c);
+        }
       }
     }
     // 긴 머리는 몸 위로 내려온다

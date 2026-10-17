@@ -233,6 +233,7 @@ const contents = [
   Content(id: 'react', name: '리액션 방송', icon: '😲', energy: 20, base: 1.15, need: {'pc': 1}, risky: true, desc: '화제성은 높지만 사고도 잦다.'),
   Content(id: 'vlog', name: '일상 브이로그', icon: '🎬', energy: 26, base: 1.2, need: {'camera': 2}, desc: '좋은 카메라가 필요하다. 감성이 곧 조회수.'),
   Content(id: 'asmr', name: 'ASMR', icon: '🎧', energy: 14, base: 1.2, need: {'mic': 2}, mic: 2.5, calm: true, desc: '콘덴서 마이크 이상이 필요하다.'),
+  Content(id: 'pet', name: '펫 방송', icon: '🐾', energy: 16, base: 1.35, calm: true, desc: '반려동물과 함께하는 힐링 방송. 반려동물이 있어야 한다.'),
 ];
 
 Content contentOf(String id) => contents.firstWhere((c) => c.id == id, orElse: () => contents.first);
@@ -274,6 +275,7 @@ const chatLines = <String, List<String>>{
   'any': ['ㅋㅋㅋㅋㅋ', '하이요~', 'ㅎㅇㅎㅇ', '오늘 텐션 좋네', '첫 방문입니다!', '{name} 왔다', 'ㄹㅇㅋㅋ', '아 개웃겨', '출첵', 'ㅇㅈ', '와 진짜?', '😂😂😂', '👍', '구독 박고 갑니다', '알림 보고 옴'],
   'talk': ['썰 더 풀어줘요', '그래서 그 다음엔?', '목소리 좋다', '공감 100%'],
   'study': ['오늘도 같이 공부해요', '📖', '집중!', '저 시험 3일 남음...'],
+  'pet': ['귀여워 ㅠㅠㅠ', '애기 이름 뭐예요?', '심장 아파 너무 귀엽다', '간식 사 주세요 후원함', '얼굴 보여 줘요!!', '랜선 집사 왔습니다'],
   'mukbang': ['와 한입 크기 뭐야', '저거 어디 거예요?', '배고프다...', '소리 미쳤다'],
   'sing': ['고음 미쳤다', '앵콜!!', '소름 돋았어요', '신청곡 받나요?'],
   'game': ['오른쪽!!', '아 그걸 왜 ㅋㅋ', '고수다', '보스 피 얼마 안 남음'],
@@ -2164,6 +2166,49 @@ final gameEvents = <GameEvent>[
       ),
     ],
   ),
+
+  // ───── 반려동물 사건 ─────
+  GameEvent(
+    id: 'pet_keyboard',
+    where: 'live',
+    title: '🐾 반려동물 난입',
+    weight: 5,
+    when: (s) => s.pet != null && !s.flags.contains('petKeyboardDone'),
+    text: (s) => '방송 중에 ${petOf(s.pet!).name}가 책상 위로 올라왔다! 키보드를 밟자 채팅창에 "ㅁㄴㅇㄹㅁㄴㅇㄹ"가 올라갔다.',
+    choices: [
+      EventChoice(
+        label: '🥰 카메라 앞에 데려와 소개한다',
+        result: '시청자들이 난리가 났다. "얼굴 보여 줘서 고마워요!" 후원이 쏟아졌다.',
+        fx: (s) => Fx(money: scaleMoney(s, 40000), followers: 0.04, image: 4, mental: 5, flag: 'petKeyboardDone'),
+        sns: snsPet,
+      ),
+      EventChoice(
+        label: '😅 조심스럽게 내려놓고 방송을 이어간다',
+        result: '"잠깐만요~" 하고 내려놓았다. 채팅창은 "펫 보여 줘요!"로 가득했다.',
+        fx: (s) => const Fx(followers: 0.01, flag: 'petKeyboardDone'),
+      ),
+    ],
+  ),
+  GameEvent(
+    id: 'pet_sick',
+    where: 'news',
+    title: '🏥 반려동물이 아프다',
+    weight: 4,
+    when: (s) => s.pet != null && !s.flags.contains('petSickDone'),
+    text: (s) => '아침에 일어나 보니 ${petOf(s.pet!).name}가 밥을 먹지 않는다. 기운이 하나도 없어 보인다.',
+    choices: [
+      EventChoice(
+        label: '🏥 바로 동물병원에 간다',
+        result: '다행히 큰 병은 아니었다. 병원비는 들었지만 마음이 놓였다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 150000), mental: 4, energy: -15, flag: 'petSickDone'),
+      ),
+      EventChoice(
+        label: '📢 방송에서 걱정을 털어놓는다',
+        result: '팬들이 함께 걱정해 줬다. "빨리 병원 가 보세요!" 응원 후원이 이어졌다.',
+        fx: (s) => Fx(money: -scaleMoney(s, 80000), image: 3, mental: 2, flag: 'petSickDone'),
+      ),
+    ],
+  ),
 ];
 
 // ───── 결말 ─────
@@ -2502,6 +2547,8 @@ final achievements = <Achievement>[
   Achievement('promise', '📅', '약속은 지킨다', '방송 예고를 10번 지켰다', (s) => s.schedKept >= 10),
   Achievement('missions', '🎯', '미션 마스터', '오늘의 미션 30개 완료', (s) => s.missionsDone >= 30),
   Achievement('mom', '👩', '어머님 팬클럽', '엄마를 방송에 소개했다', (s) => s.flags.contains('family_intrude#0')),
+  Achievement('pet', '🐾', '랜선 집사', '반려동물을 분양했다', (s) => s.pet != null),
+  Achievement('fashion', '👗', '패셔니스타', '뷰티샵 아이템 5개를 모았다', (s) => s.owned.length >= 5),
 ];
 
 Achievement achievementOf(String id) => achievements.firstWhere((a) => a.id == id);
@@ -2525,3 +2572,131 @@ final perks = <Perk>[
   Perk('🎙️', '핀 마이크를 들고 시작', '엔딩 5개', (e, a) => e >= 5),
   Perk('🏠', '원룸에서 시작', '업적 15개', (e, a) => a >= 15),
 ];
+
+// ───── 뷰티샵 (헤어·염색·옷·액세서리) ─────
+class StyleItem {
+  const StyleItem(this.id, this.kind, this.name, this.price, {this.value = '', this.color = 0, this.accent = 0, this.bonus = 0, this.desc = ''});
+  final String id;
+
+  /// hair(머리 모양) / dye(염색) / outfit(옷) / acc(액세서리)
+  final String kind;
+  final String name;
+  final int price;
+
+  /// 머리 모양·옷 무늬·액세서리 이름
+  final String value;
+
+  /// 염색 색, 옷 색 (0이면 처음 고른 색)
+  final int color;
+
+  /// 옷의 포인트 색 (넥타이, 벨트 등)
+  final int accent;
+
+  /// 방송 품질 보너스 (시청자 수에 곱해진다)
+  final double bonus;
+  final String desc;
+}
+
+const styleItems = [
+  StyleItem('hair_short', 'hair', '숏컷', 0, value: 'short', desc: '기본 머리'),
+  StyleItem('hair_long', 'hair', '장발', 0, value: 'long', desc: '기본 머리'),
+  StyleItem('hair_bob', 'hair', '보브컷', 50000, value: 'bob', bonus: 0.01, desc: '앞머리를 내린 단정한 단발'),
+  StyleItem('hair_pony', 'hair', '포니테일', 50000, value: 'pony', bonus: 0.01, desc: '발랄하게 묶은 머리'),
+  StyleItem('hair_twoblock', 'hair', '투블럭', 80000, value: 'twoblock', bonus: 0.02, desc: '옆을 짧게 쳐 올린 머리'),
+  StyleItem('hair_spiky', 'hair', '뾰족머리', 80000, value: 'spiky', bonus: 0.02, desc: '왁스로 세운 머리'),
+  StyleItem('dye_black', 'dye', '흑발', 20000, color: 0x2A2230),
+  StyleItem('dye_brown', 'dye', '갈색', 30000, color: 0x6B4226),
+  StyleItem('dye_blond', 'dye', '금발', 60000, color: 0xE8C66A, bonus: 0.01),
+  StyleItem('dye_pink', 'dye', '핑크', 100000, color: 0xF58BB0, bonus: 0.02),
+  StyleItem('dye_mint', 'dye', '민트', 100000, color: 0x7FD8C8, bonus: 0.02),
+  StyleItem('dye_silver', 'dye', '은발', 150000, color: 0xD8DCE6, bonus: 0.03),
+  StyleItem('outfit_tee', 'outfit', '기본 티셔츠', 0, value: 'tee', desc: '처음부터 입던 옷'),
+  StyleItem('outfit_hoodie', 'outfit', '후드티', 80000, value: 'hoodie', color: 0x8C95A8, bonus: 0.01, desc: '편한 게 최고'),
+  StyleItem('outfit_shirt', 'outfit', '셔츠', 120000, value: 'shirt', color: 0x9CC3F0, bonus: 0.02, desc: '깔끔한 첫인상'),
+  StyleItem('outfit_training', 'outfit', '트레이닝복', 150000, value: 'training', color: 0x2E6B4F, bonus: 0.02, desc: '양옆에 흰 줄'),
+  StyleItem('outfit_dress', 'outfit', '원피스', 200000, value: 'dress', color: 0xE89BC0, bonus: 0.03, desc: '하늘하늘한 원피스'),
+  StyleItem('outfit_pajama', 'outfit', '고양이 잠옷', 300000, value: 'pajama', color: 0xF3E0EA, accent: 0xFF9FC0, bonus: 0.03, desc: '침대에서 바로 방송한 느낌'),
+  StyleItem('outfit_suit', 'outfit', '정장', 500000, value: 'suit', color: 0x2E3448, accent: 0xE8463C, bonus: 0.04, desc: '시상식에도 문제없다'),
+  StyleItem('outfit_stage', 'outfit', '아이돌 무대의상', 2000000, value: 'stage', color: 0xF4F4F4, accent: 0xF2C14E, bonus: 0.07, desc: '반짝이는 금장 포인트'),
+  StyleItem('acc_none', 'acc', '없음', 0, value: 'none', desc: '액세서리 빼기'),
+  StyleItem('acc_glasses', 'acc', '뿔테 안경', 50000, value: 'glasses', bonus: 0.01, desc: '지적인 분위기'),
+  StyleItem('acc_sunglasses', 'acc', '선글라스', 100000, value: 'sunglasses', bonus: 0.01, desc: '실내에서도 쓴다'),
+  StyleItem('acc_cap', 'acc', '캡모자', 80000, value: 'cap', bonus: 0.01, desc: '빨간 야구모자'),
+  StyleItem('acc_catears', 'acc', '고양이 귀 머리띠', 150000, value: 'catears', bonus: 0.02, desc: '방송용 필수템'),
+  StyleItem('acc_headset', 'acc', '게이밍 헤드셋', 300000, value: 'headset', bonus: 0.03, desc: '초록 불빛이 나는 헤드셋'),
+];
+
+/// 처음부터 가진 아이템
+const freeStyles = {'hair_short', 'hair_long', 'outfit_tee', 'acc_none'};
+
+StyleItem styleOf(String id) => styleItems.firstWhere((x) => x.id == id);
+
+/// 아이템을 입혀 본 모습
+Look tryOn(Look look, StyleItem it) => switch (it.kind) {
+      'hair' => look.copyWith(style: it.value, long: it.value == 'long'),
+      'dye' => look.copyWith(hair: it.color),
+      'outfit' => look.copyWith(outfit: it.value),
+      _ => look.copyWith(acc: it.value),
+    };
+
+/// 지금 입은 것 중 이 아이템을 착용 중인지
+bool wearing(Look look, StyleItem it) => switch (it.kind) {
+      'hair' => look.hairStyle == it.value,
+      'dye' => look.hair == it.color,
+      'outfit' => look.outfit == it.value,
+      _ => look.acc == it.value,
+    };
+
+StyleItem? _outfitItem(String v) => styleItems.where((x) => x.kind == 'outfit' && x.value == v).firstOrNull;
+
+/// 옷 색 (기본 티셔츠는 처음 고른 색)
+int outfitColor(Look look) {
+  final it = _outfitItem(look.outfit);
+  return it == null || it.color == 0 ? look.shirt : it.color;
+}
+
+int outfitAccent(Look look) => _outfitItem(look.outfit)?.accent ?? 0xF2C14E;
+
+/// 꾸밈새 보너스 (방송 품질에 더해진다)
+double styleBonus(Look look) {
+  double b = 0;
+  for (final it in styleItems) {
+    if (it.bonus > 0 && it.kind != 'dye' && wearing(look, it)) b += it.bonus;
+  }
+  for (final it in styleItems.where((x) => x.kind == 'dye' && x.color == look.hair)) {
+    b += it.bonus;
+  }
+  return b;
+}
+
+// ───── 펫샵 ─────
+class Pet {
+  const Pet(this.id, this.name, this.icon, this.price, this.food, this.body, this.shade, this.desc);
+  final String id;
+  final String name;
+  final String icon;
+  final int price;
+
+  /// 하루 사료·간식비
+  final int food;
+  final int body;
+  final int shade;
+  final String desc;
+}
+
+const pets = [
+  Pet('hamster', '햄스터', '🐹', 200000, 3000, 0xE8C08A, 0xFFF4E2, '작고 동그란 친구. 쳇바퀴 소리가 ASMR이다.'),
+  Pet('cat', '고양이', '🐱', 1000000, 10000, 0xF29B4B, 0xC66F2A, '키보드 위를 걸어 다니는 게 취미.'),
+  Pet('dog', '강아지', '🐶', 1000000, 10000, 0xB07A4A, 0x7A5030, '방송 중에도 꼬리를 흔든다. 가끔 짖는다.'),
+];
+
+Pet petOf(String id) => pets.firstWhere((p) => p.id == id);
+
+const snsPet = SnsTopic(
+  tag: '{name}_반려동물',
+  headline: '{name} 방송에 등장한 반려동물에 시청자 심쿵',
+  tone: 0.8,
+  hate: ['동물로 시청자 끄는 건 좀…', '동물 학대 아님?'],
+  shield: ['너무 귀여워 ㅠㅠ', '매일 보여 주세요', '이 방송은 펫이 주인공임', '랜선 집사 됨'],
+  neutral: ['이름이 뭐예요?', '품종 궁금'],
+);

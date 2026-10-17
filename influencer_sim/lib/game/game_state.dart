@@ -2,7 +2,7 @@
 
 /// 캐릭터 외모 (색은 0xRRGGBB)
 class Look {
-  const Look({required this.hair, required this.shirt, this.long = false, this.gender = 'f'});
+  const Look({required this.hair, required this.shirt, this.long = false, this.gender = 'f', this.style = '', this.outfit = 'tee', this.acc = 'none'});
   final int hair;
   final int shirt;
   final bool long;
@@ -11,9 +11,33 @@ class Look {
   final String gender;
   bool get male => gender == 'm';
 
-  Map<String, dynamic> toJson() => {'hair': hair, 'shirt': shirt, 'long': long, 'gender': gender};
-  factory Look.fromJson(Map<String, dynamic> j) =>
-      Look(hair: j['hair'] as int, shirt: j['shirt'] as int, long: j['long'] as bool? ?? false, gender: j['gender'] as String? ?? 'f');
+  /// 머리 모양 (비어 있으면 long에 따라 숏컷/장발), 옷, 액세서리 (data.dart의 styleItems)
+  final String style;
+  final String outfit;
+  final String acc;
+
+  String get hairStyle => style.isEmpty ? (long ? 'long' : 'short') : style;
+
+  Look copyWith({int? hair, bool? long, String? style, String? outfit, String? acc}) => Look(
+        hair: hair ?? this.hair,
+        shirt: shirt,
+        long: long ?? this.long,
+        gender: gender,
+        style: style ?? this.style,
+        outfit: outfit ?? this.outfit,
+        acc: acc ?? this.acc,
+      );
+
+  Map<String, dynamic> toJson() => {'hair': hair, 'shirt': shirt, 'long': long, 'gender': gender, 'style': style, 'outfit': outfit, 'acc': acc};
+  factory Look.fromJson(Map<String, dynamic> j) => Look(
+        hair: j['hair'] as int,
+        shirt: j['shirt'] as int,
+        long: j['long'] as bool? ?? false,
+        gender: j['gender'] as String? ?? 'f',
+        style: j['style'] as String? ?? '',
+        outfit: j['outfit'] as String? ?? 'tee',
+        acc: j['acc'] as String? ?? 'none',
+      );
 }
 
 /// SNS 글 하나 (답글 포함)
@@ -285,11 +309,14 @@ class GameState {
     this.todayPeak = 0,
     this.lastEventDay = 0,
     this.adDay = 0,
+    this.pet,
+    Set<String>? owned,
     List<Mission>? missions,
     List<DayStat>? history,
     List<BestStream>? best,
     List<String>? business,
-  })  : missions = missions ?? [],
+  })  : owned = owned ?? {},
+        missions = missions ?? [],
         history = history ?? [],
         best = best ?? [],
         business = business ?? [],
@@ -408,6 +435,12 @@ class GameState {
   /// 광고주 후원을 받은 날 (하루 한 번)
   int adDay;
 
+  /// 분양한 반려동물 (data.dart의 pets)
+  String? pet;
+
+  /// 뷰티샵에서 산 아이템 (기본 아이템은 빼고)
+  final Set<String> owned;
+
   /// 오늘의 미션
   List<Mission> missions;
 
@@ -470,6 +503,8 @@ class GameState {
         'todayPeak': todayPeak,
         'lastEventDay': lastEventDay,
         'adDay': adDay,
+        'pet': pet,
+        'owned': owned.toList(),
         'missions': missions.map((m) => m.toJson()).toList(),
         'history': history.map((h) => h.toJson()).toList(),
         'best': best.map((b) => b.toJson()).toList(),
@@ -528,9 +563,71 @@ class GameState {
         todayPeak: j['todayPeak'] as int? ?? 0,
         lastEventDay: j['lastEventDay'] as int? ?? 0,
         adDay: j['adDay'] as int? ?? 0,
+        pet: j['pet'] as String?,
+        owned: Set<String>.from(j['owned'] as List? ?? const []),
         missions: (j['missions'] as List? ?? const []).map((m) => Mission.fromJson(m as Map<String, dynamic>)).toList(),
         history: (j['history'] as List? ?? const []).map((h) => DayStat.fromJson(h as List)).toList(),
         best: (j['best'] as List? ?? const []).map((b) => BestStream.fromJson(b as List)).toList(),
         business: List<String>.from(j['business'] as List? ?? const []),
+      );
+}
+
+/// 끝난 판 하나의 기록 (회차 비교용, 판이 바뀌어도 남는다)
+class RunRecord {
+  const RunRecord({
+    required this.name,
+    required this.ending,
+    required this.days,
+    required this.followers,
+    required this.peak,
+    required this.earned,
+    required this.streams,
+    required this.core,
+    required this.rank,
+    required this.image,
+    this.at = 0,
+  });
+  final String name;
+  final String ending;
+  final int days;
+  final int followers;
+  final int peak;
+  final int earned;
+  final int streams;
+  final int core;
+
+  /// 마지막 인기 순위
+  final int rank;
+  final int image;
+
+  /// 끝난 시각 (밀리초)
+  final int at;
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'ending': ending,
+        'days': days,
+        'followers': followers,
+        'peak': peak,
+        'earned': earned,
+        'streams': streams,
+        'core': core,
+        'rank': rank,
+        'image': image,
+        'at': at,
+      };
+
+  factory RunRecord.fromJson(Map<String, dynamic> j) => RunRecord(
+        name: j['name'] as String,
+        ending: j['ending'] as String,
+        days: j['days'] as int,
+        followers: j['followers'] as int,
+        peak: j['peak'] as int,
+        earned: j['earned'] as int,
+        streams: j['streams'] as int,
+        core: j['core'] as int? ?? 0,
+        rank: j['rank'] as int? ?? 0,
+        image: j['image'] as int? ?? 0,
+        at: j['at'] as int? ?? 0,
       );
 }
