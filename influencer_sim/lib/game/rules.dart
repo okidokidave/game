@@ -13,7 +13,7 @@ double quality(GameState s, Content? c) {
   return 1 + q * 0.13 + s.deco.length * 0.03 + houseOf(s.house).bonus + (s.flags.contains('mcn') ? 0.15 : 0) + styleBonus(s.look);
 }
 
-bool canStream(GameState s, Content c) => (c.id != 'pet' || s.pet != null) && (c.id != 'stock' || s.flags.contains('investor')) && c.need.entries.every((e) => s.gear[e.key]! >= e.value);
+bool canStream(GameState s, Content c) => (c.id != 'pet' || s.pet != null) && (c.id != 'stock' || s.followers >= stockFollowers) && c.need.entries.every((e) => s.gear[e.key]! >= e.value);
 
 Rank rankOf(int followers) => ranks.lastWhere((r) => followers >= r.min);
 

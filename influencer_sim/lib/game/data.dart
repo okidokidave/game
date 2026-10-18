@@ -274,7 +274,7 @@ const contents = [
   Content(id: 'react', name: '리액션 방송', icon: '😲', energy: 20, base: 1.15, need: {'pc': 1}, risky: true, desc: '화제성은 높지만 사고도 잦다.'),
   Content(id: 'vlog', name: '일상 브이로그', icon: '🎬', energy: 26, base: 1.2, need: {'camera': 2}, desc: '좋은 카메라가 필요하다. 감성이 곧 조회수.'),
   Content(id: 'asmr', name: 'ASMR', icon: '🎧', energy: 14, base: 1.2, need: {'mic': 2}, mic: 2.5, calm: true, desc: '콘덴서 마이크 이상이 필요하다.'),
-  Content(id: 'stock', name: '주식·코인 방송', icon: '📈', energy: 18, base: 1.2, risky: true, desc: '오늘의 추천 종목을 골라 준다. 맞히면 구독자가, 틀리면 원성이 쏟아진다.'),
+  Content(id: 'stock', name: '주식·코인 방송', icon: '📈', energy: 18, base: 1.2, risky: true, desc: '구독자 3천 명부터. 오늘의 추천 종목을 골라 준다. 맞히면 구독자, 틀리면 원성.'),
   Content(id: 'pet', name: '펫 방송', icon: '🐾', energy: 16, base: 1.35, calm: true, desc: '반려동물과 함께하는 힐링 방송. 반려동물이 있어야 한다.'),
 ];
 
@@ -2890,9 +2890,6 @@ final achievements = <Achievement>[
   Achievement('missions', '🎯', '미션 마스터', '오늘의 미션 30개 완료', (s) => s.missionsDone >= 30),
   Achievement('mom', '👩', '어머님 팬클럽', '엄마를 방송에 소개했다', (s) => s.flags.contains('family_intrude#0')),
   Achievement('pet', '🐾', '랜선 집사', '반려동물을 분양했다', (s) => s.pet != null),
-  Achievement('ant', '🐜', '개미 투자자', '처음으로 주식이나 코인을 샀다', (s) => s.flags.contains('investor')),
-  Achievement('landlord', '🏢', '건물주', '부동산을 샀다', (s) => s.estates.isNotEmpty),
-  Achievement('lotto', '🎟️', '인생 역전?', '복권 3등 이상 당첨', (s) => s.flags.contains('lottoBig')),
   Achievement('oracle', '🔮', '족집게', '추천 종목 5번 적중', (s) => s.pickWins >= 5),
   Achievement('genreKing', '👑', '장르의 왕', '한 장르에서 1위를 했다', (s) => s.flags.any((f) => f.startsWith('crown_'))),
   Achievement('allround', '🌈', '올라운더', '세 장르에서 1위를 했다', (s) => s.flags.where((f) => f.startsWith('crown_')).length >= 3),
@@ -3155,8 +3152,11 @@ const weirdDms = [
 
 WeirdDm weirdOf(String id) => weirdDms.firstWhere((w) => w.id == id);
 
-// ───── 재테크 ─────
-/// 주식·코인 종목. 가격은 매일 밤 움직인다
+// ───── 주식·코인 방송 ─────
+/// 주식·코인 방송이 열리는 구독자 수
+const stockFollowers = 3000;
+
+/// 방송에서 추천하는 종목. 가격은 매일 밤 움직이고, 추천 결과 판정에만 쓴다 (직접 사고팔지는 않는다)
 class Asset {
   const Asset(this.id, this.name, this.icon, this.kind, this.start, this.vol, this.drift, this.desc);
   final String id;
@@ -3183,42 +3183,6 @@ const assets = [
 ];
 
 Asset assetOf(String id) => assets.firstWhere((a) => a.id == id);
-
-/// 부동산: 사 두면 매일 임대 수익, 값도 조금씩 오른다
-class Estate {
-  const Estate(this.id, this.name, this.icon, this.price, this.rent, this.minFollowers, this.desc);
-  final String id;
-  final String name;
-  final String icon;
-  final int price;
-
-  /// 하루 임대 수익
-  final int rent;
-  final int minFollowers;
-  final String desc;
-}
-
-const estates = [
-  Estate('store', '동네 상가', '🏪', 30000000, 30000, 5000, '1층 작은 상가. 편의점이 세 들어 있다.'),
-  Estate('studio', '역세권 오피스텔', '🏢', 120000000, 110000, 50000, '역 앞 오피스텔. 공실 걱정 없다.'),
-  Estate('building', '꼬마빌딩', '🏬', 600000000, 500000, 300000, '이제 나도 건물주.'),
-];
-
-Estate estateOf(String id) => estates.firstWhere((e) => e.id == id);
-
-/// 복권 등수: (이름, 확률, 상금)
-const lottoTiers = [
-  ('1등', 0.00005, 2000000000),
-  ('2등', 0.0005, 50000000),
-  ('3등', 0.005, 1500000),
-  ('4등', 0.04, 50000),
-  ('5등', 0.15, 5000),
-];
-
-const lottoPrice = 5000;
-
-/// 하루에 살 수 있는 복권 수
-const lottoPerDay = 5;
 
 /// 추천 종목이 떨어지면 오는 DM
 const dmPickFail = [

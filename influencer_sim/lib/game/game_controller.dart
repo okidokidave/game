@@ -153,7 +153,8 @@ class GameController extends ChangeNotifier {
 
   // ───── 업적 (판이 바뀌어도 남는다) ─────
   Set<String>? _achieved;
-  Set<String> get achieved => _achieved ??= _repo.achievements().toSet();
+  // 없어진 업적(예전 버전)은 빼고 센다
+  Set<String> get achieved => _achieved ??= _repo.achievements().where((id) => achievements.any((a) => a.id == id)).toSet();
 
   void checkAchievements() {
     for (final a in achievements) {
@@ -260,7 +261,7 @@ class GameController extends ChangeNotifier {
   /// 콘텐츠를 고를 수 없는 이유 (가능하면 null)
   String? contentBlock(Content c) {
     if (c.id == 'pet' && s.pet == null) return '반려동물 필요 (뷰티샵·펫샵)';
-    if (c.id == 'stock' && !s.flags.contains('investor')) return '주식·코인을 사 봐야 열린다 (💹 재테크)';
+    if (c.id == 'stock' && s.followers < stockFollowers) return '구독자 ${shortNum(stockFollowers)} 필요';
     if (!canStream(s, c)) {
       return c.need.entries.where((e) => s.gear[e.key]! < e.value).map((e) => '${gearOf(e.key).label}: ${gearOf(e.key).tiers[e.value].name} 필요').join(', ');
     }
@@ -685,7 +686,7 @@ class GameController extends ChangeNotifier {
       _delta('이미지', s.image - image0),
     ].where((c) => c.good != null).toList();
 
-    s.trend = _pick(contents.where((c) => c.id != s.trend && (c.id != 'pet' || s.pet != null) && (c.id != 'stock' || s.flags.contains('investor'))).toList()).id;
+    s.trend = _pick(contents.where((c) => c.id != s.trend && (c.id != 'pet' || s.pet != null) && (c.id != 'stock' || s.followers >= stockFollowers)).toList()).id;
     log('🎬 $days일간의 자숙을 마치고 복귀했다.', 'day');
     final trend = sns.topicFeed(s, snsComeback);
     pushTrend(trend);
@@ -996,7 +997,7 @@ class GameController extends ChangeNotifier {
       notes.add('밤새 악플 알림이 울렸다. 멘탈 -8');
     }
     if (s.day % 7 == 1) {
-      s.trend = _pick(contents.where((c) => c.id != s.trend && (c.id != 'pet' || s.pet != null) && (c.id != 'stock' || s.flags.contains('investor'))).toList()).id;
+      s.trend = _pick(contents.where((c) => c.id != s.trend && (c.id != 'pet' || s.pet != null) && (c.id != 'stock' || s.followers >= stockFollowers)).toList()).id;
       final c = contentOf(s.trend);
       notes.add('이번 주 대세 콘텐츠는 ${c.icon} ${c.name}! 시청자 1.5배');
     }
@@ -1159,7 +1160,7 @@ class GameController extends ChangeNotifier {
     'staff': '🧑‍💼 직원 고용 (상점)',
     'business': '🛍️ 사업 (상점)',
     'beauty': '👗 뷰티샵·펫샵 (왼쪽 위 프로필)',
-    'invest': '💹 재테크 (주식·코인·부동산·복권)',
+    'stock': '📈 주식·코인 방송 (방송 콘텐츠)',
   };
 
   bool unlocked(String f) => switch (f) {
@@ -1171,7 +1172,7 @@ class GameController extends ChangeNotifier {
         'staff' => s.followers >= 3000,
         'business' => s.followers >= 8000,
         'beauty' => s.followers >= 100,
-        'invest' => s.followers >= 200 || s.day >= 6,
+        'stock' => s.followers >= stockFollowers,
         _ => true,
       };
 
@@ -1358,7 +1359,7 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  // ───── 재테크 ─────
+  // ───── 주식·코인 방송 (종목 시세는 추천 결과 판정에만 쓴다) ─────
   double priceOf(Asset a) => s.prices[a.id] ?? a.start;
 
   /// 어제 대비 등락률
@@ -1368,17 +1369,12 @@ class GameController extends ChangeNotifier {
     return h.last / h[h.length - 2] - 1;
   }
 
-  int holdingValue(Asset a) => ((s.holdings[a.id] ?? 0) * priceOf(a)).round();
-
-  /// 주식·코인·부동산을 합친 평가액
-  int get portfolioValue => assets.fold(0, (t, a) => t + holdingValue(a)) + s.estates.fold(0, (t, e) => t + (s.estateValue[e] ?? estateOf(e).price));
-
   double _gauss() {
     final u = max(1e-9, rng.nextDouble()), v = rng.nextDouble();
     return sqrt(-2 * _ln(u)) * cos(2 * pi * v);
   }
 
-  /// 매일 밤 시세가 움직이고, 임대 수익이 들어오고, 어제 추천한 종목의 결과가 나온다
+  /// 매일 밤 시세가 움직이고, 어제 방송에서 추천한 종목의 결과가 나온다
   void _marketNight({bool quiet = false}) {
     for (final a in assets) {
       var r = a.drift + a.vol * _gauss();
@@ -1388,11 +1384,6 @@ class GameController extends ChangeNotifier {
       s.prices[a.id] = p;
       final h = s.priceHist[a.id] ?? [a.start];
       s.priceHist[a.id] = [...h, p].length > 20 ? [...h, p].sublist([...h, p].length - 20) : [...h, p];
-    }
-    for (final id in s.estates) {
-      final e = estateOf(id);
-      s.estateValue[id] = ((s.estateValue[id] ?? e.price) * (1.0006 + _gauss() * 0.002)).round();
-      money(e.rent, '${e.icon} ${e.name} 임대 수익');
     }
     if (!quiet) _judgePick();
   }
@@ -1440,105 +1431,6 @@ class GameController extends ChangeNotifier {
     s.pickViewers = viewers;
     log('📊 오늘의 추천 종목: ${a.icon} ${a.name}');
     save();
-  }
-
-  /// [amount]원어치 산다 (최소 1주). 수수료 0.3%
-  bool buyAsset(Asset a, int amount) {
-    final p = priceOf(a);
-    var qty = (amount / p).floor();
-    if (qty < 1) qty = 1;
-    final cost = (qty * p * 1.003).round();
-    if (s.money < cost) return false;
-    money(-cost, '${a.kind == 'coin' ? '코인' : '주식'} 매수: ${a.name}');
-    s.holdings[a.id] = (s.holdings[a.id] ?? 0) + qty;
-    s.costBasis[a.id] = (s.costBasis[a.id] ?? 0) + cost;
-    if (!s.flags.contains('investor')) {
-      s.flags.add('investor');
-      toasts.add('📈 주식·코인 방송이 열렸어요!');
-    }
-    log('${a.icon} ${a.name} ${shortNum(qty)}${a.kind == 'coin' ? '개' : '주'} 샀다. (-${shortWon(cost)})', 'buy');
-    save();
-    notifyListeners();
-    return true;
-  }
-
-  /// 전부 판다. 수수료 0.3%. 손익을 돌려준다
-  int sellAsset(Asset a) {
-    final qty = s.holdings[a.id] ?? 0;
-    if (qty <= 0) return 0;
-    final got = (qty * priceOf(a) * 0.997).round();
-    final profit = got - (s.costBasis[a.id] ?? 0);
-    money(got, '${a.kind == 'coin' ? '코인' : '주식'} 매도: ${a.name}');
-    s.holdings.remove(a.id);
-    s.costBasis.remove(a.id);
-    log('${a.icon} ${a.name} 전부 팔았다. ${profit >= 0 ? '수익' : '손실'} ${shortWon(profit.abs())}', profit >= 0 ? 'milestone' : 'flop');
-    toasts.add(profit >= 0 ? '💰 ${a.name} 익절! +${shortWon(profit)}' : '😭 ${a.name} 손절… -${shortWon(-profit)}');
-    save();
-    notifyListeners();
-    return profit;
-  }
-
-  String? estateBlock(Estate e) {
-    if (s.estates.contains(e.id)) return '보유 중';
-    if (s.followers < e.minFollowers) return '구독자 ${shortNum(e.minFollowers)} 필요';
-    if (s.money < e.price) return '돈 부족';
-    return null;
-  }
-
-  bool buyEstate(Estate e) {
-    if (estateBlock(e) != null) return false;
-    money(-e.price, '부동산 매입: ${e.name}');
-    s.estates.add(e.id);
-    s.estateValue[e.id] = e.price;
-    log('${e.icon} ${e.name}을(를) 샀다! 매일 임대 수익 ${shortWon(e.rent)}', 'buy');
-    toasts.add('${e.icon} ${e.name} 매입! 이제 건물주');
-    save();
-    notifyListeners();
-    return true;
-  }
-
-  int sellEstate(Estate e) {
-    if (!s.estates.contains(e.id)) return 0;
-    final got = ((s.estateValue[e.id] ?? e.price) * 0.97).round();
-    money(got, '부동산 매도: ${e.name}');
-    s.estates.remove(e.id);
-    s.estateValue.remove(e.id);
-    log('${e.icon} ${e.name}을(를) 팔았다. +${shortWon(got)}');
-    save();
-    notifyListeners();
-    return got;
-  }
-
-  int get lottoLeft => s.lottoDay == s.day ? lottoPerDay - s.lottoCount : lottoPerDay;
-
-  /// 복권 한 장. (등수 이름, 상금) — 꽝이면 (null, 0)
-  (String?, int) buyLotto() {
-    if (lottoLeft <= 0 || s.money < lottoPrice) return (null, -1);
-    if (s.lottoDay != s.day) {
-      s.lottoDay = s.day;
-      s.lottoCount = 0;
-    }
-    s.lottoCount++;
-    money(-lottoPrice, '복권');
-    var r = rng.nextDouble();
-    for (final (name, p, prize) in lottoTiers) {
-      if (r < p) {
-        money(prize, '복권 $name 당첨');
-        if (prize >= 1500000) {
-          s.flags.add('lottoBig');
-          log('🎟️ 복권 $name 당첨!! +${shortWon(prize)}', 'viral');
-          pushFeed([sns.post(s, _pick(['{name} 복권 $name 당첨 실화냐 ㄷㄷ', '{name} 한턱 쏴라!!', '복권 당첨된 스트리머 처음 봄 ㅋㅋ']), 'fan', g: sns.fanGender(s), boost: 3)]);
-          emit('coin', 30);
-        }
-        save();
-        notifyListeners();
-        return (name, prize);
-      }
-      r -= p;
-    }
-    save();
-    notifyListeners();
-    return (null, 0);
   }
 
   // ───── 뷰티샵 · 펫샵 ─────

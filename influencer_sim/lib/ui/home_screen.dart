@@ -13,7 +13,6 @@ import '../game/sns.dart';
 import '../scene/room_view.dart';
 import 'dialogs.dart';
 import 'palette.dart';
-import 'invest.dart';
 import 'minigame.dart';
 import 'sheets.dart';
 import 'sns_phone.dart';
@@ -160,10 +159,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _act(String id) async {
     if (_block(id) != null || s.ended != null) return;
     if (id == 'shop') return openShop(context, game);
-    if (id == 'invest') {
-      game.seen('invest');
-      return openInvest(context, game);
-    }
     setState(() => _busy = true);
     try {
       switch (id) {
@@ -442,9 +437,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ]),
         const SizedBox(height: 8),
         Text(
-          stars > 0
-              ? '🎮 오늘의 컨디션 ${starText(stars)}${_playedMini ? '' : ' (첫 방송 미니게임)'} · 시청자 +${(stars * 4).round()}% · 후원 +${(stars * 6).round()}%'
-              : '🎮 오늘의 컨디션 0/5… 내일 첫 방송에서 다시 도전!',
+          stars > 0 ? '🎮 오늘의 컨디션 ${starText(stars)}${_playedMini ? '' : ' (첫 방송 미니게임)'} · 시청자 +${(stars * 4).round()}% · 후원 +${(stars * 6).round()}%' : '🎮 오늘의 컨디션 0/5… 내일 첫 방송에서 다시 도전!',
           style: TextStyle(color: stars > 0 ? Pal.good : Pal.muted, fontSize: 13, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
@@ -627,18 +620,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// 방송 중: 후원 팝업 두 번, 채팅 반응 버튼 두 번
+  String _pickLabel(Asset a) {
+    final ch = game.changeOf(a);
+    return '${a.icon} ${a.name}  ${ch >= 0 ? '▲' : '▼'}${(ch.abs() * 100).toStringAsFixed(1)}%${a.kind == 'coin' ? '  (고위험·고수익)' : ''}';
+  }
+
   /// 주식 방송: 오늘의 추천 종목 (내일 아침 결과)
   Future<void> _pickStock(StreamResult r) async {
     _sfx(Sfx.notify, Buzz.light);
     final i = await ask(
       context,
       '📊 오늘의 추천 종목은?',
-      [
-        eventText('채팅창이 "오늘 뭐 사요??"로 도배됐다. 어떤 종목을 추천할까?'),
-        const SizedBox(height: 6),
-        mutedText('내일 아침 오르면 구독자가 늘고, 떨어지면 "내 돈 내놔" DM이 쏟아져요. 코인은 더 크게 움직여요.', size: 12.5),
-      ],
-      [for (final a in assets) DialogButton(pickLabel(game, a), choice: true)],
+      [eventText('채팅창이 "오늘 뭐 사요??"로 도배됐다. 어떤 종목을 추천할까?'), const SizedBox(height: 6), mutedText('내일 아침 오르면 구독자가 늘고, 떨어지면 "내 돈 내놔" DM이 쏟아져요. 코인은 더 크게 움직여요.', size: 12.5)],
+      [for (final a in assets) DialogButton(_pickLabel(a), choice: true)],
       icon: '📈',
     );
     if (!mounted) return;
@@ -855,11 +849,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       child: Text(
                         s.name.characters.first,
                         // 밝은 옷 색이면 글자를 어둡게
-                        style: TextStyle(
-                          color: Color(0xFF000000 | outfitColor(s.look)).computeLuminance() > 0.6 ? Pal.bg : Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                        ),
+                        style: TextStyle(color: Color(0xFF000000 | outfitColor(s.look)).computeLuminance() > 0.6 ? Pal.bg : Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
                       ),
                     ),
                   ),
@@ -940,7 +930,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   child: Text(
                     // 가장 높은 장르 순위가 3위 안이면 같이 보여 준다
-                    '🏆 ${game.myRank}위${switch (game.bestGenre) { (final g, final r) when r <= 3 => ' · ${contentOf(g).icon}$r위', _ => '' }}',
+                    '🏆 ${game.myRank}위${switch (game.bestGenre) {
+                      (final g, final r) when r <= 3 => ' · ${contentOf(g).icon}$r위',
+                      _ => '',
+                    }}',
                     style: const TextStyle(color: Pal.gold, fontSize: 12, fontWeight: FontWeight.w900),
                   ),
                 ),
@@ -1667,7 +1660,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  static const _small = [('upload', '✂️', '업로드'), ('work', '🏪', '알바'), ('rest', '🛋️', '휴식'), ('sleep', '😴', '잠자기'), ('invest', '💹', '재테크'), ('shop', '🛒', '상점')];
+  static const _small = [('upload', '✂️', '업로드'), ('work', '🏪', '알바'), ('rest', '🛋️', '휴식'), ('sleep', '😴', '잠자기'), ('shop', '🛒', '상점')];
 
   // 아래 버튼 영역: 큰 방송 버튼 + 작은 동그란 버튼들
   Widget _dock() {
@@ -1694,9 +1687,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              for (final (id, icon, label) in _small)
-                if (id != 'invest' || game.unlocked('invest'))
-                  Expanded(child: id == 'work' && game.isPro && s.flags.contains('parentShop') ? _roundAction(id, '🍗', '가게 홍보') : _roundAction(id, icon, label)),
+              for (final (id, icon, label) in _small) Expanded(child: id == 'work' && game.isPro && s.flags.contains('parentShop') ? _roundAction(id, '🍗', '가게 홍보') : _roundAction(id, icon, label)),
             ],
           ),
         ],
@@ -1744,7 +1735,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     'work' => game.isPro ? '용돈·찐팬' : '+6만',
     'rest' => '회복',
     'sleep' => '하루 끝',
-    'invest' => game.portfolioValue > 0 ? shortWon(game.portfolioValue) : '시간 0',
     _ => '시간 0',
   };
 
