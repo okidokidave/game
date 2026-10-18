@@ -133,8 +133,8 @@ https://github.com/okidokidave/game/actions 에서 "스트리머 키우기 APK �
 | 항목 | 위치 |
 |---|---|
 | 앱 ID (출시 후 변경 불가) | `android/app/build.gradle.kts` → `com.okidokidave.influencer_sim` |
-| AdMob 앱 ID | `android/app/src/main/AndroidManifest.xml` |
-| 광고 단위 ID | `lib/ads/ad_ids.dart` (지금은 화면 아래 배너만 사용, 테스트 광고) |
+| AdMob 앱 ID | `android/app/src/main/AndroidManifest.xml` (실제 ID 적용됨) |
+| 광고 단위 ID | `lib/ads/ad_ids.dart` (하단 배너 + 보상형 광고주 후원, 실제 ID 적용됨. 디버그 빌드는 항상 테스트 광고) |
 | 앱 아이콘 | `python3 tool/generate_icon.py` (스토어용 512px: `assets/icon/store_icon_512.png`) |
 | 버전 | `pubspec.yaml`의 `version` |
 

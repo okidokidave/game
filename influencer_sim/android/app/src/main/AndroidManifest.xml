@@ -3,10 +3,10 @@
         android:label="스트리머 키우기"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <!-- AdMob 앱 ID. 지금은 구글 공식 테스트 ID. 출시 전에 내 앱 ID(~ 들어간 값)로 바꾼다. -->
+        <!-- AdMob 앱 ID (스트리머 키우기) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+            android:value="ca-app-pub-2638784678756627~6486411431"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

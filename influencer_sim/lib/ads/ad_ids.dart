@@ -14,9 +14,9 @@ class AdIds {
   static const _testRewarded = 'ca-app-pub-3940256099942544/5224354917';
   static const _testBanner = 'ca-app-pub-3940256099942544/6300978111';
 
-  // TODO(출시): AdMob 콘솔에서 만든 광고 단위 ID로 바꾼다.
-  static const _realRewarded = '';
-  static const _realBanner = '';
+  // AdMob 콘솔에서 만든 실제 광고 단위 ID
+  static const _realRewarded = 'ca-app-pub-2638784678756627/3860248092';
+  static const _realBanner = 'ca-app-pub-2638784678756627/5967536683';
 
   static String get rewarded => _pick(_realRewarded, _testRewarded);
   static String get banner => _pick(_realBanner, _testBanner);
