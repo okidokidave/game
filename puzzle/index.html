@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="블록을 맞춰 갑질 사장을 물리치는 직장인 퍼즐 RPG.">
+  <meta name="theme-color" content="#2b2f38">
+  <title>갑질 사장 퇴치 대작전</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="boss" class="boss">
+      <div id="boss-face" class="boss-face">😒</div>
+      <div class="boss-info">
+        <div class="boss-name"><span id="boss-title"></span> <b id="boss-name"></b></div>
+        <div class="bar hp"><i id="boss-hp-fill"></i><span id="boss-hp-text"></span></div>
+        <div class="boss-cd">공격까지 <b id="boss-cd">3</b>턴</div>
+      </div>
+      <div id="bubble" class="bubble"></div>
+    </header>
+
+    <section id="team" class="team">
+      <div id="members" class="members"></div>
+      <div class="mental-row">
+        <span class="label">멘탈</span>
+        <div class="bar mental"><i id="mental-fill"></i><span id="mental-text"></span></div>
+        <span id="shield" class="shield" title="증거 방어막">🛡️ 0</span>
+      </div>
+    </section>
+
+    <div id="board-wrap" class="board-wrap">
+      <canvas id="board" aria-label="퍼즐 판"></canvas>
+    </div>
+
+    <div id="overlay" class="overlay"></div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
