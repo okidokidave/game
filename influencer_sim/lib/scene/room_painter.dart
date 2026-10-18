@@ -229,7 +229,8 @@ Map<String, int> _charPalette(Look look, {required bool blink, required bool tal
   // 옷·액세서리 무늬
   'w': 0xFFF7F7F2,
   'x': argb(outfitAccent(look)),
-  'g': 0xFF3A2E2A,
+  // 뿔테 (밝은 갈색, 눈과 구분되게)
+  'g': 0xFFA8692E,
   'c': 0xFFE8463C,
   'C': 0xFFB8322A,
   'u': shade(look.hair, -0.45),
@@ -270,19 +271,27 @@ List<String> _headRows(Look look, bool closed) {
   }
   switch (look.acc) {
     case 'glasses':
-      for (final i in const [2, 4, 5, 6, 7, 9]) {
-        rows[6] = _put(rows[6], i, 'g');
+      // 뿔테 안경: 눈 둘레를 감싼 네모 테 (눈은 그대로 보인다)
+      for (final r in const [5, 8]) {
+        for (final i in const [2, 3, 4, 7, 8, 9]) {
+          rows[r] = _put(rows[r], i, 'g');
+        }
       }
-      for (final i in const [2, 4, 7, 9]) {
-        rows[7] = _put(rows[7], i, 'g');
+      for (final r in const [6, 7]) {
+        for (final i in const [2, 4, 7, 9]) {
+          rows[r] = _put(rows[r], i, 'g');
+        }
       }
+      rows[6] = _put(_put(rows[6], 5, 'g'), 6, 'g');
     case 'sunglasses':
+      // 선글라스: 렌즈가 까맣게 꽉 찬다 + 반짝이는 점
       for (final r in const [6, 7]) {
         for (final i in const [2, 3, 4, 7, 8, 9]) {
           rows[r] = _put(rows[r], i, 'k');
         }
       }
       rows[6] = _put(_put(rows[6], 5, 'k'), 6, 'k');
+      rows[6] = _put(_put(rows[6], 2, 'w'), 7, 'w');
     case 'cap':
       rows[0] = '..CCCCCCCC..';
       rows[1] = '.cccccccccc.';
