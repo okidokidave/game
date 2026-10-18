@@ -145,7 +145,7 @@ const rivals = [
   Rival('sua', '새벽감성 수아', 'sing', 120, 0.06, 200000),
   Rival('minsu', '갓겜민수', 'game', 800000, 0.015, 3000000),
   Rival('speed', '스피드런 진', 'game', 20000, 0.035, 600000),
-  Rival('gombear', '롤하는 곰돌이', 'game', 4000, 0.045, 400000),
+  Rival('gombear', '게임하는 곰돌이', 'game', 4000, 0.045, 400000),
   Rival('teo', '영화 리뷰어 테오', 'react', 100000, 0.02, 1200000),
   Rival('dongdong', '리액션왕 동동', 'react', 25000, 0.04, 900000),
   Rival('clip', '클립 장인', 'react', 1500, 0.05, 250000),
@@ -307,9 +307,9 @@ class Milestone {
 const milestones = [
   Milestone(100, '구독자 100명!', '드디어 세 자릿수. 고정 시청자 닉네임을 외우기 시작했다.'),
   Milestone(1000, '수익화 달성!', '구독자 1,000명. 이제 방송마다 광고 수익이 들어온다.'),
-  Milestone(10000, '실버 버튼 도착!', '구독자 1만 명. 택배로 온 실버 버튼을 선반에 올려두었다.'),
-  Milestone(100000, '골드 버튼 도착!', '구독자 10만 명. 길에서 알아보는 사람이 생겼다.'),
-  Milestone(1000000, '다이아 버튼 도착!', '구독자 100만 명. 이제 당신은 명실상부 레전드 스트리머다.'),
+  Milestone(10000, '실버 명패 도착!', '구독자 1만 명. 택배로 온 실버 명패를 선반에 올려두었다.'),
+  Milestone(100000, '골드 명패 도착!', '구독자 10만 명. 길에서 알아보는 사람이 생겼다.'),
+  Milestone(1000000, '다이아 명패 도착!', '구독자 100만 명. 이제 당신은 명실상부 레전드 스트리머다.'),
 ];
 
 // ───── 방송 중 채팅 ─────
@@ -507,9 +507,9 @@ const snsExtra = <String, List<String>>{
 const snsMilestone = <int, List<String>>{
   100: ['{name} 구독자 100명 축하해요! 1호팬입니다', '{name} 처음부터 봤는데 벌써 100명이라니 ㅠ'],
   1000: ['{name} 수익화 축하!! 이제 장비 바꾸자', '{name} 1천 명 축하해요 🎉', '고인물 인증합니다. {name} 100명일 때부터 봄'],
-  10000: ['{name} 실버 버튼 축하합니다!!', '{name} 1만이라니... 내가 키웠다', '{name} 요즘 진짜 잘 나가네'],
-  100000: ['{name} 골드 버튼 ㄷㄷ', '{name} 10만 축하! 초심 잃지 마요', '{name} 길에서 봤는데 실물 미쳤음'],
-  1000000: ['{name} 100만 실화냐', '{name} 다이아 버튼 축하해요 ㅠㅠㅠ', '{name} 방구석 시절부터 봤다고 자랑 중'],
+  10000: ['{name} 실버 명패 축하합니다!!', '{name} 1만이라니... 내가 키웠다', '{name} 요즘 진짜 잘 나가네'],
+  100000: ['{name} 골드 명패 ㄷㄷ', '{name} 10만 축하! 초심 잃지 마요', '{name} 길에서 봤는데 실물 미쳤음'],
+  1000000: ['{name} 100만 실화냐', '{name} 다이아 명패 축하해요 ㅠㅠㅠ', '{name} 방구석 시절부터 봤다고 자랑 중'],
 };
 
 /// 성별마다 다른 말투. {sib}은 부르는 말로 바뀐다.
@@ -1501,7 +1501,7 @@ final gameEvents = <GameEvent>[
     title: '예능 출연 제안',
     weight: 3,
     when: (s) => s.followers >= 300000 && !s.flags.contains('tvDone'),
-    text: (s) => '방송국에서 연락이 왔다. 인기 예능 "놀러 와 방구석"에 게스트로 나와 달라고 한다.',
+    text: (s) => '방송국에서 연락이 왔다. 인기 예능 "방구석 초대석"에 게스트로 나와 달라고 한다.',
     choices: [
       EventChoice(
         label: '출연해서 몸 사리지 않고 웃긴다',
@@ -1646,7 +1646,7 @@ final gameEvents = <GameEvent>[
     title: '📡 공중파 예능 고정 출연',
     weight: 4,
     when: (s) => rankNow(s) <= 6 && !s.flags.contains('varietyDone'),
-    text: (s) => '공중파 토요 예능 "아이돌 대작전" PD에게서 연락이 왔다. 아이돌들과 함께 고정 멤버로 출연해 달라고 한다!',
+    text: (s) => '공중파 토요 예능 "토요일엔 아이돌" PD에게서 연락이 왔다. 아이돌들과 함께 고정 멤버로 출연해 달라고 한다!',
     choices: [
       EventChoice(
         label: '고정 출연한다 (매주 촬영)',
@@ -2480,7 +2480,7 @@ final dmOffers = <DmOffer>[
   // 장르 1위 제안 (방송 뒤에는 오지 않고, 장르 1위가 되면 온다)
   DmOffer(
     id: 'genre_stock',
-    from: '경제TV',
+    from: '도트경제TV',
     color: 0xFFDC2626,
     after: 'never',
     minFollowers: 0,
@@ -2493,7 +2493,7 @@ final dmOffers = <DmOffer>[
   ),
   DmOffer(
     id: 'genre_talk',
-    from: 'KBC 라디오',
+    from: '도트FM 라디오',
     color: 0xFF0EA5E9,
     after: 'never',
     minFollowers: 0,
@@ -2532,7 +2532,7 @@ final dmOffers = <DmOffer>[
   ),
   DmOffer(
     id: 'genre_sing',
-    from: '블루노트 레코드',
+    from: '파란음표 레코드',
     color: 0xFF8B5CF6,
     after: 'never',
     minFollowers: 0,
@@ -2545,7 +2545,7 @@ final dmOffers = <DmOffer>[
   ),
   DmOffer(
     id: 'genre_game',
-    from: 'LCK 중계팀',
+    from: '픽셀 e스포츠 리그 중계팀',
     color: 0xFF3B82F6,
     after: 'never',
     minFollowers: 0,
@@ -2616,24 +2616,24 @@ final dmOffers = <DmOffer>[
     after: 'sing',
     minFollowers: 3000,
     chance: 0.25,
-    text: (s) => '안녕하세요, 아이돌 그룹 "루미너스" 소속사입니다 🙂 방금 노래 방송 잘 봤어요! 이번 컴백 신곡 커버 콜라보 영상을 함께 찍고 싶은데 가능하실까요? 출연료 ${won(scaleMoney(s, 300000))} 드립니다.',
+    text: (s) => '안녕하세요, 아이돌 그룹 "별무리" 소속사입니다 🙂 방금 노래 방송 잘 봤어요! 이번 컴백 신곡 커버 콜라보 영상을 함께 찍고 싶은데 가능하실까요? 출연료 ${won(scaleMoney(s, 300000))} 드립니다.',
     accept: '콜라보 수락',
     fx: (s) => Fx(money: scaleMoney(s, 300000), followers: 0.06, energy: -15, image: 3),
     result: '아이돌 멤버들과 신곡 커버 영상을 찍었다. 영상이 올라가자마자 아이돌 팬들이 몰려왔다.',
     declined: '"다음에 기회가 되면 꼭 함께해요!" 소속사는 정중히 답장했다.',
     sns: const SnsTopic(
-      tag: '{name}_루미너스',
-      headline: '{name}, 아이돌 "루미너스"와 신곡 커버 콜라보',
+      tag: '{name}_별무리',
+      headline: '{name}, 아이돌 "별무리"와 신곡 커버 콜라보',
       tone: 0.4,
       oppositeTone: -0.3,
       hate: ['우리 오빠들 옆에 왜 저 사람이', '아이돌 인기에 숟가락 얹기', '콜라보 각도 너무 가깝다'],
-      shield: ['{name} 노래 아이돌이랑 붙어도 안 밀림', '케미 좋더라', '{name} 덕분에 루미너스 입덕함'],
+      shield: ['{name} 노래 아이돌이랑 붙어도 안 밀림', '케미 좋더라', '{name} 덕분에 별무리 입덕함'],
       neutral: ['소속사가 먼저 연락했대'],
     ),
   ),
   DmOffer(
     id: 'game_company',
-    from: '넥스트플레이 게임즈',
+    from: '넥스트도트 게임즈',
     color: 0xFF0EA5E9,
     after: 'game',
     minFollowers: 2000,
@@ -2870,9 +2870,9 @@ class Achievement {
 
 final achievements = <Achievement>[
   Achievement('first', '📱', '첫 방송', '스마트폰으로 첫 방송을 켰다', (s) => s.streams >= 1),
-  Achievement('silver', '🥈', '실버 버튼', '구독자 1만 명', (s) => s.followers >= 10000),
-  Achievement('gold', '🥇', '골드 버튼', '구독자 10만 명', (s) => s.followers >= 100000),
-  Achievement('diamond', '💎', '다이아 버튼', '구독자 100만 명', (s) => s.followers >= 1000000),
+  Achievement('silver', '🥈', '실버 명패', '구독자 1만 명', (s) => s.followers >= 10000),
+  Achievement('gold', '🥇', '골드 명패', '구독자 10만 명', (s) => s.followers >= 100000),
+  Achievement('diamond', '💎', '다이아 명패', '구독자 100만 명', (s) => s.followers >= 1000000),
   Achievement('viral', '🚀', '알고리즘의 선택', '방송이 떡상했다', (s) => s.flags.contains('viral')),
   Achievement('penthouse', '🏙️', '반지하에서 펜트하우스로', '펜트하우스에 입주했다', (s) => s.house == 'penthouse'),
   Achievement('rank1', '👑', '스트리머 1위', '인기 순위 1위를 찍었다', (s) => s.lastRanks['me'] == 1),
@@ -3175,7 +3175,7 @@ class Asset {
 
 const assets = [
   Asset('kinggod', '킹갓전자', '💾', 'stock', 72000, 0.022, 0.0012, '반도체 대장주. 느리지만 꾸준하다.'),
-  Asset('nextplay', '넥스트플레이', '🎮', 'stock', 45000, 0.035, 0.0008, '게임 회사. 신작 소식에 출렁인다.'),
+  Asset('nextplay', '넥스트도트', '🎮', 'stock', 45000, 0.035, 0.0008, '게임 회사. 신작 소식에 출렁인다.'),
   Asset('starlight', '스타라이트엔터', '🎤', 'stock', 30000, 0.04, 0.0005, '아이돌 소속사. 컴백 시즌에 강하다.'),
   Asset('bulro', '불로바이오', '🧬', 'stock', 18000, 0.06, 0, '신약 임상 결과에 따라 천국과 지옥.'),
   Asset('dotcoin', '도트코인', '🪙', 'coin', 500, 0.10, 0.002, '도트 감성 코인. 하루에도 수십 퍼센트씩 움직인다.'),

@@ -250,7 +250,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('dm-tab')));
       await tester.pumpAndSettle();
       expect(g.dmUnread, 0);
-      expect(find.textContaining('루미너스'), findsWidgets);
+      expect(find.textContaining('별무리'), findsWidgets);
       await tester.tap(find.byKey(const ValueKey('dm-accept-idol_collab')));
       await tester.pumpAndSettle();
       expect(find.textContaining('수락함'), findsOneWidget);
