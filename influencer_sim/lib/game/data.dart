@@ -155,6 +155,9 @@ const rivals = [
   Rival('yuri', '속삭임 유리', 'asmr', 30000, 0.035, 700000),
   Rival('rain', '빗소리 연구소', 'asmr', 5000, 0.04, 300000),
   Rival('slime', '슬라임 공장', 'asmr', 500, 0.055, 150000),
+  Rival('stockking', '주식왕 박회장', 'stock', 200000, 0.02, 1500000),
+  Rival('coinlead', '코인 리딩방장', 'stock', 30000, 0.04, 600000),
+  Rival('antdiary', '개미 일기', 'stock', 800, 0.05, 200000),
   Rival('dogdad', '댕댕이 아빠', 'pet', 60000, 0.03, 900000),
   Rival('hamhouse', '햄찌하우스', 'pet', 3000, 0.045, 250000),
   Rival('tori', '고양이집사 토리', 'pet', 900, 0.05, 250000),
@@ -171,6 +174,7 @@ const genreTitles = {
   'vlog': '🎬 브이로그 장인',
   'asmr': '🎧 ASMR 장인',
   'pet': '🐾 랜선 집사왕',
+  'stock': '📈 투자의 신',
 };
 
 const snsOvertake = ['{name}, {rival} 제쳤다 ㄷㄷ', '{name} 순위 실화냐 {rival}보다 위네', '{rival} 팬인데 {name}도 보러 감 ㅋㅋ', '{name} 요즘 상승세 미쳤다'];
@@ -270,6 +274,7 @@ const contents = [
   Content(id: 'react', name: '리액션 방송', icon: '😲', energy: 20, base: 1.15, need: {'pc': 1}, risky: true, desc: '화제성은 높지만 사고도 잦다.'),
   Content(id: 'vlog', name: '일상 브이로그', icon: '🎬', energy: 26, base: 1.2, need: {'camera': 2}, desc: '좋은 카메라가 필요하다. 감성이 곧 조회수.'),
   Content(id: 'asmr', name: 'ASMR', icon: '🎧', energy: 14, base: 1.2, need: {'mic': 2}, mic: 2.5, calm: true, desc: '콘덴서 마이크 이상이 필요하다.'),
+  Content(id: 'stock', name: '주식·코인 방송', icon: '📈', energy: 18, base: 1.2, risky: true, desc: '오늘의 추천 종목을 골라 준다. 맞히면 구독자가, 틀리면 원성이 쏟아진다.'),
   Content(id: 'pet', name: '펫 방송', icon: '🐾', energy: 16, base: 1.35, calm: true, desc: '반려동물과 함께하는 힐링 방송. 반려동물이 있어야 한다.'),
 ];
 
@@ -312,6 +317,7 @@ const chatLines = <String, List<String>>{
   'any': ['ㅋㅋㅋㅋㅋ', '하이요~', 'ㅎㅇㅎㅇ', '오늘 텐션 좋네', '첫 방문입니다!', '{name} 왔다', 'ㄹㅇㅋㅋ', '아 개웃겨', '출첵', 'ㅇㅈ', '와 진짜?', '😂😂😂', '👍', '구독 박고 갑니다', '알림 보고 옴'],
   'talk': ['썰 더 풀어줘요', '그래서 그 다음엔?', '목소리 좋다', '공감 100%'],
   'study': ['오늘도 같이 공부해요', '📖', '집중!', '저 시험 3일 남음...'],
+  'stock': ['오늘 뭐 사요??', '물렸어요 살려 주세요', '가즈아!!!', '떡상 각?', '리딩 믿습니다 🙏', '어제 추천한 거 떨어졌는데요', '차트 설명 쉬워서 좋다', '익절 인증 갑니다'],
   'pet': ['귀여워 ㅠㅠㅠ', '애기 이름 뭐예요?', '심장 아파 너무 귀엽다', '간식 사 주세요 후원함', '얼굴 보여 줘요!!', '랜선 집사 왔습니다'],
   'mukbang': ['와 한입 크기 뭐야', '저거 어디 거예요?', '배고프다...', '소리 미쳤다'],
   'sing': ['고음 미쳤다', '앵콜!!', '소름 돋았어요', '신청곡 받나요?'],
@@ -444,6 +450,14 @@ const snsStream = <String, List<String>>{
     '{name} 속삭이는 목소리 반칙',
     '중간에 잠들어서 끝을 못 봄 ㅋㅋ 매일 그럼',
     '{name} ASMR은 수면제임',
+  ],
+  'stock': [
+    '{name} 차트 설명 귀에 쏙쏙 들어옴',
+    '{name} 주식 방송 보고 계좌 개설함',
+    '{name} 오늘 픽 뭐였음?',
+    '방송인이 종목 추천해도 되는 거임?',
+    '{name} 투자 방송은 재미로만 보세요 여러분',
+    '{name}도 물려 있다는 거 웃김 ㅋㅋ',
   ],
   'pet': [
     '{name}네 애기 너무 귀여워 ㅠㅠㅠ',
@@ -2361,6 +2375,50 @@ final gameEvents = <GameEvent>[
       ),
     ],
   ),
+
+  // ───── 재테크 ─────
+  GameEvent(
+    id: 'lead_probe',
+    where: 'crisis',
+    title: '🚨 유사 투자자문 논란',
+    weight: 6,
+    when: (s) => s.flags.contains('pickFailed') && s.followers >= 3000 && !s.flags.contains('leadProbeDone'),
+    text: (s) => '"방송에서 종목 찍어 주는 거, 불법 리딩 아니냐"는 글이 퍼졌다. 손해 본 시청자들이 단체 대화방을 만들었다는 소문도 돈다.',
+    choices: [
+      EventChoice(
+        label: '🙇 사과하고 종목 추천을 그만둔다',
+        result: '"재미로 시작했지만 무책임했습니다." 앞으로는 종목 이름 없이 공부 방송만 하기로 했다.',
+        fx: (s) => const Fx(image: -3, heat: -10, mental: -5, flag: 'leadProbeDone'),
+        sns: const SnsTopic(
+          tag: '{name}_리딩중단',
+          headline: '{name}, 종목 추천 중단 선언… "무책임했다"',
+          tone: 0.2,
+          hate: ['손해는 누가 보상함?', '이제 와서?'],
+          shield: ['빨리 인정한 건 잘했다', '투자는 본인 책임이지', '재미로 본 사람이 대부분임'],
+          neutral: ['방송인 종목 추천 규제 필요할 듯'],
+        ),
+      ),
+      EventChoice(
+        label: '⚖️ "재미로 한 것, 법적 문제없다"고 버틴다 (운에 달림)',
+        result: '변호사가 "개인 의견 표현은 문제없다"는 입장문을 냈다. 논란은 잦아들었다.',
+        chance: (s) => byImage(s, 0.5),
+        fx: (s) => Fx(money: -scaleMoney(s, 100000), heat: -5, flag: 'leadProbeDone'),
+        lose: EventChoice(
+          label: '⚖️ "재미로 한 것, 법적 문제없다"고 버틴다',
+          result: '금융 당국에 민원이 접수됐다는 기사가 났다. 과태료를 물고 사과문까지 올렸다.',
+          fx: (s) => Fx(money: -scaleMoney(s, 500000), heat: 20, image: -10, followers: -0.03, flag: 'leadProbeDone'),
+          sns: const SnsTopic(
+            tag: '{name}_불법리딩',
+            headline: '{name}, 방송 중 종목 추천으로 과태료',
+            tone: -0.6,
+            hate: ['결국 걸렸네', '내 돈 돌려줘', '개미 등쳐 먹는 방송'],
+            shield: ['재미로 본 사람도 많은데…', '과태료 냈으면 끝'],
+            neutral: ['방송인 리딩 첫 처벌 사례?'],
+          ),
+        ),
+      ),
+    ],
+  ),
 ];
 
 // ───── 결말 ─────
@@ -2420,6 +2478,19 @@ class DmOffer {
 
 final dmOffers = <DmOffer>[
   // 장르 1위 제안 (방송 뒤에는 오지 않고, 장르 1위가 되면 온다)
+  DmOffer(
+    id: 'genre_stock',
+    from: '경제TV',
+    color: 0xFFDC2626,
+    after: 'never',
+    minFollowers: 0,
+    chance: 0,
+    text: (s) => '주식 방송 1위 {name}님! 저희 경제 채널 "개미의 하루"에 패널로 나와 주실 수 있을까요? 출연료 ${won(scaleMoney(s, 400000))}.',
+    accept: '패널 출연 수락',
+    fx: (s) => Fx(money: scaleMoney(s, 400000), followers: 0.03, image: 3, energy: -15),
+    result: '"개미의 마음을 아는 스트리머"로 소개됐다. 방송 이후 주식 방송 시청자가 크게 늘었다.',
+    declined: '"시장 좋아지면 다시 연락드릴게요!"',
+  ),
   DmOffer(
     id: 'genre_talk',
     from: 'KBC 라디오',
@@ -2819,6 +2890,10 @@ final achievements = <Achievement>[
   Achievement('missions', '🎯', '미션 마스터', '오늘의 미션 30개 완료', (s) => s.missionsDone >= 30),
   Achievement('mom', '👩', '어머님 팬클럽', '엄마를 방송에 소개했다', (s) => s.flags.contains('family_intrude#0')),
   Achievement('pet', '🐾', '랜선 집사', '반려동물을 분양했다', (s) => s.pet != null),
+  Achievement('ant', '🐜', '개미 투자자', '처음으로 주식이나 코인을 샀다', (s) => s.flags.contains('investor')),
+  Achievement('landlord', '🏢', '건물주', '부동산을 샀다', (s) => s.estates.isNotEmpty),
+  Achievement('lotto', '🎟️', '인생 역전?', '복권 3등 이상 당첨', (s) => s.flags.contains('lottoBig')),
+  Achievement('oracle', '🔮', '족집게', '추천 종목 5번 적중', (s) => s.pickWins >= 5),
   Achievement('genreKing', '👑', '장르의 왕', '한 장르에서 1위를 했다', (s) => s.flags.any((f) => f.startsWith('crown_'))),
   Achievement('allround', '🌈', '올라운더', '세 장르에서 1위를 했다', (s) => s.flags.where((f) => f.startsWith('crown_')).length >= 3),
   Achievement('fashion', '👗', '패셔니스타', '뷰티샵 아이템 5개를 모았다', (s) => s.owned.length >= 5),
@@ -3079,3 +3154,84 @@ const weirdDms = [
 ];
 
 WeirdDm weirdOf(String id) => weirdDms.firstWhere((w) => w.id == id);
+
+// ───── 재테크 ─────
+/// 주식·코인 종목. 가격은 매일 밤 움직인다
+class Asset {
+  const Asset(this.id, this.name, this.icon, this.kind, this.start, this.vol, this.drift, this.desc);
+  final String id;
+  final String name;
+  final String icon;
+
+  /// stock(주식) / coin(코인)
+  final String kind;
+  final double start;
+
+  /// 하루 변동성, 평균 상승률
+  final double vol;
+  final double drift;
+  final String desc;
+}
+
+const assets = [
+  Asset('kinggod', '킹갓전자', '💾', 'stock', 72000, 0.022, 0.0012, '반도체 대장주. 느리지만 꾸준하다.'),
+  Asset('nextplay', '넥스트플레이', '🎮', 'stock', 45000, 0.035, 0.0008, '게임 회사. 신작 소식에 출렁인다.'),
+  Asset('starlight', '스타라이트엔터', '🎤', 'stock', 30000, 0.04, 0.0005, '아이돌 소속사. 컴백 시즌에 강하다.'),
+  Asset('bulro', '불로바이오', '🧬', 'stock', 18000, 0.06, 0, '신약 임상 결과에 따라 천국과 지옥.'),
+  Asset('dotcoin', '도트코인', '🪙', 'coin', 500, 0.10, 0.002, '도트 감성 코인. 하루에도 수십 퍼센트씩 움직인다.'),
+  Asset('mungcoin', '멍멍코인', '🐶', 'coin', 30, 0.18, -0.003, '밈 코인. 가즈아 아니면 나락.'),
+];
+
+Asset assetOf(String id) => assets.firstWhere((a) => a.id == id);
+
+/// 부동산: 사 두면 매일 임대 수익, 값도 조금씩 오른다
+class Estate {
+  const Estate(this.id, this.name, this.icon, this.price, this.rent, this.minFollowers, this.desc);
+  final String id;
+  final String name;
+  final String icon;
+  final int price;
+
+  /// 하루 임대 수익
+  final int rent;
+  final int minFollowers;
+  final String desc;
+}
+
+const estates = [
+  Estate('store', '동네 상가', '🏪', 30000000, 30000, 5000, '1층 작은 상가. 편의점이 세 들어 있다.'),
+  Estate('studio', '역세권 오피스텔', '🏢', 120000000, 110000, 50000, '역 앞 오피스텔. 공실 걱정 없다.'),
+  Estate('building', '꼬마빌딩', '🏬', 600000000, 500000, 300000, '이제 나도 건물주.'),
+];
+
+Estate estateOf(String id) => estates.firstWhere((e) => e.id == id);
+
+/// 복권 등수: (이름, 확률, 상금)
+const lottoTiers = [
+  ('1등', 0.00005, 2000000000),
+  ('2등', 0.0005, 50000000),
+  ('3등', 0.005, 1500000),
+  ('4등', 0.04, 50000),
+  ('5등', 0.15, 5000),
+];
+
+const lottoPrice = 5000;
+
+/// 하루에 살 수 있는 복권 수
+const lottoPerDay = 5;
+
+/// 추천 종목이 떨어지면 오는 DM
+const dmPickFail = [
+  '어제 추천한 거 샀다가 -{pct}% 됐어요. 내 돈 내놔요',
+  '리딩 믿고 들어갔는데 이게 뭡니까??',
+  '책임지세요. 전세금 넣었다고요',
+  '방송에서 추천하지 마세요 진짜',
+  '{name}님 때문에 물렸습니다. 손절 언제 해요?',
+];
+
+/// 추천 종목이 오르면 오는 DM
+const dmPickWin = [
+  '어제 추천 덕분에 +{pct}% 익절했어요!! 감사합니다 🙏',
+  '{name}님 족집게세요? 오늘 치킨 쏩니다',
+  '리딩 적중!! 다음 종목도 알려 주세요',
+];

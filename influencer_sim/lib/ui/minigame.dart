@@ -29,6 +29,7 @@ MiniSpec miniFor(Content c, {String petIcon = '🐾'}) => switch (c.id) {
       'talk' => const MiniSpec(MiniKind.targets, '💬 채팅 낚기', '좋은 채팅(💬❓😂)을 눌러 대답하고, 악플(😡🤬)은 무시하세요!', good: ['💬', '❓', '😂'], bad: ['😡', '🤬']),
       'game' => const MiniSpec(MiniKind.targets, '🎮 에임 연습', '과녁을 빠르게 맞히세요! 💣은 누르면 안 돼요.', good: ['🎯', '👾'], bad: ['💣']),
       'pet' => MiniSpec(MiniKind.targets, '🐾 쓰다듬기', '돌아다니는 반려동물을 쓰다듬어 주세요! 🧶은 건드리지 마세요.', good: [petIcon], bad: ['🧶']),
+      'stock' => const MiniSpec(MiniKind.targets, '📈 상승 신호 잡기', '오르는 신호(📈💰)만 누르고, 떨어지는 신호(📉)는 피하세요!', good: ['📈', '💰'], bad: ['📉']),
       'mukbang' => const MiniSpec(MiniKind.mash, '🍜 폭풍 먹방', '화면을 마구 눌러서 시간 안에 다 먹어 치우세요!', icon: '🍜'),
       'sing' => const MiniSpec(MiniKind.timing, '🎤 박자 맞추기', '움직이는 음표가 초록 칸에 왔을 때 누르세요!', icon: '🎵'),
       'vlog' => const MiniSpec(MiniKind.timing, '🎬 구도 잡기', '움직이는 카메라가 초록 칸에 왔을 때 찍으세요!', icon: '📷'),

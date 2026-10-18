@@ -314,11 +314,30 @@ class GameState {
     this.miniDay = 0,
     this.miniStars = 0,
     Map<String, int>? genreFans,
+    Map<String, double>? prices,
+    Map<String, List<double>>? priceHist,
+    Map<String, int>? holdings,
+    Map<String, int>? costBasis,
+    List<String>? estates,
+    Map<String, int>? estateValue,
+    this.lottoDay = 0,
+    this.lottoCount = 0,
+    this.pickId,
+    this.pickPrice = 0,
+    this.pickViewers = 0,
+    this.pickWins = 0,
+    this.pickLosses = 0,
     List<Mission>? missions,
     List<DayStat>? history,
     List<BestStream>? best,
     List<String>? business,
   })  : genreFans = genreFans ?? {},
+        prices = prices ?? {},
+        priceHist = priceHist ?? {},
+        holdings = holdings ?? {},
+        costBasis = costBasis ?? {},
+        estates = estates ?? [],
+        estateValue = estateValue ?? {},
         owned = owned ?? {},
         missions = missions ?? [],
         history = history ?? [],
@@ -449,6 +468,25 @@ class GameState {
   /// 장르별 팬 (그 콘텐츠로 방송해서 얻은 구독자). 장르별 순위에 쓴다
   final Map<String, int> genreFans;
 
+  /// 재테크: 종목 가격과 최근 기록, 가진 주식 수와 산 돈, 부동산과 지금 값
+  final Map<String, double> prices;
+  final Map<String, List<double>> priceHist;
+  final Map<String, int> holdings;
+  final Map<String, int> costBasis;
+  final List<String> estates;
+  final Map<String, int> estateValue;
+
+  /// 복권을 산 날과 그날 산 수
+  int lottoDay;
+  int lottoCount;
+
+  /// 주식 방송에서 추천한 종목 (다음 날 아침 결과), 그때 가격과 시청자 수, 적중·실패 횟수
+  String? pickId;
+  double pickPrice;
+  int pickViewers;
+  int pickWins;
+  int pickLosses;
+
   /// 뷰티샵에서 산 아이템 (기본 아이템은 빼고)
   final Set<String> owned;
 
@@ -518,6 +556,19 @@ class GameState {
         'miniDay': miniDay,
         'miniStars': miniStars,
         'genreFans': genreFans,
+        'prices': prices,
+        'priceHist': priceHist,
+        'holdings': holdings,
+        'costBasis': costBasis,
+        'estates': estates,
+        'estateValue': estateValue,
+        'lottoDay': lottoDay,
+        'lottoCount': lottoCount,
+        'pickId': pickId,
+        'pickPrice': pickPrice,
+        'pickViewers': pickViewers,
+        'pickWins': pickWins,
+        'pickLosses': pickLosses,
         'owned': owned.toList(),
         'missions': missions.map((m) => m.toJson()).toList(),
         'history': history.map((h) => h.toJson()).toList(),
@@ -581,6 +632,19 @@ class GameState {
         miniDay: j['miniDay'] as int? ?? 0,
         miniStars: (j['miniStars'] as num?)?.toDouble() ?? 0,
         genreFans: Map<String, int>.from(j['genreFans'] as Map? ?? const {}),
+        prices: (j['prices'] as Map? ?? const {}).map((k, v) => MapEntry(k as String, (v as num).toDouble())),
+        priceHist: (j['priceHist'] as Map? ?? const {}).map((k, v) => MapEntry(k as String, [for (final x in v as List) (x as num).toDouble()])),
+        holdings: Map<String, int>.from(j['holdings'] as Map? ?? const {}),
+        costBasis: Map<String, int>.from(j['costBasis'] as Map? ?? const {}),
+        estates: List<String>.from(j['estates'] as List? ?? const []),
+        estateValue: Map<String, int>.from(j['estateValue'] as Map? ?? const {}),
+        lottoDay: j['lottoDay'] as int? ?? 0,
+        lottoCount: j['lottoCount'] as int? ?? 0,
+        pickId: j['pickId'] as String?,
+        pickPrice: (j['pickPrice'] as num?)?.toDouble() ?? 0,
+        pickViewers: j['pickViewers'] as int? ?? 0,
+        pickWins: j['pickWins'] as int? ?? 0,
+        pickLosses: j['pickLosses'] as int? ?? 0,
         owned: Set<String>.from(j['owned'] as List? ?? const []),
         missions: (j['missions'] as List? ?? const []).map((m) => Mission.fromJson(m as Map<String, dynamic>)).toList(),
         history: (j['history'] as List? ?? const []).map((h) => DayStat.fromJson(h as List)).toList(),

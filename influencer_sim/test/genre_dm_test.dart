@@ -24,7 +24,7 @@ StreamResult gain(int n) => StreamResult(viewers: 100, gain: n, donation: 0, ads
 void main() {
   group('장르별 순위', () {
     test('장르마다 라이벌이 3명씩, 모든 콘텐츠에 장르가 있다', () {
-      expect(rivals.length, 27);
+      expect(rivals.length, contents.length * 3);
       for (final c in contents) {
         expect(rivals.where((r) => r.genre == c.id).length, 3, reason: c.id);
         expect(genreTitles[c.id], isNotNull);
