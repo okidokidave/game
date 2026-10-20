@@ -61,6 +61,49 @@ void main() {
     });
   });
 
+  group('뷰티샵 확장', () {
+    test('분장·날개는 소품과 따로 입고, 함께 저장된다', () async {
+      final g = await make();
+      g.s.money = 10000000;
+      expect(g.owns(styleOf('face_none')), isTrue);
+      expect(g.owns(styleOf('back_none')), isTrue);
+      final q = quality(g.s, contentOf('talk'));
+      g.buyStyle(styleOf('acc_halo'));
+      g.buyStyle(styleOf('face_clown'));
+      g.buyStyle(styleOf('back_angel'));
+      g.buyStyle(styleOf('hair_twin'));
+      expect(g.s.look.acc, 'halo');
+      expect(g.s.look.face, 'clown');
+      expect(g.s.look.back, 'angel');
+      expect(g.s.look.hairStyle, 'twin');
+      final bonus = ['acc_halo', 'face_clown', 'back_angel', 'hair_twin'].map((id) => styleOf(id).bonus).reduce((a, b) => a + b);
+      expect(quality(g.s, contentOf('talk')), closeTo(q + bonus, 1e-9));
+      final back = GameState.fromJson(g.s.toJson());
+      expect(back.look.face, 'clown');
+      expect(back.look.back, 'angel');
+      // 벗기
+      g.wear(styleOf('back_none'));
+      g.wear(styleOf('face_none'));
+      expect(g.s.look.back, 'none');
+      expect(g.s.look.face, 'none');
+      expect(g.s.look.acc, 'halo');
+      // 예전 저장 데이터에는 분장·날개가 없다
+      final old = Look.fromJson(const {'hair': 1, 'shirt': 2});
+      expect(old.face, 'none');
+      expect(old.back, 'none');
+    });
+
+    test('새 아이템은 모두 탭에 들어가고 이름이 겹치지 않는다', () {
+      for (final id in ['hair_afro', 'outfit_tux', 'outfit_dino', 'outfit_bear', 'outfit_kinder', 'acc_kinderhat', 'acc_helmet', 'face_oni', 'back_devil']) {
+        final it = styleOf(id);
+        expect(['hair', 'outfit', 'acc', 'face', 'back'], contains(it.kind));
+        expect(it.price, greaterThan(0));
+        expect(wearing(tryOn(const Look(hair: 0, shirt: 0), it), it), isTrue);
+      }
+      expect(styleItems.map((x) => x.id).toSet().length, styleItems.length);
+    });
+  });
+
   group('펫샵', () {
     test('분양하면 펫 방송이 열리고 매일 사료값이 나간다', () async {
       final g = await make();

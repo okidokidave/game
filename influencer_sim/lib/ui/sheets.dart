@@ -543,7 +543,23 @@ class _BeautySheet extends StatefulWidget {
 }
 
 class _BeautySheetState extends State<_BeautySheet> {
-  static const _tabs = [('hair', '💇 헤어'), ('dye', '🎨 염색'), ('outfit', '👕 옷'), ('acc', '👓 소품'), ('pet', '🐾 펫')];
+  static const _tabs = [('hair', '💇 헤어'), ('dye', '🎨 염색'), ('outfit', '👕 옷'), ('acc', '👓 소품'), ('face', '🎭 분장'), ('back', '👼 날개'), ('pet', '🐾 펫')];
+
+  /// 소품·분장·날개 목록 아이콘
+  static const _icons = {
+    'glasses': '👓',
+    'sunglasses': '🕶️',
+    'cap': '🧢',
+    'catears': '🐱',
+    'headset': '🎧',
+    'kinderhat': '👒',
+    'halo': '😇',
+    'helmet': '🏍️',
+    'clown': '🤡',
+    'oni': '👹',
+    'angel': '👼',
+    'devil': '😈',
+  };
   String _tab = 'hair';
 
   /// 입어 보는 중인 아이템 / 보고 있는 펫
@@ -683,7 +699,7 @@ class _BeautySheetState extends State<_BeautySheet> {
       alignment: Alignment.center,
       child: Text(switch (it.kind) {
         'hair' => '💇',
-        'acc' => it.value == 'none' ? '✖️' : '👓',
+        'acc' || 'face' || 'back' => _icons[it.value] ?? '✖️',
         _ => '',
       }, style: const TextStyle(fontSize: 18)),
     );

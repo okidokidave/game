@@ -2923,7 +2923,7 @@ class StyleItem {
   const StyleItem(this.id, this.kind, this.name, this.price, {this.value = '', this.color = 0, this.accent = 0, this.bonus = 0, this.desc = ''});
   final String id;
 
-  /// hair(머리 모양) / dye(염색) / outfit(옷) / acc(액세서리)
+  /// hair(머리 모양) / dye(염색) / outfit(옷) / acc(액세서리) / face(가면·분장) / back(날개)
   final String kind;
   final String name;
   final int price;
@@ -2949,6 +2949,8 @@ const styleItems = [
   StyleItem('hair_pony', 'hair', '포니테일', 50000, value: 'pony', bonus: 0.01, desc: '발랄하게 묶은 머리'),
   StyleItem('hair_twoblock', 'hair', '투블럭', 80000, value: 'twoblock', bonus: 0.02, desc: '옆을 짧게 쳐 올린 머리'),
   StyleItem('hair_spiky', 'hair', '뾰족머리', 80000, value: 'spiky', bonus: 0.02, desc: '왁스로 세운 머리'),
+  StyleItem('hair_twin', 'hair', '양갈래 머리', 70000, value: 'twin', bonus: 0.02, desc: '빨간 리본으로 묶은 양갈래'),
+  StyleItem('hair_afro', 'hair', '아프로펌', 120000, value: 'afro', bonus: 0.02, desc: '뽀글뽀글 동그란 머리'),
   StyleItem('dye_black', 'dye', '흑발', 20000, color: 0x2A2230),
   StyleItem('dye_brown', 'dye', '갈색', 30000, color: 0x6B4226),
   StyleItem('dye_blond', 'dye', '금발', 60000, color: 0xE8C66A, bonus: 0.01),
@@ -2961,7 +2963,11 @@ const styleItems = [
   StyleItem('outfit_training', 'outfit', '트레이닝복', 150000, value: 'training', color: 0x2E6B4F, bonus: 0.02, desc: '양옆에 흰 줄'),
   StyleItem('outfit_dress', 'outfit', '원피스', 200000, value: 'dress', color: 0xE89BC0, bonus: 0.03, desc: '하늘하늘한 원피스'),
   StyleItem('outfit_pajama', 'outfit', '고양이 잠옷', 300000, value: 'pajama', color: 0xF3E0EA, accent: 0xFF9FC0, bonus: 0.03, desc: '침대에서 바로 방송한 느낌'),
+  StyleItem('outfit_kinder', 'outfit', '유치원 원복', 100000, value: 'kinder', color: 0xFFD23F, accent: 0xE8463C, bonus: 0.02, desc: '노란 원복과 이름표'),
+  StyleItem('outfit_bear', 'outfit', '곰돌이 잠옷', 300000, value: 'bear', color: 0xA8754A, accent: 0xF3D9B8, bonus: 0.03, desc: '귀 달린 후드까지 쓰는 동물 잠옷'),
+  StyleItem('outfit_dino', 'outfit', '공룡 잠옷', 350000, value: 'dino', color: 0x6CC24A, accent: 0xF4E27A, bonus: 0.03, desc: '이빨 후드와 등 가시'),
   StyleItem('outfit_suit', 'outfit', '정장', 500000, value: 'suit', color: 0x2E3448, accent: 0xE8463C, bonus: 0.04, desc: '시상식에도 문제없다'),
+  StyleItem('outfit_tux', 'outfit', '턱시도', 800000, value: 'tux', color: 0x1C1C24, accent: 0x1C1C24, bonus: 0.05, desc: '나비넥타이까지 완벽'),
   StyleItem('outfit_stage', 'outfit', '아이돌 무대의상', 2000000, value: 'stage', color: 0xF4F4F4, accent: 0xF2C14E, bonus: 0.07, desc: '반짝이는 금장 포인트'),
   StyleItem('acc_none', 'acc', '없음', 0, value: 'none', desc: '액세서리 빼기'),
   StyleItem('acc_glasses', 'acc', '뿔테 안경', 50000, value: 'glasses', bonus: 0.01, desc: '지적인 분위기'),
@@ -2969,10 +2975,19 @@ const styleItems = [
   StyleItem('acc_cap', 'acc', '캡모자', 80000, value: 'cap', bonus: 0.01, desc: '빨간 야구모자'),
   StyleItem('acc_catears', 'acc', '고양이 귀 머리띠', 150000, value: 'catears', bonus: 0.02, desc: '방송용 필수템'),
   StyleItem('acc_headset', 'acc', '게이밍 헤드셋', 300000, value: 'headset', bonus: 0.03, desc: '초록 불빛이 나는 헤드셋'),
+  StyleItem('acc_kinderhat', 'acc', '유치원 모자', 60000, value: 'kinderhat', bonus: 0.01, desc: '노란 동그란 모자'),
+  StyleItem('acc_halo', 'acc', '엔젤링', 200000, value: 'halo', bonus: 0.03, desc: '머리 위에 뜬 금빛 고리'),
+  StyleItem('acc_helmet', 'acc', '바이크 헬멧', 250000, value: 'helmet', bonus: 0.02, desc: '얼굴까지 덮는 풀페이스'),
+  StyleItem('face_none', 'face', '없음', 0, value: 'none', desc: '분장 지우기'),
+  StyleItem('face_clown', 'face', '삐에로 분장', 150000, value: 'clown', bonus: 0.02, desc: '하얀 얼굴에 빨간 코'),
+  StyleItem('face_oni', 'face', '오니 가면', 300000, value: 'oni', bonus: 0.03, desc: '뿔 달린 빨간 도깨비 가면'),
+  StyleItem('back_none', 'back', '없음', 0, value: 'none', desc: '날개 떼기'),
+  StyleItem('back_angel', 'back', '천사 날개', 500000, value: 'angel', bonus: 0.04, desc: '새하얀 깃털 날개'),
+  StyleItem('back_devil', 'back', '악마 날개', 500000, value: 'devil', bonus: 0.04, desc: '보랏빛 박쥐 날개'),
 ];
 
 /// 처음부터 가진 아이템
-const freeStyles = {'hair_short', 'hair_long', 'outfit_tee', 'acc_none'};
+const freeStyles = {'hair_short', 'hair_long', 'outfit_tee', 'acc_none', 'face_none', 'back_none'};
 
 StyleItem styleOf(String id) => styleItems.firstWhere((x) => x.id == id);
 
@@ -2981,6 +2996,8 @@ Look tryOn(Look look, StyleItem it) => switch (it.kind) {
       'hair' => look.copyWith(style: it.value, long: it.value == 'long'),
       'dye' => look.copyWith(hair: it.color),
       'outfit' => look.copyWith(outfit: it.value),
+      'face' => look.copyWith(face: it.value),
+      'back' => look.copyWith(back: it.value),
       _ => look.copyWith(acc: it.value),
     };
 
@@ -2989,6 +3006,8 @@ bool wearing(Look look, StyleItem it) => switch (it.kind) {
       'hair' => look.hairStyle == it.value,
       'dye' => look.hair == it.color,
       'outfit' => look.outfit == it.value,
+      'face' => look.face == it.value,
+      'back' => look.back == it.value,
       _ => look.acc == it.value,
     };
 

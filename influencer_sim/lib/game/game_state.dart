@@ -2,7 +2,7 @@
 
 /// 캐릭터 외모 (색은 0xRRGGBB)
 class Look {
-  const Look({required this.hair, required this.shirt, this.long = false, this.gender = 'f', this.style = '', this.outfit = 'tee', this.acc = 'none'});
+  const Look({required this.hair, required this.shirt, this.long = false, this.gender = 'f', this.style = '', this.outfit = 'tee', this.acc = 'none', this.face = 'none', this.back = 'none'});
   final int hair;
   final int shirt;
   final bool long;
@@ -11,14 +11,16 @@ class Look {
   final String gender;
   bool get male => gender == 'm';
 
-  /// 머리 모양 (비어 있으면 long에 따라 숏컷/장발), 옷, 액세서리 (data.dart의 styleItems)
+  /// 머리 모양 (비어 있으면 long에 따라 숏컷/장발), 옷, 액세서리, 얼굴 분장, 등 (data.dart의 styleItems)
   final String style;
   final String outfit;
   final String acc;
+  final String face;
+  final String back;
 
   String get hairStyle => style.isEmpty ? (long ? 'long' : 'short') : style;
 
-  Look copyWith({int? hair, bool? long, String? style, String? outfit, String? acc}) => Look(
+  Look copyWith({int? hair, bool? long, String? style, String? outfit, String? acc, String? face, String? back}) => Look(
         hair: hair ?? this.hair,
         shirt: shirt,
         long: long ?? this.long,
@@ -26,9 +28,11 @@ class Look {
         style: style ?? this.style,
         outfit: outfit ?? this.outfit,
         acc: acc ?? this.acc,
+        face: face ?? this.face,
+        back: back ?? this.back,
       );
 
-  Map<String, dynamic> toJson() => {'hair': hair, 'shirt': shirt, 'long': long, 'gender': gender, 'style': style, 'outfit': outfit, 'acc': acc};
+  Map<String, dynamic> toJson() => {'hair': hair, 'shirt': shirt, 'long': long, 'gender': gender, 'style': style, 'outfit': outfit, 'acc': acc, 'face': face, 'back': back};
   factory Look.fromJson(Map<String, dynamic> j) => Look(
         hair: j['hair'] as int,
         shirt: j['shirt'] as int,
@@ -37,6 +41,8 @@ class Look {
         style: j['style'] as String? ?? '',
         outfit: j['outfit'] as String? ?? 'tee',
         acc: j['acc'] as String? ?? 'none',
+        face: j['face'] as String? ?? 'none',
+        back: j['back'] as String? ?? 'none',
       );
 }
 

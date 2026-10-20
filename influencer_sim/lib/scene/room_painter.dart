@@ -237,7 +237,29 @@ Map<String, int> _charPalette(Look look, {required bool blink, required bool tal
   'o': 0xFF5FD38A,
   'p': 0xFF3B4A6B,
   'k': 0xFF2A2230,
+  // 고양이 귀 안쪽, 엔젤링, 오니 가면, 삐에로, 헬멧, 유치원 모자, 날개
+  'P': 0xFFFF9FC0,
+  'y': 0xFFF5D547,
+  'Y': 0xFFE0B22E,
+  'R': 0xFFD8342C,
+  'n': 0xFFF2E6C8,
+  'W': 0xFFFFFFFF,
+  'B': 0xFF4F7FE0,
+  'H': 0xFF3A6FD8,
+  'v': 0xFF2B3550,
+  'V': 0xFF8FB4E0,
+  'K': 0xFFFFD23F,
+  'J': 0xFFE0B020,
+  'Q': 0xFFD3D8E4,
+  'D': 0xFF4A2370,
+  'E': 0xFF8E44AD,
 };
+
+/// 머리를 덮는 모자 (후드·머리 위 장식이 가려진다)
+const _hats = {'cap', 'helmet', 'kinderhat'};
+
+/// 후드가 달린 잠옷
+const _hoods = {'bear', 'dino'};
 
 /// 한 칸 바꾸기
 String _put(String row, int i, String ch) => i < 0 || i >= row.length ? row : row.substring(0, i) + ch + row.substring(i + 1);
@@ -268,6 +290,47 @@ List<String> _headRows(Look look, bool closed) {
     case 'spiky':
       rows[0] = '.h.h.hh.h.h.';
       rows[1] = '.hhhhhhhhhh.';
+    case 'twin':
+      // 빨간 리본으로 묶은 양갈래
+      for (final r in const [2, 3]) {
+        rows[r] = _put(_put(_put(_put(rows[r], 0, 'c'), 11, 'c'), 1, 'c'), 10, 'c');
+      }
+      for (var i = 4; i <= 9; i++) {
+        rows[i] = _put(_put(rows[i], 0, 'h'), 11, 'h');
+      }
+      rows.addAll(['hh........hh', 'hh........hh', '.h........h.']);
+    case 'afro':
+      // 옆으로 부푼 동그란 머리 (위로 솟은 부분은 _topRows)
+      // 진한 점은 곱슬곱슬한 결
+      rows[0] = 'hhuhhhhhuhhh';
+      rows[1] = 'hhhhhuhhhhuh';
+      rows[2] = 'huhhhhhuhhhh';
+      rows[3] = 'hhhhuhhhhhuh';
+      rows[4] = 'h${rows[4].substring(1, 11)}h';
+      for (var i = 5; i <= 8; i++) {
+        rows[i] = _put(_put(rows[i], 0, 'h'), 11, 'h');
+      }
+  }
+  // 동물 잠옷 후드: 머리카락을 덮고 얼굴만 보인다
+  if (_hoods.contains(look.outfit) && !_hats.contains(look.acc)) {
+    rows = [for (var i = 0; i < 10; i++) i == 4 ? (look.outfit == 'dino' ? '.twsswsswst.' : '.tsssssssst.') : rows[i].replaceAll('h', 't').replaceAll('u', 't').replaceAll('c', 't')];
+  }
+  switch (look.face) {
+    case 'clown':
+      // 하얀 얼굴, 파란 눈 장식, 빨간 코와 입
+      rows = [for (var i = 0; i < rows.length; i++) i >= 4 && i <= 9 ? rows[i].replaceAll('s', 'W').replaceAll('b', 'c') : rows[i]];
+      rows[5] = _put(_put(rows[5], 3, 'B'), 8, 'B');
+      rows[7] = _put(_put(rows[7], 5, 'c'), 6, 'c');
+      rows[8] = _put(_put(_put(_put(rows[8], 3, 'B'), 8, 'B'), 5, 'c'), 6, 'c');
+    case 'oni':
+      // 빨간 도깨비 가면: 성난 눈썹, 노란 눈, 송곳니 (뿔은 _topRows)
+      rows = [for (var i = 0; i < rows.length; i++) i >= 4 && i <= 9 ? rows[i].replaceAll('s', 'R').replaceAll('b', 'R').replaceAll('m', 'R') : rows[i]];
+      rows[5] = _put(_put(_put(_put(rows[5], 3, 'k'), 4, 'k'), 7, 'k'), 8, 'k');
+      for (final r in const [6, 7]) {
+        rows[r] = rows[r].replaceAll('e', 'Y');
+      }
+      rows[8] = _put(_put(_put(_put(rows[8], 4, 'k'), 5, 'k'), 6, 'k'), 7, 'k');
+      rows[9] = _put(_put(rows[9], 4, 'w'), 7, 'w');
   }
   switch (look.acc) {
     case 'glasses':
@@ -304,15 +367,74 @@ List<String> _headRows(Look look, bool closed) {
       }
       rows[8] = _put(rows[8], 11, 'k');
       rows[9] = _put(rows[9], 10, 'k');
+    case 'kinderhat':
+      rows[0] = '..KKKKKKKK..';
+      rows[1] = '.KKKKKKKKKK.';
+      rows[2] = '.KKKKKKKKKK.';
+      rows[3] = 'JJJJJJJJJJJJ';
+    case 'helmet':
+      // 풀페이스 헬멧: 얼굴은 짙은 바이저 뒤로 가려진다
+      const helmet = [
+        '..HHHHHHHH..',
+        '.HHHHHHHHHH.',
+        'HHwwwwwwwwHH',
+        'HHHHHHHHHHHH',
+        'HHHHHHHHHHHH',
+        'HvvvvvvvvvvH',
+        'HvVvvvvvvvvH',
+        'HvvVvvvvvvvH',
+        'HHHHHHHHHHHH',
+        '.HHHkkkkHHH.',
+      ];
+      rows = [...helmet, ...rows.skip(10)];
   }
   if (closed) rows = rows.map((r) => r.replaceAll('e', 'm')).toList();
   return rows;
 }
 
-/// 머리 위로 올라가는 것 (고양이 귀 머리띠). 머리 위 2줄
-List<String>? _topRows(Look look) => look.acc == 'catears' ? const ['.k........k.', '.kpk....kpk.'] : null;
+/// 아래 줄을 맞춰 겹친다 ('.'은 비어 있는 칸)
+List<String> _overlay(List<String> base, List<String> top) {
+  final n = max(base.length, top.length);
+  final a = [...List.filled(n - base.length, '.' * 12), ...base];
+  final b = [...List.filled(n - top.length, '.' * 12), ...top];
+  return [
+    for (var j = 0; j < n; j++)
+      String.fromCharCodes([for (var i = 0; i < 12; i++) b[j][i] == '.' ? a[j].codeUnitAt(i) : b[j].codeUnitAt(i)]),
+  ];
+}
 
-const _earPal = {'k': 0xFF2A2230, 'p': 0xFFFF9FC0};
+/// 머리 위로 올라가는 것 (아프로 머리, 후드 귀·가시, 도깨비 뿔, 고양이 귀, 엔젤링). 아래 줄이 머리 바로 위
+List<String> _topRows(Look look) {
+  final hat = _hats.contains(look.acc);
+  var rows = <String>[];
+  if (!hat) {
+    if (_hoods.contains(look.outfit)) {
+      rows = look.outfit == 'bear' ? const ['..tt....tt..', '..tx....xt..'] : const ['....x..x....', '...xx.xx....'];
+    } else if (look.hairStyle == 'afro') {
+      rows = const ['...hhhhhh...', '.hhhuhhhhhh.', 'hhhhhhhuhhhh'];
+    }
+    if (look.face == 'oni') rows = _overlay(rows, const ['.n........n.', '.nn......nn.']);
+  }
+  switch (look.acc) {
+    case 'catears':
+      rows = _overlay(rows, const ['.k........k.', '.kPk....kPk.']);
+    case 'halo':
+      // 머리(와 그 위 장식) 위에 한 칸 띄워 뜬다
+      rows = ['...yyyyyy...', '..y......y..', '...YYYYYY...', ...rows];
+  }
+  return rows;
+}
+
+/// 등 뒤 날개 (22칸, 몸 왼쪽 5칸부터). 없으면 null
+List<String>? _backRows(Look look) {
+  final left = switch (look.back) {
+    'angel' => const ['...WW', '..WWW', '.WWWQ', 'WWWQW', 'WWQWW', '.WQW.', '..W..'],
+    'devil' => const ['D....', 'DD...', 'DEDD.', 'DEEDD', 'DEEED', 'D.D.D'],
+    _ => null,
+  };
+  if (left == null) return null;
+  return [for (final r in left) '$r${'.' * 12}${r.split('').reversed.join()}'];
+}
 
 /// 옷 무늬를 몸 스프라이트에 입힌다
 List<String> _bodyRows(Look look, List<String> base) {
@@ -338,6 +460,25 @@ List<String> _bodyRows(Look look, List<String> base) {
     case 'pajama':
       rows[1] = putT(putT(rows[1], 3, 'x'), 8, 'x');
       rows[3] = putT(putT(rows[3], 5, 'x'), 6, 'x');
+    case 'kinder':
+      // 하얀 깃과 빨간 이름표
+      rows[0] = putT(putT(rows[0], 4, 'w'), 7, 'w');
+      rows[2] = putT(putT(rows[2], 3, 'x'), 4, 'x');
+    case 'bear':
+      for (var i = 2; i <= 3; i++) {
+        rows[i] = putT(putT(rows[i], 5, 'x'), 6, 'x');
+      }
+    case 'dino':
+      for (var i = 1; i <= 3; i++) {
+        rows[i] = putT(putT(rows[i], 5, 'x'), 6, 'x');
+      }
+    case 'tux':
+      // 하얀 셔츠, 나비넥타이, 단추
+      rows[0] = putT(putT(putT(putT(rows[0], 4, 'w'), 5, 'k'), 6, 'k'), 7, 'w');
+      for (var i = 1; i <= 3; i++) {
+        rows[i] = putT(putT(rows[i], 5, 'w'), 6, 'w');
+      }
+      rows[2] = _put(rows[2], 5, 'k');
     case 'stage':
       rows[4] = rows[4].replaceAll('d', 'x');
       rows[1] = putT(putT(rows[1], 3, 'x'), 8, 'x');
@@ -863,10 +1004,12 @@ class RoomPainter extends CustomPainter {
       final head = _headRows(s.look, bowing);
       final x0 = c.dx - 6;
       final y0 = c.dy - 18;
+      final wings = _backRows(s.look);
+      if (wings != null) _rows(canvas, wings, apal, x0 - 5, y0 + 7);
       _rows(canvas, _bodyRows(s.look, _bodyStand), apal, x0, y0 + 10);
       _rows(canvas, head, apal, x0, y0 + (bowing ? 3 : 0));
       final top = _topRows(s.look);
-      if (top != null) _rows(canvas, top, _earPal, x0, y0 - 2 + (bowing ? 3 : 0));
+      _rows(canvas, top, apal, x0, y0 - top.length + (bowing ? 3 : 0));
     } else if (mode != 'away') {
       final seated = live || mode == 'idle';
       final c = seated ? at(_seatX, _seatY, _g(s, 'pc') == 0 ? 0 : 12) : at(48, 74);
@@ -880,10 +1023,12 @@ class RoomPainter extends CustomPainter {
       final total = 10 + body.length;
       final x0 = c.dx - 6;
       final y0 = c.dy - total + bob;
+      final wings = _backRows(s.look);
+      if (wings != null) _rows(canvas, wings, pal, x0 - 5, y0 + 7 - (tick % 10 < 5 ? 0 : 1));
       _rows(canvas, _bodyRows(s.look, body), pal, x0, y0 + 10 - bob);
       _rows(canvas, head, pal, x0, y0);
       final top = _topRows(s.look);
-      if (top != null) _rows(canvas, top, _earPal, x0, y0 - 2);
+      _rows(canvas, top, pal, x0, y0 - top.length);
       if (_g(s, 'mic') == 1) _rect(canvas, x0 + 4, y0 + 11 - bob, 1, 1, 0xFF222222);
       if (live && _g(s, 'light') >= 2) _rect(canvas, x0 - 2, y0 - 2, 16, total + 4.0, 0xFFFFFADC, 0.18);
     }
@@ -1009,13 +1154,16 @@ class PortraitPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final head = _headRows(look, false);
     final top = _topRows(look);
+    final wings = _backRows(look);
     final rows = [...head.take(10), ..._bodyRows(look, _bodyStand)];
     final extra = head.length > 10 ? head.sublist(10) : const <String>[];
-    const w = 12.0;
-    final h = rows.length.toDouble() + 2;
+    // 날개가 있으면 양옆으로 5칸씩 넓다
+    final side = wings == null ? 0 : 5;
+    final w = 12.0 + side * 2;
+    final h = rows.length.toDouble() + top.length;
     final scale = min(size.width / (w + 2), size.height / (h + 2)).floorToDouble();
-    final x0 = (size.width - w * scale) / 2;
-    final y0 = (size.height - h * scale) / 2 + 2 * scale + (tick % 20 < 10 ? 0 : -scale);
+    final x0 = (size.width - w * scale) / 2 + side * scale;
+    final y0 = (size.height - h * scale) / 2 + top.length * scale + (tick % 20 < 10 ? 0 : -scale);
     final pal = _charPalette(look, blink: tick % 30 == 0, talk: false);
     final paint = Paint()..isAntiAlias = false;
     void cell(int i, int j, int c) {
@@ -1023,27 +1171,20 @@ class PortraitPainter extends CustomPainter {
       canvas.drawRect(Rect.fromLTWH(x0 + i * scale, y0 + j * scale, scale + 0.5, scale + 0.5), paint);
     }
 
-    for (var j = 0; j < rows.length; j++) {
-      for (var i = 0; i < rows[j].length; i++) {
-        final c = pal[rows[j][i]];
-        if (c != null) cell(i, j, c);
-      }
-    }
-    if (top != null) {
-      for (var j = 0; j < top.length; j++) {
-        for (var i = 0; i < top[j].length; i++) {
-          final c = _earPal[top[j][i]];
-          if (c != null) cell(i, j - 2, c);
+    void layer(List<String> part, int dx, int dy) {
+      for (var j = 0; j < part.length; j++) {
+        for (var i = 0; i < part[j].length; i++) {
+          final c = pal[part[j][i]];
+          if (c != null) cell(i + dx, j + dy, c);
         }
       }
     }
+
+    if (wings != null) layer(wings, -side, 7 - (tick % 10 < 5 ? 0 : 1));
+    layer(rows, 0, 0);
+    layer(top, 0, -top.length);
     // 긴 머리는 몸 위로 내려온다
-    for (var k = 0; k < extra.length; k++) {
-      for (var i = 0; i < extra[k].length; i++) {
-        final c = pal[extra[k][i]];
-        if (c != null) cell(i, 10 + k, c);
-      }
-    }
+    layer(extra, 0, 10);
   }
 
   @override
